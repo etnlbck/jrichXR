@@ -1,19 +1,58 @@
-# Self-hosted third-party bundles (large / licensed separately)
-vendor/*.js
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Binary assets — track with Git LFS if you want them versioned
-assets/models/*.glb
-assets/audio/*.mp3
-assets/overlays/*.png
-assets/targets/*
+# testing
+/coverage
 
-# Local certs for HTTPS dev
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
 *.pem
 cert.pem
 key.pem
 
-# Deps / build / OS
-node_modules/
-dist/
-.DS_Store
-*.log
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# XR engine runtime (copied by postinstall from node_modules)
+/public/xr/engine/
+/public/xr/xrextras/
+/public/xr/landing-page/
+/public/xr/COPY_MANIFEST.json
+
+# Binary sculpture assets (track with Git LFS if desired)
+# Keep target JSON + test marker images committed for Milestone 0.
+/public/assets/models/*.glb
+/public/assets/audio/*.mp3
+/public/assets/overlays/*.png
+
+# Local scratch for marker generation
+/scripts/tmp/
+
+# npm pack leftovers
+*.tgz

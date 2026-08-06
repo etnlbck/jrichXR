@@ -1,0 +1,32 @@
+:root {
+  --ink: #0d0d0f;
+  --stone: #14131a;
+  --ember: #ff6a1a;
+  --violet: #7a4cff;
+  --paper: #f4f1ea;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family:
+    'Avenir Next',
+    'Segoe UI',
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif;
+  color: var(--paper);
+}
+
+a {
+  color: inherit;
+}

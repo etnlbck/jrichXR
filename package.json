@@ -1,0 +1,35 @@
+{
+  "name": "jrichforms-xr-poc",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "node scripts/copy-xr-assets.mjs",
+    "copy-xr": "node scripts/copy-xr-assets.mjs",
+    "make-target": "node scripts/make-test-target.mjs"
+  },
+  "dependencies": {
+    "@8thwall/engine-binary": "^1.0.0",
+    "@8thwall/landing-page": "^1.0.0",
+    "@8thwall/xrextras": "^1.0.0",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "three": "^0.128.0"
+  },
+  "devDependencies": {
+    "@8thwall/image-target-cli": "^1.0.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.128.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "sharp": "^0.35.3",
+    "typescript": "^5"
+  },
+  "description": "JRichForms XR — Web AR POC for Untitled No. 7"
+}

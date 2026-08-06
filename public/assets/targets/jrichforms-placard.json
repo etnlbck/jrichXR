@@ -1,0 +1,23 @@
+{
+  "imagePath": "/assets/targets/jrichforms-placard_luminance.png",
+  "metadata": null,
+  "name": "jrichforms-placard",
+  "type": "PLANAR",
+  "properties": {
+    "left": 128,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": false,
+    "originalWidth": 1024,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "jrichforms-placard_original.png",
+    "croppedImage": "jrichforms-placard_cropped.png",
+    "thumbnailImage": "jrichforms-placard_thumbnail.png",
+    "luminanceImage": "jrichforms-placard_luminance.png"
+  },
+  "created": 1786022229364,
+  "updated": 1786022229364
+}

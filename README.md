@@ -2,53 +2,64 @@
 
 Web AR for a black-obsidian sculpture: scan a marker beside the piece → the finished 3D model appears anchored → tap to morph to the raw, guide-marked stone while the artist narrates. No app install. Runs in mobile Safari/Chrome.
 
-Built on the open-source [8th Wall](https://8thwall.org) engine (image-target tracking, MIT-licensed `engine` package) rendered with Three.js. iOS Safari has no WebXR, so the engine's **WASM computer-vision runtime** does the tracking over the camera feed.
+**Stack:** Next.js (App Router) on Vercel · [8th Wall](https://8thwall.org) engine (`@8thwall/engine-binary`, image targets, world tracking disabled) · Three.js.
 
-See **[BUILD-PLAN.md](BUILD-PLAN.md)** for the full plan, milestones, and risks.
+See **[BUILD-PLAN.md](BUILD-PLAN.md)** for milestones and risks, **[ASSETS.md](ASSETS.md)** for the capture checklist, **[LICENSING.md](LICENSING.md)** for engine license notes.
 
 ## Status
 
-Runnable **skeleton**. Two things must be dropped in before it works on a phone:
+Next.js app with Milestone 0 ready:
 
-1. **The 8th Wall engine build** — see the two `vendor/*.js` includes in `index.html`. The old hosted `appKey` CDN was retired when 8th Wall open-sourced (Feb 2026); self-host the engine + `xrextras` bundles from the [repo](https://github.com/8thwall/8thwall). Reconcile the pipeline API in `js/app.js` with the current [engine docs](https://8thwall.org/docs/engine/overview). *(This is Milestone 0 — de-risk it first.)*
-2. **Real assets** — `assets/models/finished.glb`, `assets/models/raw.glb`, `assets/overlays/guide-marks.png`, `assets/audio/narration.mp3`, and a processed image target. See each `assets/*/README.md`.
+1. Engine + XRExtras + Landing Page copied to `public/xr/` on `npm install`.
+2. Test image target committed under `public/assets/targets/` (print the luminance/cropped PNG).
+3. Placeholder cube until you drop real GLBs and set `usePlaceholderCube: false` in [`lib/config.ts`](lib/config.ts).
 
 ## Project layout
 
 ```
-index.html          Entry point; loads engine, Three.js, app code
-js/
-  config.js         Piece metadata, asset paths, placement, morph timings
-  app.js            Boots 8th Wall pipeline (image-target-only, no SLAM binary)
-  scene.js          Three.js scene, model loading, raw↔finished morph
-  ui.js             State machine, narration, provenance card, tap handling
-css/styles.css      Minimal UI over the camera feed
-assets/             Drop-in models, overlay, audio, image target (see per-folder READMEs)
-vendor/             Self-hosted engine + Three.js loaders (not included)
-BUILD-PLAN.md       Architecture, milestones, risks, asset pipeline
-LICENSING.md        MIT engine vs. binary SLAM — what applies here
+app/                    Next.js App Router (layout, page, globals)
+components/             ArExperience client UI
+lib/                    config, scene, xr-boot, metrics, types
+public/
+  xr/                   Engine runtime (postinstall)
+  assets/               models, overlays, audio, targets
+  draco/                Draco decoder for compressed GLBs
+scripts/
+  copy-xr-assets.mjs    postinstall vendor copy
+  make-test-target.mjs  regenerate test marker JSON
+ASSETS.md               Parallel capture checklist
+BUILD-PLAN.md           Architecture + milestones
+LICENSING.md            MIT helpers vs binary engine
 ```
 
 ## Running locally
 
-The camera requires **HTTPS** (or `localhost`) on iOS. Two easy paths:
-
 ```bash
-# Option A — local HTTPS with a self-signed cert
-npx http-server . -S -C cert.pem -K key.pem -p 8443
-# then open https://localhost:8443 (accept the cert warning)
-
-# Option B — tunnel a plain server to an HTTPS URL for phone testing
-npx http-server . -p 8080
-npx ngrok http 8080     # open the https URL ngrok prints, on your phone
+npm install
+npm run dev
 ```
 
-Then generate a QR code pointing at the deployed HTTPS URL and print it beside the marker.
+- AR experience: `http://localhost:3000`
+- Printable test marker: `http://localhost:3000/marker`
 
-## Deploying
+Camera on a physical phone needs HTTPS. Easiest path: deploy a Vercel preview, or tunnel:
 
-It's fully static — host anywhere (Netlify, Vercel, GitHub Pages, S3+CloudFront). Ensure HTTPS and that `.glb`/`.wasm` are served with correct MIME types. If a future feature needs SLAM/threads, you'll also need cross-origin isolation headers (`COOP`/`COEP`) — not required for this image-target-only POC.
+```bash
+npm run dev
+npx ngrok http 3000
+```
+
+Regenerate the test marker:
+
+```bash
+npm run make-target
+```
+## Deploying (Vercel)
+
+Connect the repo to Vercel (framework: Next.js). `postinstall` copies the engine into `public/xr` on each build. No COOP/COEP headers required while world tracking stays off.
+
+MIME / cache headers for WASM and GLB are set in [`next.config.ts`](next.config.ts).
 
 ## License
 
-App scaffold: MIT (see `LICENSE`). 8th Wall engine components carry their own licenses — see `LICENSING.md`.
+App scaffold: MIT (see `LICENSE`). 8th Wall engine binary and helpers: see `LICENSING.md`.
