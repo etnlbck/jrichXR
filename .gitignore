@@ -56,3 +56,4 @@ yarn-error.log*
 
 # npm pack leftovers
 *.tgz
+.env*.local
