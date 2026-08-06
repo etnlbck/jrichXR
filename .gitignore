@@ -1,0 +1,19 @@
+# Self-hosted third-party bundles (large / licensed separately)
+vendor/*.js
+
+# Binary assets — track with Git LFS if you want them versioned
+assets/models/*.glb
+assets/audio/*.mp3
+assets/overlays/*.png
+assets/targets/*
+
+# Local certs for HTTPS dev
+*.pem
+cert.pem
+key.pem
+
+# Deps / build / OS
+node_modules/
+dist/
+.DS_Store
+*.log
