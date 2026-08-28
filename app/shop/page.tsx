@@ -10,7 +10,6 @@ interface ProductVariant {
   title: string;
   priceV2: { amount: string; currencyCode: string };
   availableForSale: boolean;
-  quantityAvailable: number | null;
   selectedOptions: Array<{ name: string; value: string }>;
 }
 

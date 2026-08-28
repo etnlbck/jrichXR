@@ -37,7 +37,8 @@ interface ShopifyResponse<T> {
 
 async function shopifyFetch<T>(
   query: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  operation = 'unknown'
 ): Promise<T> {
   const response = await fetch(getShopifyGraphqlUrl(), {
     method: 'POST',
@@ -49,12 +50,18 @@ async function shopifyFetch<T>(
   });
 
   if (!response.ok) {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',location:'lib/shopify.ts:shopifyFetch',message:'HTTP error',data:{operation,status:response.status,statusText:response.statusText},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     throw new Error(`Shopify API error: ${response.statusText}`);
   }
 
   const json = (await response.json()) as ShopifyResponse<T>;
 
   if (json.errors?.length) {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',location:'lib/shopify.ts:shopifyFetch',message:'GraphQL errors',data:{operation,errors:json.errors.map((e)=>e.message),hasQuantityAvailable:query.includes('quantityAvailable')},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     throw new Error(
       `GraphQL errors: ${json.errors.map((e) => e.message).join(', ')}`
     );
@@ -77,7 +84,6 @@ export interface ShopifyProductVariant {
   title: string;
   priceV2: { amount: string; currencyCode: string };
   availableForSale: boolean;
-  quantityAvailable: number | null;
   selectedOptions: Array<{ name: string; value: string }>;
 }
 
@@ -115,7 +121,6 @@ const PRODUCT_LIST_FIELDS = `
         title
         priceV2 { amount currencyCode }
         availableForSale
-        quantityAvailable
         selectedOptions { name value }
       }
     }
@@ -143,7 +148,7 @@ async function getCollection(handle: string, first = 20) {
     collection: {
       products: { edges: Array<{ node: ShopifyProduct }> };
     } | null;
-  }>(query, { handle, first });
+  }>(query, { handle, first }, 'getCollection');
 }
 
 async function searchProducts(searchQuery: string, first = 20) {
@@ -159,7 +164,7 @@ async function searchProducts(searchQuery: string, first = 20) {
 
   return shopifyFetch<{
     products: { edges: Array<{ node: ShopifyProduct }> };
-  }>(query, { query: searchQuery, first });
+  }>(query, { query: searchQuery, first }, 'searchProducts');
 }
 
 export type ExperienceProductsSource = 'collection' | 'search';
@@ -178,12 +183,21 @@ export async function getExperienceProducts(
     const data = await getCollection(experienceSlug, first);
     const edges = data.collection?.products.edges ?? [];
     if (edges.length > 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',location:'lib/shopify.ts:getExperienceProducts',message:'collection success',data:{experienceSlug,productCount:edges.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       return {
         products: edges.map((e) => e.node),
         source: 'collection',
       };
     }
-  } catch {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',location:'lib/shopify.ts:getExperienceProducts',message:'collection empty, trying search',data:{experienceSlug},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+  } catch (err) {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',location:'lib/shopify.ts:getExperienceProducts',message:'collection failed',data:{experienceSlug,error:err instanceof Error?err.message:'unknown'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     // Fall through to tag search
   }
 
@@ -232,7 +246,7 @@ export async function createCart(
       cart: ShopifyCart | null;
       userErrors: Array<{ field?: string[]; message: string }>;
     };
-  }>(query, { lines });
+  }>(query, { lines }, 'createCart');
 
   const result = data.cartCreate;
 
