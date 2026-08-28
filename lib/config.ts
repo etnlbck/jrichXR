@@ -10,6 +10,8 @@ export const config = {
     year: '—',
     exhibition: '—',
     acquireUrl: 'https://jrichforms.com',
+    /** Shopify collection handle + experience:{slug} tag for related merch. */
+    shopifyExperienceSlug: 'untitled-no-7',
   },
 
   /** Must match the name used when generating the target with image-target-cli. */

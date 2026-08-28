@@ -60,6 +60,19 @@ Connect the repo to Vercel (framework: Next.js). `postinstall` copies the engine
 
 MIME / cache headers for WASM and GLB are set in [`next.config.ts`](next.config.ts).
 
+## Shopify (headless)
+
+Products related to the AR piece are shown at `/shop`. Configure these in `.env.local` (server-only — never expose the Storefront token to the client):
+
+```bash
+SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
+SHOPIFY_STOREFRONT_ACCESS_TOKEN=your_headless_storefront_token
+# optional:
+SHOPIFY_API_VERSION=2024-01
+```
+
+Use the **Headless channel Storefront token**, not an Admin `shpat_` token. Tag products in Shopify with `experience:untitled-no-7` (or match `shopifyExperienceSlug` in [`lib/config.ts`](lib/config.ts)) and publish them to the Headless sales channel. An automated collection with handle `untitled-no-7` is also supported.
+
 ## License
 
 App scaffold: MIT (see `LICENSE`). 8th Wall engine binary and helpers: see `LICENSING.md`.

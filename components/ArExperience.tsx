@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { config } from '@/lib/config';
 import { createScene } from '@/lib/scene';
@@ -175,14 +176,9 @@ export default function ArExperience({ onRequestStart }: Props) {
             <dt>Exhibition</dt>
             <dd>{pc.exhibition}</dd>
           </dl>
-          <a
-            className={styles.cta}
-            href={pc.acquireUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Inquire to acquire
-          </a>
+          <Link className={styles.cta} href="/shop">
+            Shop this piece
+          </Link>
         </div>
       )}
 
