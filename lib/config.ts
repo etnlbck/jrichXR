@@ -4,14 +4,37 @@
  */
 export const config = {
   piece: {
-    title: 'Untitled No. 7',
+    title: 'Convergence',
     material: 'Black Obsidian — Hand Carved',
-    dimensions: '—',
-    year: '—',
+    dimensions: '10" H × 6.5" W',
+    year: '2026',
     exhibition: '—',
     acquireUrl: 'https://jrichforms.com',
+    story:
+      'Carved from a single block of black obsidian, working with the stone\u2019s natural fracture lines rather than against them. The final form was found, not imposed.',
     /** Shopify collection handle + experience:{slug} tag for related merch. */
-    shopifyExperienceSlug: 'untitled-no-7',
+    shopifyExperienceSlug: 'convergence',
+  },
+
+  artist: {
+    name: 'Jermaine Richards',
+    location: 'Southern California',
+    bio: 'My artistic process deeply involves the selection and manipulation of natural materials, such as the rich textures of wood and the enduring strength of stone. The result is a collection of unique pieces that seamlessly integrate artistic vision with the inherent essence and beauty found within the natural world.',
+    avatar: 'https://designlingo.com/portfolio/images/jrich-profilepic.jpg',
+    tags: ['RCAA Gallery', 'Chino Hills', '@jrichforms'],
+    instagramUrl: 'https://instagram.com/jrichforms',
+    contactEmail: 'jermaine@jrichforms.com',
+  },
+
+  previewImage: 'https://designlingo.com/projects/cojv/stone1.png',
+
+  storeUrl: 'https://jrich-xr.vercel.app/shop',
+
+  processVideoUrl: 'https://www.youtube.com/embed/30A3FDWcTxk',
+
+  video: {
+    duration: '2:14',
+    caption: 'Raw stone to finished form — narrated by the artist.',
   },
 
   /** Must match the name used when generating the target with image-target-cli. */

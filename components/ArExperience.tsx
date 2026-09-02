@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { config } from '@/lib/config';
 import { createScene } from '@/lib/scene';
@@ -12,6 +11,8 @@ type Props = {
   onRequestStart?: () => void;
 };
 
+type OverlayTab = 'process' | 'artist' | 'contact';
+
 export default function ArExperience({ onRequestStart }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -22,8 +23,8 @@ export default function ArExperience({ onRequestStart }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [modelsReady, setModelsReady] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const [showProvenance, setShowProvenance] = useState(false);
-  const narratedOnce = useRef(false);
+  const [activeOverlay, setActiveOverlay] = useState<OverlayTab | null>(null);
+  const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
     sceneRef.current = createScene({
@@ -34,10 +35,6 @@ export default function ArExperience({ onRequestStart }: Props) {
         audio.muted = false;
         audio.currentTime = 0;
         void audio.play().catch(() => {});
-        narratedOnce.current = true;
-        audio.onended = () => {
-          if (narratedOnce.current) setShowProvenance(true);
-        };
       },
       onEnterFinished: () => {
         const audio = audioRef.current;
@@ -94,18 +91,30 @@ export default function ArExperience({ onRequestStart }: Props) {
     }
   }, [onRequestStart, unlockAudio]);
 
+  const handlePreviewDemo = useCallback(() => {
+    // Bypasses camera + marker recognition entirely so the CTA/overlay UI
+    // can be tested before a real trained marker and 3D assets exist.
+    setIsPreview(true);
+    setModelsReady(true);
+    setState('ANCHORED');
+  }, []);
+
   const handleCanvasTap = useCallback(() => {
+    if (activeOverlay) return; // don't morph while an overlay is open
     if (state !== 'ANCHORED' && state !== 'RAW' && state !== 'FINISHED') return;
     const scene = sceneRef.current;
     if (!scene?.isVisible() || !scene.isModelsReady()) return;
     const next = scene.toggleMorph();
     if (next) setState(next);
-  }, [state]);
+  }, [state, activeOverlay]);
 
   const pc = config.piece;
+
+  // The four CTAs show as soon as the piece is anchored — independent of the
+  // optional tap-to-morph/narration interaction, which still works on its own.
   const showScan = state === 'SCANNING';
-  const showTap =
-    (state === 'ANCHORED' || state === 'FINISHED') && modelsReady;
+  const showCTAs =
+    (state === 'ANCHORED' || state === 'RAW' || state === 'FINISHED') && modelsReady;
 
   return (
     <div className={styles.root}>
@@ -124,6 +133,9 @@ export default function ArExperience({ onRequestStart }: Props) {
             <button type="button" className={styles.beginBtn} onClick={handleBegin}>
               Begin
             </button>
+            <button type="button" className={styles.previewBtn} onClick={handlePreviewDemo}>
+              Preview UI (skip camera)
+            </button>
             <small>Camera access is required. Nothing is recorded.</small>
           </div>
         </div>
@@ -136,12 +148,53 @@ export default function ArExperience({ onRequestStart }: Props) {
         </div>
       )}
 
-      {showTap && (
-        <div className={styles.prompt}>
-          {config.usePlaceholderCube
-            ? 'Tap the cube to preview the morph'
-            : 'Tap the piece to reveal the raw stone'}
-        </div>
+      {showCTAs && !activeOverlay && (
+        <>
+          {isPreview ? (
+            <div className={styles.previewOuter}>
+              <div className={styles.previewStage}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={config.previewImage} alt={pc.title} className={styles.previewImg} />
+                <button className={`${styles.ctaPillScatter} ${styles.ctaTopLeft}`} onClick={() => setActiveOverlay('process')}>
+                  Behind the Carving
+                </button>
+                <button className={`${styles.ctaPillScatter} ${styles.ctaMidRight}`} onClick={() => setActiveOverlay('artist')}>
+                  Artist Profile
+                </button>
+                <a href={config.storeUrl} target="_blank" rel="noopener noreferrer" className={`${styles.ctaPillScatter} ${styles.ctaBottomLeft}`}>
+                  Store
+                </a>
+                <button className={`${styles.ctaPillScatter} ${styles.ctaBottomRight}`} onClick={() => setActiveOverlay('contact')}>
+                  Let&apos;s Connect
+                </button>
+              </div>
+              <div className={styles.previewCaptionBelow}>
+                <div className={styles.previewTitle}>{pc.title}</div>
+                <div className={styles.previewArtist}>Artist: {config.artist.name}</div>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.ctaLayer}>
+              <div className={styles.pieceLabel}>{pc.title}</div>
+              <div className={styles.ctaRow}>
+                <button className={styles.ctaPill} onClick={() => setActiveOverlay('process')}>
+                  Behind the Carving
+                </button>
+                <button className={styles.ctaPill} onClick={() => setActiveOverlay('artist')}>
+                  Artist Profile
+                </button>
+              </div>
+              <div className={styles.ctaRow}>
+                <a href={config.storeUrl} target="_blank" rel="noopener noreferrer" className={styles.ctaPill}>
+                  Store
+                </a>
+                <button className={styles.ctaPill} onClick={() => setActiveOverlay('contact')}>
+                  Let&apos;s Connect
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {error && (
@@ -155,31 +208,8 @@ export default function ArExperience({ onRequestStart }: Props) {
         </div>
       )}
 
-      {showProvenance && (
-        <div className={styles.panel}>
-          <button
-            type="button"
-            className={styles.panelClose}
-            onClick={() => setShowProvenance(false)}
-            aria-label="Close"
-          >
-            ×
-          </button>
-          <h2>{pc.title}</h2>
-          <dl>
-            <dt>Material</dt>
-            <dd>{pc.material}</dd>
-            <dt>Dimensions</dt>
-            <dd>{pc.dimensions}</dd>
-            <dt>Year</dt>
-            <dd>{pc.year}</dd>
-            <dt>Exhibition</dt>
-            <dd>{pc.exhibition}</dd>
-          </dl>
-          <Link className={styles.cta} href="/shop">
-            Shop this piece
-          </Link>
-        </div>
+      {activeOverlay && (
+        <FullOverlay tab={activeOverlay} onClose={() => setActiveOverlay(null)} />
       )}
 
       <audio ref={audioRef} preload="auto" playsInline />
@@ -188,6 +218,139 @@ export default function ArExperience({ onRequestStart }: Props) {
       <p className={styles.attrib}>
         XR Engine by Niantic Spatial, Inc. © 2026
       </p>
+    </div>
+  );
+}
+
+function ContactForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const pc = config.piece;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const subject = encodeURIComponent(`Inquiry about ${pc.title}`);
+    const body = encodeURIComponent(`${message}\n\n— ${name} (${email})`);
+    window.location.href = `mailto:${config.artist.contactEmail}?subject=${subject}&body=${body}`;
+  }
+
+  return (
+    <div>
+      <p className={styles.connectLabel}>Connect on Social Media</p>
+      <div className={styles.socialRow}>
+        <a href={config.artist.instagramUrl} className={styles.socialCircle} aria-label="Instagram">
+          <i className="bi bi-instagram" style={{ color: '#fff', fontSize: 16 }} />
+        </a>
+        <a href="#" className={styles.socialCircle} aria-label="LinkedIn">
+          <i className="bi bi-linkedin" style={{ color: '#fff', fontSize: 16 }} />
+        </a>
+        <a href="#" className={styles.socialCircle} aria-label="Facebook">
+          <i className="bi bi-facebook" style={{ color: '#fff', fontSize: 16 }} />
+        </a>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <label className={styles.formLabel} htmlFor="contact-name">Name</label>
+        <input
+          id="contact-name"
+          className={styles.formInput}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <label className={styles.formLabel} htmlFor="contact-email">Email</label>
+        <input
+          id="contact-email"
+          type="email"
+          className={styles.formInput}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <label className={styles.formLabel} htmlFor="contact-message">Message</label>
+        <textarea
+          id="contact-message"
+          className={styles.formTextarea}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+        <button type="submit" className={styles.submitBtn}>SUBMIT</button>
+      </form>
+    </div>
+  );
+}
+
+function FullOverlay({ tab, onClose }: { tab: OverlayTab; onClose: () => void }) {
+  const [current, setCurrent] = useState<OverlayTab>(tab);
+  const headerTitle =
+    current === 'process' ? 'Behind the Carving' : current === 'artist' ? 'Artist Profile' : 'Contact';
+
+  return (
+    <div className={styles.fullOverlay}>
+      <div className={styles.overlayHeader}>
+        <div className={styles.overlayHeaderTitle}>{headerTitle}</div>
+        <button onClick={onClose} aria-label="Close" className={styles.overlayCloseBtn}>
+          ×
+        </button>
+      </div>
+
+      <div className={styles.overlayBody}>
+        {current === 'process' && (
+          <div>
+            <div className={styles.videoEmbed}>
+              <iframe
+                src={config.processVideoUrl}
+                title="Behind the Carving"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+            <p className={styles.overlayCaption}>{config.video.caption}</p>
+          </div>
+        )}
+
+        {current === 'artist' && (
+          <div style={{ textAlign: 'center' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={config.artist.avatar} alt={config.artist.name} className={styles.avatarLarge} />
+            <h3 className={styles.artistName}>{config.artist.name}</h3>
+            <p className={styles.overlayCaption}>{config.artist.bio}</p>
+            <div className={styles.tagsRow}>
+              {config.artist.tags.map((t) => (
+                <span key={t} className={styles.tag}>{t}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {current === 'contact' && <ContactForm />}
+      </div>
+
+      <nav className={styles.overlayTabbar}>
+        <button
+          className={styles.overlayTabBtn}
+          data-active={current === 'process'}
+          onClick={() => setCurrent('process')}
+        >
+          Process
+        </button>
+        <button
+          className={styles.overlayTabBtn}
+          data-active={current === 'artist'}
+          onClick={() => setCurrent('artist')}
+        >
+          Artist
+        </button>
+        <a href={config.storeUrl} target="_blank" rel="noopener noreferrer" className={styles.overlayTabBtn}>
+          Shop
+        </a>
+        <button
+          className={styles.overlayTabBtn}
+          data-active={current === 'contact'}
+          onClick={() => setCurrent('contact')}
+        >
+          Contact
+        </button>
+      </nav>
     </div>
   );
 }

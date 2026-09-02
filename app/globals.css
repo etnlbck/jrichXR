@@ -1,9 +1,12 @@
 :root {
-  --ink: #0d0d0f;
-  --stone: #14131a;
-  --ember: #ff6a1a;
-  --violet: #7a4cff;
-  --paper: #f4f1ea;
+  --ink: #101014;
+  --stone: #eff1f9;
+  --ember: #1732a4;
+  --violet: #21d3d5;
+  --paper: #ffffff;
+  --vein: #1732a4;
+  --vein-light: #21d3d5;
+  --ash: #59595e;
 }
 
 * {
