@@ -67,6 +67,23 @@
   transform: scale(0.97);
 }
 
+.previewBtn {
+  appearance: none;
+  border: 1px solid var(--vein);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 10px 24px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--vein);
+  background: transparent;
+}
+
+.previewBtn:active {
+  transform: scale(0.97);
+}
+
 .hint {
   position: fixed;
   inset: 0;
@@ -235,4 +252,404 @@
   font-size: 0.55rem;
   color: rgba(255, 255, 255, 0.35);
   pointer-events: none;
+}
+
+/* ---- Four-CTA layer: animates in over the anchored artwork ---- */
+
+.ctaLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.pieceLabel {
+  align-self: center;
+  margin-top: auto;
+  margin-bottom: 12px;
+  color: #fff;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 14px;
+  border-radius: 20px;
+  animation: ctaFadeIn 0.5s ease both;
+  pointer-events: none;
+}
+
+.ctaRow {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  pointer-events: auto;
+}
+
+.ctaRow:first-of-type {
+  margin-top: 0;
+}
+
+.ctaPill {
+  flex: 1;
+  max-width: 170px;
+  text-align: center;
+  background: var(--vein);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 13px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(23, 50, 164, 0.35);
+  animation: ctaFadeIn 0.5s ease both;
+}
+
+.ctaRow:nth-of-type(2) .ctaPill:nth-child(1) { animation-delay: 0.05s; }
+.ctaRow:nth-of-type(2) .ctaPill:nth-child(2) { animation-delay: 0.1s; }
+.ctaRow:nth-of-type(3) .ctaPill:nth-child(1) { animation-delay: 0.15s; }
+.ctaRow:nth-of-type(3) .ctaPill:nth-child(2) { animation-delay: 0.2s; }
+
+@keyframes ctaFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---- Preview-mode: sculpture image + pinned CTAs + caption below ---- */
+
+.previewOuter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+}
+
+.previewStage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.previewImg {
+  display: block;
+  max-width: 74vw;
+  max-height: 55dvh;
+  width: auto;
+  height: auto;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.6));
+  opacity: 0;
+  animation: imageFadeIn 0.6s ease forwards;
+}
+
+@keyframes imageFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.previewCaptionBelow {
+  margin-top: 28px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.previewTitle {
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.previewArtist {
+  color: #b8b8bc;
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* ---- CTAs pinned to the sculpture's actual rendered box (percentages
+   are relative to .previewStage, which shrink-wraps exactly to the image) ---- */
+
+.ctaPillScatter {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--vein-light);
+  color: #000;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  line-height: 1.2;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  animation: ctaFadeIn 0.5s ease both;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.ctaTopLeft {
+  top: 3%;
+  left: -4%;
+  animation-delay: 0.5s;
+}
+
+.ctaMidRight {
+  top: 38%;
+  right: -10%;
+  animation-delay: 0.6s;
+}
+
+.ctaBottomLeft {
+  top: 66%;
+  left: -8%;
+  animation-delay: 0.7s;
+}
+
+.ctaBottomRight {
+  top: 82%;
+  right: -6%;
+  animation-delay: 0.8s;
+}
+
+/* ---- Full-screen overlay (Behind the Carving / Artist Profile / Contact) ---- */
+
+.fullOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.overlayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--vein);
+  padding: max(18px, env(safe-area-inset-top)) 20px 18px;
+  border-radius: 0 0 16px 16px;
+}
+
+.overlayHeaderTitle {
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.overlayCloseBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--vein);
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.overlayBody {
+  flex: 1;
+  padding: 24px 20px;
+  overflow-y: auto;
+  color: #fff;
+}
+
+.overlayCaption {
+  font-size: 0.85rem;
+  color: #b8b8bc;
+  line-height: 1.6;
+}
+
+.videoEmbed {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #1a1a1a;
+  margin-bottom: 14px;
+}
+
+.videoEmbed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.avatarLarge {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #2a2a2a;
+  margin: 0 auto 16px;
+  display: block;
+}
+
+.artistName {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #fff;
+  margin: 0 0 8px;
+}
+
+.tagsRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.tag {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vein-light);
+  border: 1px solid rgba(33, 211, 213, 0.35);
+  padding: 4px 9px;
+  border-radius: 10px;
+}
+
+.overlayTabbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid #222;
+  padding: 14px 0 max(14px, env(safe-area-inset-bottom));
+}
+
+.overlayTabBtn {
+  background: none;
+  border: none;
+  color: #8c8c90;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.overlayTabBtn[data-active='true'] {
+  color: var(--vein-light);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 3px;
+  background: #222;
+  border-radius: 2px;
+  margin: 14px 0;
+}
+
+.progressFill {
+  width: 18%;
+  height: 100%;
+  background: var(--vein-light);
+  border-radius: 2px;
+}
+
+.connectLabel {
+  font-size: 0.8rem;
+  color: #b8b8bc;
+  text-align: center;
+  margin: 0 0 14px;
+}
+
+.socialRow {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.socialCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--vein);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.formLabel {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8c8c90;
+  margin: 12px 0 6px;
+}
+
+.formInput {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.formTextarea {
+  width: 100%;
+  min-height: 70px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.submitBtn {
+  width: 100%;
+  margin-top: 18px;
+  background: var(--vein-light);
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  padding: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
