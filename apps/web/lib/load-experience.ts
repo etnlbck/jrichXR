@@ -21,7 +21,9 @@ export async function loadExperience(
 ): Promise<LoadedExperience> {
   if (isBlobConfigured()) {
     const published = await getPublished(id);
-    if (published) {
+    // Prefer !== null — Turbopack has miscompiled truthy checks after await
+    // on GalleryExperience | null (see seedDraftIfMissing).
+    if (published !== null) {
       return {
         experience: published,
         config: buildAppConfig(published),

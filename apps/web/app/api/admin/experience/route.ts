@@ -11,13 +11,26 @@ import {
 } from '@/lib/experience-store';
 
 export async function GET() {
+  // #region agent log
+  const _t0 = Date.now();
+  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B,C,E',location:'api/admin/experience:GET:entry',message:'GET experience entered',data:{blobConfigured:isBlobConfigured()},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   if (!(await requireAdminSession())) {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'E',location:'api/admin/experience:GET:unauthorized',message:'session missing',data:{ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const st = await status(DEFAULT_EXPERIENCE_ID);
+  // #region agent log
+  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B,C',location:'api/admin/experience:GET:status',message:'status() resolved',data:{st,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   if (!isBlobConfigured()) {
     const { experience } = await seedDraftIfMissing();
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'C',location:'api/admin/experience:GET:seed-no-blob',message:'returning seed without blob',data:{hasExperience:!!experience,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return NextResponse.json({
       experience,
       status: st,
@@ -26,6 +39,9 @@ export async function GET() {
   }
 
   const { experience, seeded } = await seedDraftIfMissing();
+  // #region agent log
+  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B',location:'api/admin/experience:GET:done',message:'returning draft',data:{seeded,hasExperience:!!experience,version:experience?.version??null,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   return NextResponse.json({ experience, status: st, seeded });
 }
 

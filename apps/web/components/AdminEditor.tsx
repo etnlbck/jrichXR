@@ -40,18 +40,40 @@ export default function AdminEditor() {
 
   const load = useCallback(async () => {
     setError(null);
+    // #region agent log
+    const _t0 = Date.now();
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,B,C',location:'AdminEditor.tsx:load:start',message:'admin experience load started',data:{href:typeof window!=='undefined'?window.location.href:null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     const res = await fetch('/api/admin/experience');
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to load');
-    setExperience(data.experience);
-    setStatus(data.status);
-    setWarning(data.warning ?? null);
+    // #region agent log
+    const _ct = res.headers.get('content-type');
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,B,C,D',location:'AdminEditor.tsx:load:response',message:'admin experience fetch returned',data:{status:res.status,ok:res.ok,contentType:_ct,redirected:res.redirected,url:res.url,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      // #region agent log
+      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,D',location:'AdminEditor.tsx:load:json-fail',message:'response was not JSON',data:{status:res.status,contentType:_ct,parseError:parseErr instanceof Error?parseErr.message:String(parseErr),ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      throw parseErr;
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B,C,E',location:'AdminEditor.tsx:load:parsed',message:'admin experience JSON parsed',data:{status:res.status,hasExperience:!!data.experience,error:data.error??null,warning:data.warning??null,blobConfigured:(data.status as {blobConfigured?:boolean}|undefined)?.blobConfigured??null,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (!res.ok) throw new Error((data.error as string) || 'Failed to load');
+    setExperience(data.experience as GalleryExperience);
+    setStatus(data.status as StoreStatus);
+    setWarning((data.warning as string | undefined) ?? null);
   }, []);
 
   useEffect(() => {
-    void load().catch((err) =>
-      setError(err instanceof Error ? err.message : 'Load failed')
-    );
+    void load().catch((err) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,B,C,D,E',location:'AdminEditor.tsx:load:catch',message:'admin experience load failed',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      setError(err instanceof Error ? err.message : 'Load failed');
+    });
   }, [load]);
 
   async function save() {

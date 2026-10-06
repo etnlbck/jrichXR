@@ -90,13 +90,32 @@ export async function publishDraft(
 export async function seedDraftIfMissing(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<{ experience: GalleryExperience; seeded: boolean }> {
+  // #region agent log
+  const _t0 = Date.now();
+  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:entry',message:'seedDraftIfMissing start',data:{id,blobConfigured:isBlobConfigured()},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const existing = await getDraft(id);
-  if (existing) return { experience: existing, seeded: false };
-  if (!isBlobConfigured()) {
-    return { experience: getSeedExperience(), seeded: false };
+  // #region agent log
+  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'post-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:after-getDraft',message:'getDraft resolved',data:{hasExisting:existing!==null,existingId:existing?.id??null,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  // Avoid `if (existing)` — Turbopack has miscompiled that as always-true
+  // after await, returning a null draft forever (admin stuck on Loading…).
+  if (existing !== null) {
+    return { experience: existing, seeded: false };
   }
+
   const seed = getSeedExperience();
+  if (!isBlobConfigured()) {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'post-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:seed-no-blob',message:'returning in-memory seed',data:{seedId:seed.id,version:seed.version,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    return { experience: seed, seeded: false };
+  }
+
   await putDraft(seed, id);
+  // #region agent log
+  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'post-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:seeded',message:'putDraft seed completed',data:{seedId:seed.id,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   return { experience: seed, seeded: true };
 }
 
