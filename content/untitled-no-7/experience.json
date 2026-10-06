@@ -1,0 +1,138 @@
+{
+  "id": "untitled-no-7",
+  "version": "0.3.0",
+  "kind": "mural",
+  "placement": "merch",
+  "personOcclusion": false,
+  "marker": {
+    "assetId": "marker-display",
+    "physicalWidthM": 0.18,
+    "trackingAssetId": null,
+    "mindAssetId": null,
+    "web": {
+      "imageTargetName": "jrichforms-placard",
+      "imageTargetJson": "/assets/targets/jrichforms-placard.json",
+      "printImage": "/assets/targets/jrichforms-placard_cropped.png"
+    }
+  },
+  "nodes": [
+    {
+      "id": "finished",
+      "type": "model",
+      "assetId": "finished-usdz",
+      "androidAssetId": "finished-glb",
+      "platforms": "both",
+      "position": { "x": 0, "y": 0.15, "z": 0 },
+      "rotation": { "x": 0, "y": 0, "z": 0 },
+      "scale": 1,
+      "trigger": "onDetect"
+    },
+    {
+      "id": "raw",
+      "type": "model",
+      "assetId": "raw-usdz",
+      "androidAssetId": "raw-glb",
+      "platforms": "both",
+      "position": { "x": 0, "y": 0.15, "z": 0 },
+      "rotation": { "x": 0, "y": 0, "z": 0 },
+      "scale": 1,
+      "trigger": "tap"
+    },
+    {
+      "id": "overlay",
+      "type": "image",
+      "assetId": "guide-marks",
+      "position": { "x": 0, "y": 0.35, "z": 0.05 },
+      "rotation": { "x": 0, "y": 0, "z": 0 },
+      "scale": 1,
+      "trigger": "tap"
+    },
+    {
+      "id": "narration",
+      "type": "audio",
+      "assetId": "narration",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "trigger": "tap"
+    }
+  ],
+  "assets": {
+    "finished-glb": {
+      "webPath": "/assets/models/finished.glb",
+      "contentPath": "assets/models/finished.glb",
+      "role": "android+web"
+    },
+    "raw-glb": {
+      "webPath": "/assets/models/raw.glb",
+      "contentPath": "assets/models/raw.glb",
+      "role": "android+web",
+      "interim": true
+    },
+    "finished-usdz": {
+      "contentPath": "assets/models/finished.usdz",
+      "role": "ios",
+      "status": "pending"
+    },
+    "raw-usdz": {
+      "contentPath": "assets/models/raw.usdz",
+      "role": "ios",
+      "status": "pending"
+    },
+    "guide-marks": {
+      "webPath": "/assets/overlays/guide-marks.png",
+      "contentPath": "assets/overlays/guide-marks.png"
+    },
+    "narration": {
+      "webPath": "/assets/audio/narration.mp3",
+      "contentPath": "assets/audio/narration.mp3",
+      "interim": true
+    },
+    "marker-display": {
+      "webPath": "/assets/targets/jrichforms-placard_cropped.png",
+      "contentPath": "assets/marker/display.png"
+    }
+  },
+  "gallery": {
+    "title": "The Stone Speaks Spatially",
+    "morph": {
+      "durationMs": 1400,
+      "overlayFadeMs": 900,
+      "webCrossfade": true,
+      "nativeMode": "hard-cut"
+    },
+    "audio": {
+      "unlockOnBegin": true,
+      "playOnFirstEnterRaw": true
+    },
+    "provenance": {
+      "title": "Untitled No. 7",
+      "material": "Black Obsidian — Hand Carved",
+      "dimensions": "—",
+      "year": "—",
+      "exhibition": "—"
+    },
+    "shop": {
+      "experienceSlug": "untitled-no-7",
+      "shopPath": "/shop",
+      "acquireUrl": "https://jrichforms.com"
+    },
+    "stateMachine": [
+      "START",
+      "SCANNING",
+      "ANCHORED",
+      "RAW",
+      "FINISHED",
+      "ERROR"
+    ],
+    "usePlaceholderCube": false,
+    "dracoDecoderPath": "/draco/",
+    "maxGlbBytes": 10485760
+  },
+  "engine": {
+    "web": {
+      "preloadChunks": "slam",
+      "xrScript": "/xr/engine/xr.js",
+      "xrextrasScript": "/xr/xrextras/xrextras.js",
+      "landingPageScript": "/xr/landing-page/landing-page.js"
+    }
+  }
+}
