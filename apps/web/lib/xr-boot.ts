@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { config } from './config';
+import type { AppConfig } from './config';
 import { mark, metricsStart } from './metrics';
 import type { createScene } from './scene';
 import type { ImageTargetData, XR8Api } from './types';
@@ -60,7 +60,7 @@ function waitForXr8(timeoutMs = 30000) {
   });
 }
 
-export async function loadEngineScripts() {
+export async function loadEngineScripts(config: AppConfig) {
   metricsStart('ar');
   // Provide THREE before pipeline modules that may reference the global.
   window.THREE = THREE;
@@ -79,7 +79,9 @@ export async function loadEngineScripts() {
   return XR8;
 }
 
-export async function fetchImageTargetData(): Promise<ImageTargetData> {
+export async function fetchImageTargetData(
+  config: AppConfig
+): Promise<ImageTargetData> {
   const res = await fetch(config.imageTargetJson);
   if (!res.ok) {
     throw new Error(
@@ -94,6 +96,7 @@ export async function fetchImageTargetData(): Promise<ImageTargetData> {
 export type BootOptions = {
   canvas: HTMLCanvasElement;
   scene: ReturnType<typeof createScene>;
+  config: AppConfig;
   onError: (message: string) => void;
 };
 
@@ -101,10 +104,10 @@ export type BootOptions = {
  * Configure image-target-only tracking and start the camera pipeline.
  * Must run inside a user-gesture handler on iOS.
  */
-export async function bootXr({ canvas, scene, onError }: BootOptions) {
+export async function bootXr({ canvas, scene, config, onError }: BootOptions) {
   try {
-    const XR8 = window.XR8 ?? (await loadEngineScripts());
-    const target = await fetchImageTargetData();
+    const XR8 = window.XR8 ?? (await loadEngineScripts(config));
+    const target = await fetchImageTargetData(config);
 
     // disableWorldTracking MUST be set before pipelineModule() and run().
     XR8.XrController.configure({

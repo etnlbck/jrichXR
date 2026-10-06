@@ -2,21 +2,23 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { config } from '@/lib/config';
+import type { AppConfig } from '@/lib/config';
 import { createScene } from '@/lib/scene';
 import { bootXr, loadEngineScripts } from '@/lib/xr-boot';
 import type { UiState } from '@/lib/types';
 import styles from './ArExperience.module.css';
 
 type Props = {
+  appConfig: AppConfig;
   onRequestStart?: () => void;
 };
 
-export default function ArExperience({ onRequestStart }: Props) {
+export default function ArExperience({ appConfig, onRequestStart }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const sceneRef = useRef<ReturnType<typeof createScene> | null>(null);
   const bootedRef = useRef(false);
+  const config = appConfig;
 
   const [state, setState] = useState<UiState>('START');
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export default function ArExperience({ onRequestStart }: Props) {
   }, []);
 
   useEffect(() => {
-    sceneRef.current = createScene({
+    sceneRef.current = createScene(config, {
       onState: setState,
       onEnterRaw: () => {
         if (!config.audio.playOnFirstEnterRaw) {
@@ -63,7 +65,7 @@ export default function ArExperience({ onRequestStart }: Props) {
         setBooting(false);
       },
     });
-  }, [openProvenance]);
+  }, [config, openProvenance]);
 
   const unlockAudio = useCallback(() => {
     if (!config.audio.unlockOnBegin) return;
@@ -84,7 +86,7 @@ export default function ArExperience({ onRequestStart }: Props) {
           /* retry on morph tap */
         });
     }
-  }, [audioUnlocked]);
+  }, [audioUnlocked, config]);
 
   const handleBegin = useCallback(async () => {
     if (bootedRef.current || !canvasRef.current || !sceneRef.current) return;
@@ -96,10 +98,11 @@ export default function ArExperience({ onRequestStart }: Props) {
     onRequestStart?.();
 
     try {
-      if (!window.XR8) await loadEngineScripts();
+      if (!window.XR8) await loadEngineScripts(config);
       await bootXr({
         canvas: canvasRef.current,
         scene: sceneRef.current,
+        config,
         onError: (message) => {
           setError(message);
           setState('ERROR');
@@ -113,7 +116,7 @@ export default function ArExperience({ onRequestStart }: Props) {
       setState('ERROR');
       setBooting(false);
     }
-  }, [onRequestStart, unlockAudio]);
+  }, [config, onRequestStart, unlockAudio]);
 
   const handleCanvasTap = useCallback(() => {
     if (state !== 'ANCHORED' && state !== 'RAW' && state !== 'FINISHED') return;

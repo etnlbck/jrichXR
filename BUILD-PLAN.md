@@ -52,7 +52,9 @@ iOS Safari still exposes no WebXR (`immersive-ar`). 8th Wall runs a **WASM compu
 - Narration on first morph to raw + provenance + `/shop`.
 - iPhone Safari + Android Chrome via Vercel HTTPS URL.
 
-**Out of scope:** Markerless stone tracking, multi-piece CMS, Snap/Lens Studio first, replacing 8th Wall with MindAR inside this app, person occlusion on WebAR v1.
+**Staff CMS (in scope):** Password-gated `/admin` edits draft/publish on Vercel Blob (full package + asset uploads). Git `content/` = seed. Aura Lenses publish remains external.
+
+**Out of scope:** Markerless stone tracking, multi-user Clerk roles, Snap/Lens Studio first, replacing 8th Wall with MindAR inside this app, person occlusion on WebAR v1.
 
 ---
 
@@ -78,6 +80,8 @@ content/untitled-no-7/experience.json
 - [`apps/web/lib/xr-boot.ts`](apps/web/lib/xr-boot.ts) / [`apps/web/lib/scene.ts`](apps/web/lib/scene.ts) — 8th Wall + morph
 - [`scripts/sync-content.mjs`](scripts/sync-content.mjs) — content → `apps/web/public/assets`
 - [`scripts/prepare-lenses-publish.mjs`](scripts/prepare-lenses-publish.mjs) — Lenses payload stub
+- [`apps/web/app/admin/`](apps/web/app/admin/) — Blob CMS (draft/publish)
+- [`apps/web/lib/experience-store.ts`](apps/web/lib/experience-store.ts) / [`load-experience.ts`](apps/web/lib/load-experience.ts)
 
 ---
 

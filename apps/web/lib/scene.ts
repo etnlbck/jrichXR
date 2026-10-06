@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { config } from './config';
+import type { AppConfig } from './config';
 import { mark } from './metrics';
 import type { ImageTargetDetail, UiState } from './types';
 
@@ -16,7 +16,7 @@ export type SceneCallbacks = {
 /**
  * Three.js content + raw↔finished morph, driven by the 8th Wall camera pipeline.
  */
-export function createScene(callbacks: SceneCallbacks) {
+export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   let three: ReturnType<NonNullable<Window['XR8']>['Threejs']['xrScene']> | null =
     null;
   let anchor: THREE.Group | null = null;

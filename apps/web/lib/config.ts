@@ -1,6 +1,7 @@
 /**
- * App config derived from the shared gallery experience package.
- * Source of truth: content/untitled-no-7/experience.json (repo root)
+ * App config derived from a GalleryExperience package.
+ * Seed: content/untitled-no-7/experience.json
+ * Runtime: published Blob (via loadExperience) with seed fallback.
  */
 
 import experienceJson from '@repo/content/untitled-no-7/experience.json';
@@ -10,85 +11,125 @@ import {
   findNode,
   getNodeXr8Placement,
   parseGalleryExperience,
+  type GalleryExperience,
 } from '@jrichforms/experience';
 
-const experience = parseGalleryExperience(experienceJson);
+export const DEFAULT_EXPERIENCE_ID = 'untitled-no-7';
 
-const finishedPlacement = getNodeXr8Placement(experience, 'finished');
-const overlayNode = findNode(experience, 'overlay');
-const overlayPos = overlayNode
-  ? engVecToXr8(overlayNode.position, experience.marker.physicalWidthM)
-  : {
-      x: finishedPlacement.position.x,
-      y: finishedPlacement.position.y + 0.2,
-      z: finishedPlacement.position.z + 0.05,
-    };
-
-const g = experience.gallery;
-
-/**
- * Runtime config for WebAR / shop. Prefer reading `experience` for new code.
- */
-export const config = {
-  experienceId: experience.id,
-  experienceVersion: experience.version,
-  physicalWidthM: experience.marker.physicalWidthM,
-
+export type AppConfig = {
+  experienceId: string;
+  experienceVersion: string;
+  physicalWidthM: number;
   piece: {
-    title: g.provenance.title,
-    material: g.provenance.material,
-    dimensions: g.provenance.dimensions,
-    year: g.provenance.year,
-    exhibition: g.provenance.exhibition,
-    acquireUrl: g.shop.acquireUrl,
-    shopifyExperienceSlug: g.shop.experienceSlug,
-    shopPath: g.shop.shopPath,
-    gateTitle: g.title,
-  },
-
-  imageTargetName: experience.marker.web.imageTargetName,
-  imageTargetJson: experience.marker.web.imageTargetJson,
-  printImage: experience.marker.web.printImage,
-
+    title: string;
+    material: string;
+    dimensions: string;
+    year: string;
+    exhibition: string;
+    acquireUrl: string;
+    shopifyExperienceSlug: string;
+    shopPath: string;
+    gateTitle: string;
+  };
+  imageTargetName: string;
+  imageTargetJson: string;
+  printImage: string;
   assets: {
-    finishedModel:
-      assetWebPath(experience, 'finished-glb') ?? '/assets/models/finished.glb',
-    rawModel: assetWebPath(experience, 'raw-glb') ?? '/assets/models/raw.glb',
-    overlay:
-      assetWebPath(experience, 'guide-marks') ??
-      '/assets/overlays/guide-marks.png',
-    narration:
-      assetWebPath(experience, 'narration') ?? '/assets/audio/narration.mp3',
-    dracoDecoderPath: g.dracoDecoderPath,
-    /** Interim raw = duplicate mesh; cool-tint so morph is visible until true raw lands. */
-    interimRaw: experience.assets['raw-glb']?.interim === true,
-    interimNarration: experience.assets.narration?.interim === true,
-  },
-
-  usePlaceholderCube: g.usePlaceholderCube,
-
-  placement: finishedPlacement,
-
-  overlayPlacement: overlayPos,
-
+    finishedModel: string;
+    rawModel: string;
+    overlay: string;
+    narration: string;
+    dracoDecoderPath: string;
+    interimRaw: boolean;
+    interimNarration: boolean;
+  };
+  usePlaceholderCube: boolean;
+  placement: ReturnType<typeof getNodeXr8Placement>;
+  overlayPlacement: { x: number; y: number; z: number };
   morph: {
-    durationMs: g.morph.durationMs,
-    overlayFadeMs: g.morph.overlayFadeMs,
-    webCrossfade: g.morph.webCrossfade,
-    nativeMode: g.morph.nativeMode,
-  },
-
+    durationMs: number;
+    overlayFadeMs: number;
+    webCrossfade: boolean;
+    nativeMode: 'hard-cut' | 'crossfade';
+  };
   audio: {
-    unlockOnBegin: g.audio.unlockOnBegin,
-    playOnFirstEnterRaw: g.audio.playOnFirstEnterRaw,
-  },
+    unlockOnBegin: boolean;
+    playOnFirstEnterRaw: boolean;
+  };
+  engine: GalleryExperience['engine']['web'];
+  maxGlbBytes: number;
+};
 
-  engine: experience.engine.web,
+export function getSeedExperience(): GalleryExperience {
+  return parseGalleryExperience(experienceJson);
+}
 
-  maxGlbBytes: g.maxGlbBytes,
-} as const;
+export function buildAppConfig(experience: GalleryExperience): AppConfig {
+  const finishedPlacement = getNodeXr8Placement(experience, 'finished');
+  const overlayNode = findNode(experience, 'overlay');
+  const overlayPos = overlayNode
+    ? engVecToXr8(overlayNode.position, experience.marker.physicalWidthM)
+    : {
+        x: finishedPlacement.position.x,
+        y: finishedPlacement.position.y + 0.2,
+        z: finishedPlacement.position.z + 0.05,
+      };
 
-export type AppConfig = typeof config;
+  const g = experience.gallery;
 
-/** Full shared package (eng mural + gallery extension). */
-export const experiencePackage = experience;
+  return {
+    experienceId: experience.id,
+    experienceVersion: experience.version,
+    physicalWidthM: experience.marker.physicalWidthM,
+    piece: {
+      title: g.provenance.title,
+      material: g.provenance.material,
+      dimensions: g.provenance.dimensions,
+      year: g.provenance.year,
+      exhibition: g.provenance.exhibition,
+      acquireUrl: g.shop.acquireUrl,
+      shopifyExperienceSlug: g.shop.experienceSlug,
+      shopPath: g.shop.shopPath,
+      gateTitle: g.title,
+    },
+    imageTargetName: experience.marker.web.imageTargetName,
+    imageTargetJson: experience.marker.web.imageTargetJson,
+    printImage: experience.marker.web.printImage,
+    assets: {
+      finishedModel:
+        assetWebPath(experience, 'finished-glb') ??
+        '/assets/models/finished.glb',
+      rawModel:
+        assetWebPath(experience, 'raw-glb') ?? '/assets/models/raw.glb',
+      overlay:
+        assetWebPath(experience, 'guide-marks') ??
+        '/assets/overlays/guide-marks.png',
+      narration:
+        assetWebPath(experience, 'narration') ??
+        '/assets/audio/narration.mp3',
+      dracoDecoderPath: g.dracoDecoderPath,
+      interimRaw: experience.assets['raw-glb']?.interim === true,
+      interimNarration: experience.assets.narration?.interim === true,
+    },
+    usePlaceholderCube: g.usePlaceholderCube,
+    placement: finishedPlacement,
+    overlayPlacement: overlayPos,
+    morph: {
+      durationMs: g.morph.durationMs,
+      overlayFadeMs: g.morph.overlayFadeMs,
+      webCrossfade: g.morph.webCrossfade,
+      nativeMode: g.morph.nativeMode,
+    },
+    audio: {
+      unlockOnBegin: g.audio.unlockOnBegin,
+      playOnFirstEnterRaw: g.audio.playOnFirstEnterRaw,
+    },
+    engine: experience.engine.web,
+    maxGlbBytes: g.maxGlbBytes,
+  };
+}
+
+/** Sync seed config — layout metadata / offline fallback. Prefer loadExperience(). */
+export const config = buildAppConfig(getSeedExperience());
+
+export const experiencePackage = getSeedExperience();

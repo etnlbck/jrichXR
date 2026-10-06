@@ -1,5 +1,9 @@
 import ArExperience from '@/components/ArExperience';
+import { loadExperience } from '@/lib/load-experience';
 
-export default function HomePage() {
-  return <ArExperience />;
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const { config } = await loadExperience();
+  return <ArExperience appConfig={config} />;
 }

@@ -72,6 +72,23 @@ Visitor-facing path stays this WebAR QR. For staff demo (external Aura repos):
 
 Release sync: [`content/untitled-no-7/RELEASE.md`](content/untitled-no-7/RELEASE.md).
 
+## Admin CMS
+
+Password-gated editor at `/admin` — draft/publish the experience package to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). Visitor WebAR reads the **published** Blob package, falling back to repo `content/` seed.
+
+```bash
+# apps/web/.env.local (or Vercel project env)
+ADMIN_PASSWORD=choose-a-strong-password
+ADMIN_SESSION_SECRET=long-random-string
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_…   # from Vercel → Storage → Blob
+```
+
+1. Create a Blob store on the Vercel project and pull env locally (`vercel env pull`).
+2. Open `/admin/login`, sign in, **Seed if empty**, edit, upload assets, **Publish**.
+3. Repo `content/untitled-no-7/` remains the git seed; production edits do not write git.
+
+Aura Lenses dual-publish is still via `prepare-lenses` / external API (Export JSON from admin helps).
+
 ## Shopify (headless)
 
 ```bash

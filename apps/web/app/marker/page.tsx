@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
-import { config } from '@/lib/config';
+import { loadExperience } from '@/lib/load-experience';
 import styles from './marker.module.css';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Print marker — JRichForms XR',
@@ -11,7 +13,8 @@ export const metadata: Metadata = {
  * Print this page (matte paper, full color) and mount beside the sculpture.
  * Use the cropped target art — not a phone screenshot of the AR view.
  */
-export default function MarkerPrintPage() {
+export default async function MarkerPrintPage() {
+  const { config } = await loadExperience();
   const widthCm = (config.physicalWidthM * 100).toFixed(1);
 
   return (

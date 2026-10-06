@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { config } from '@/lib/config';
+import { loadExperience } from '@/lib/load-experience';
 import { getExperienceProducts, isShopifyConfigured } from '@/lib/shopify';
 
 export async function GET() {
@@ -16,6 +16,7 @@ export async function GET() {
   }
 
   try {
+    const { config } = await loadExperience();
     const slug = config.piece.shopifyExperienceSlug;
     const { products, source } = await getExperienceProducts(slug);
 
