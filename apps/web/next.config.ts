@@ -5,6 +5,34 @@ import { fileURLToPath } from 'node:url';
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const monorepoRoot = path.join(appDir, '../..');
 
+// #region agent log
+const _agentDbg = {
+  sessionId: '88764b',
+  runId: process.env.VERCEL ? 'vercel' : 'local',
+  hypothesisId: 'A',
+  location: 'apps/web/next.config.ts',
+  message: 'Next config load — where .next will be written',
+  data: {
+    cwd: process.cwd(),
+    appDir,
+    monorepoRoot,
+    vercel: Boolean(process.env.VERCEL),
+    expectedManifest: path.join(appDir, '.next', 'routes-manifest.json'),
+    rootManifest: path.join(monorepoRoot, '.next', 'routes-manifest.json'),
+  },
+  timestamp: Date.now(),
+};
+console.log('[debug-88764b]', JSON.stringify(_agentDbg));
+fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Debug-Session-Id': '88764b',
+  },
+  body: JSON.stringify(_agentDbg),
+}).catch(() => {});
+// #endregion
+
 const nextConfig: NextConfig = {
   transpilePackages: ['@jrichforms/experience'],
   // Trace files from content/ and workspace packages on Vercel.
