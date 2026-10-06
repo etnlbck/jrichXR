@@ -8,6 +8,7 @@ export type {
   MuralNodeType,
   MuralPlacement,
   MuralVec3,
+  SpatialPin,
 } from './types';
 
 export type { NodeXr8Placement } from './helpers';
@@ -17,6 +18,7 @@ export {
   engMetersToXr8Units,
   engVecToXr8,
   findNode,
+  galleryPins,
   getNodeXr8Placement,
   parseGalleryExperience,
 } from './helpers';

@@ -9,12 +9,21 @@ import {
   assetWebPath,
   engVecToXr8,
   findNode,
+  galleryPins,
   getNodeXr8Placement,
   parseGalleryExperience,
   type GalleryExperience,
 } from '@jrichforms/experience';
 
 export { DEFAULT_EXPERIENCE_ID } from '@/lib/experience-id';
+
+export type AppPin = {
+  id: string;
+  title: string;
+  body: string;
+  position: { x: number; y: number; z: number };
+  audioUrl?: string;
+};
 
 export type AppConfig = {
   experienceId: string;
@@ -58,6 +67,7 @@ export type AppConfig = {
   };
   engine: GalleryExperience['engine']['web'];
   maxGlbBytes: number;
+  pins: AppPin[];
 };
 
 export function getSeedExperience(): GalleryExperience {
@@ -126,6 +136,15 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
     },
     engine: experience.engine.web,
     maxGlbBytes: g.maxGlbBytes,
+    pins: galleryPins(experience).map((pin) => ({
+      id: pin.id,
+      title: pin.title,
+      body: pin.body,
+      position: pin.position,
+      audioUrl: pin.audioAssetId
+        ? assetWebPath(experience, pin.audioAssetId)
+        : undefined,
+    })),
   };
 }
 

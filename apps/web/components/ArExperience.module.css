@@ -237,6 +237,12 @@
   font-size: 0.95rem;
 }
 
+.pinBody {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .panelClose {
   position: absolute;
   top: 12px;

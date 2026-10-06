@@ -20,10 +20,12 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   let three: ReturnType<NonNullable<Window['XR8']>['Threejs']['xrScene']> | null =
     null;
   let anchor: THREE.Group | null = null;
+  let piece: THREE.Group | null = null;
   let finished: THREE.Object3D | null = null;
   let raw: THREE.Object3D | null = null;
   let overlay: THREE.Mesh | null = null;
   let placeholder: THREE.Mesh | null = null;
+  const pinHits: THREE.Object3D[] = [];
   let modelsReady = false;
   let visible = false;
   let morphT = 0;
@@ -60,6 +62,32 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       THREE.MathUtils.degToRad(p.rotationDeg.z)
     );
     obj.scale.setScalar(p.scale);
+  }
+
+  function addPins(parent: THREE.Object3D, radius: number) {
+    for (const pin of config.pins) {
+      const group = new THREE.Group();
+      group.position.set(pin.position.x, pin.position.y, pin.position.z);
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 16, 12),
+        new THREE.MeshBasicMaterial({ color: 0xffc46a })
+      );
+      const hit = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 3, 8, 8),
+        new THREE.MeshBasicMaterial({
+          visible: false,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+        })
+      );
+      dot.userData.pinId = pin.id;
+      hit.userData.pinId = pin.id;
+      group.add(dot);
+      group.add(hit);
+      parent.add(group);
+      pinHits.push(dot, hit);
+    }
   }
 
   /** Cool/matte look so interim raw (duplicate of finished) still reads as a morph. */
@@ -143,25 +171,35 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       });
 
     try {
+      piece = new THREE.Group();
+      applyPlacement(piece);
+      anchor.add(piece);
+
       finished = await loadGltf(config.assets.finishedModel);
-      applyPlacement(finished);
-      anchor.add(finished);
+      piece.add(finished);
       setOpacity(finished, 1);
       mark('finished_model_loaded');
 
       if (hasRaw) {
         raw = await loadGltf(config.assets.rawModel);
-        applyPlacement(raw);
         if (config.assets.interimRaw) {
           applyInterimRawLook(raw);
           console.info(
             '[jrf] raw.glb is interim (duplicate mesh + cool tint). Replace with aligned raw stone.'
           );
         }
-        anchor.add(raw);
+        piece.add(raw);
         setOpacity(raw, 0);
         mark('raw_model_loaded');
       }
+
+      const box = new THREE.Box3().setFromObject(finished);
+      const size = box.getSize(new THREE.Vector3());
+      const pinRadius = Math.max(
+        0.008,
+        Math.max(size.x, size.y, size.z) * 0.018
+      );
+      addPins(piece, pinRadius);
 
       const hasOverlay = await assetExists(config.assets.overlay);
       if (hasOverlay) {
@@ -313,12 +351,22 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     callbacks.onState('SCANNING');
   }
 
+  function pickPin(ndcX: number, ndcY: number): string | null {
+    if (!three || !visible || pinHits.length === 0) return null;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), three.camera);
+    const hit = raycaster.intersectObjects(pinHits, true)[0];
+    const id = hit?.object.userData.pinId;
+    return typeof id === 'string' ? id : null;
+  }
+
   return {
     pipelineModule,
     onImageFound,
     onImageUpdated,
     onImageLost,
     toggleMorph,
+    pickPin,
     isVisible: () => visible,
     isModelsReady: () => modelsReady,
   };

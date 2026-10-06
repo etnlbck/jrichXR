@@ -125,7 +125,8 @@
     ],
     "usePlaceholderCube": false,
     "dracoDecoderPath": "/draco/",
-    "maxGlbBytes": 10485760
+    "maxGlbBytes": 10485760,
+    "pins": []
   },
   "engine": {
     "web": {

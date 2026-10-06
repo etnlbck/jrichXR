@@ -42,6 +42,15 @@ export interface GalleryProvenance {
   exhibition: string;
 }
 
+/** Point on the sculpture in GLB-root local space (before marker placement). */
+export interface SpatialPin {
+  id: string;
+  title: string;
+  body: string;
+  position: MuralVec3;
+  audioAssetId?: string;
+}
+
 export interface GalleryExtension {
   title: string;
   morph: {
@@ -64,6 +73,7 @@ export interface GalleryExtension {
   usePlaceholderCube: boolean;
   dracoDecoderPath: string;
   maxGlbBytes: number;
+  pins?: SpatialPin[];
 }
 
 export interface GalleryExperience {

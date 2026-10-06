@@ -1,16 +1,22 @@
 'use client';
 
 import { upload } from '@vercel/blob/client';
-import type { GalleryExperience, MuralNode } from '@jrichforms/experience';
+import type {
+  GalleryExperience,
+  MuralNode,
+  SpatialPin,
+} from '@jrichforms/experience';
+import { assetWebPath } from '@jrichforms/experience';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import AdminUserMenu from '@/components/AdminUserMenu';
+import PinPlacer from '@/components/PinPlacer';
 import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
 
-type Tab = 'overview' | 'provenance' | 'placement' | 'assets' | 'nodes';
+type Tab = 'overview' | 'provenance' | 'placement' | 'assets' | 'nodes' | 'pins';
 
 type StoreStatus = {
   blobConfigured: boolean;
@@ -43,6 +49,7 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const isSeedExperience = experienceId === DEFAULT_EXPERIENCE_ID;
   const qs = `?id=${encodeURIComponent(experienceId)}`;
 
@@ -79,8 +86,9 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
     };
   }, [qs]);
 
-  async function save() {
-    if (!experience) return;
+  async function save(nextExperience?: GalleryExperience) {
+    const payload = nextExperience ?? experience;
+    if (!payload) return;
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -88,7 +96,7 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
       const res = await fetch(`/api/admin/experience${qs}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ experience }),
+        body: JSON.stringify({ experience: payload }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Save failed');
@@ -230,6 +238,47 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
     });
   }
 
+  function setPins(next: SpatialPin[]) {
+    updateGallery({ pins: next });
+  }
+
+  function updatePin(id: string, patch: Partial<SpatialPin>) {
+    if (!experience) return;
+    const pins = experience.gallery.pins ?? [];
+    setPins(pins.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+
+  function addPinAt(position: SpatialPin['position']) {
+    if (!experience) return;
+    const pins = experience.gallery.pins ?? [];
+    const id = `pin-${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+    const pin: SpatialPin = {
+      id,
+      title: `Pin ${pins.length + 1}`,
+      body: '',
+      position,
+    };
+    setPins([...pins, pin]);
+    setSelectedPinId(id);
+  }
+
+  async function uploadPinAudio(pin: SpatialPin, file: File) {
+    if (!experience) return;
+    const audioAssetId = `pin-${pin.id}`;
+    const next: GalleryExperience = {
+      ...experience,
+      gallery: {
+        ...experience.gallery,
+        pins: (experience.gallery.pins ?? []).map((p) =>
+          p.id === pin.id ? { ...p, audioAssetId } : p
+        ),
+      },
+    };
+    setExperience(next);
+    await save(next);
+    await onUpload(audioAssetId, file);
+  }
+
   if (!experience) {
     return (
       <div className={styles.page}>
@@ -241,6 +290,8 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
   }
 
   const title = experience.gallery.provenance.title;
+  const pins = experience.gallery.pins ?? [];
+  const selectedPin = pins.find((p) => p.id === selectedPinId);
 
   return (
     <div className={styles.page}>
@@ -258,6 +309,7 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
               ['placement', 'Placement'],
               ['assets', 'Assets'],
               ['nodes', 'Nodes'],
+              ['pins', 'Pins'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -715,6 +767,138 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
               >
                 Save draft
               </button>
+            </div>
+          </section>
+        )}
+
+        {tab === 'pins' && (
+          <section className={styles.panel}>
+            <h2 className={styles.sectionTitle}>Spatial pins</h2>
+            <p className={styles.status}>
+              Pins stick to the sculpture in WebAR. Tap a pin to open its note.
+              Save the draft when you are done placing.
+            </p>
+            <div className={styles.pinLayout}>
+              <PinPlacer
+                modelUrl={
+                  assetWebPath(experience, 'finished-glb') ??
+                  (isSeedExperience ? '/assets/models/finished.glb' : null)
+                }
+                dracoDecoderPath={experience.gallery.dracoDecoderPath}
+                pins={pins}
+                selectedId={selectedPinId}
+                onSelect={setSelectedPinId}
+                onAddPin={addPinAt}
+                onMovePin={(id, position) => updatePin(id, { position })}
+              />
+              <div className={styles.panel}>
+                {pins.length > 0 && (
+                  <div className={styles.pinList}>
+                    {pins.map((pin) => (
+                      <button
+                        key={pin.id}
+                        type="button"
+                        className={styles.pinListButton}
+                        data-active={selectedPinId === pin.id}
+                        onClick={() => setSelectedPinId(pin.id)}
+                      >
+                        {pin.title || pin.id}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!selectedPin && (
+                  <p className={styles.status}>
+                    Click the model to add a pin, or pick one from the list.
+                  </p>
+                )}
+                {selectedPin && (
+                  <>
+                    <div className={styles.field}>
+                      <label>Title</label>
+                      <input
+                        value={selectedPin.title}
+                        onChange={(e) =>
+                          updatePin(selectedPin.id, { title: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className={styles.field}>
+                      <label>Body</label>
+                      <textarea
+                        value={selectedPin.body}
+                        onChange={(e) =>
+                          updatePin(selectedPin.id, { body: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className={styles.row}>
+                      {(['x', 'y', 'z'] as const).map((axis) => (
+                        <div key={axis} className={styles.field}>
+                          <label>pos.{axis}</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            value={selectedPin.position[axis]}
+                            onChange={(e) =>
+                              updatePin(selectedPin.id, {
+                                position: {
+                                  ...selectedPin.position,
+                                  [axis]: Number(e.target.value),
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.assetRow}>
+                      <strong>Pin audio</strong>
+                      <label className={styles.btn}>
+                        Upload MP3
+                        <input
+                          type="file"
+                          accept="audio/mpeg,.mp3"
+                          hidden
+                          disabled={busy}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void uploadPinAudio(selectedPin, file);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <code>
+                        {selectedPin.audioAssetId
+                          ? assetWebPath(experience, selectedPin.audioAssetId) ||
+                            '—'
+                          : '—'}
+                      </code>
+                    </div>
+                    <div className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.btnDanger}
+                        disabled={busy}
+                        onClick={() => {
+                          setPins(pins.filter((p) => p.id !== selectedPin.id));
+                          setSelectedPinId(null);
+                        }}
+                      >
+                        Delete pin
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.btnPrimary}
+                        disabled={busy}
+                        onClick={() => void save()}
+                      >
+                        Save draft
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </section>
         )}

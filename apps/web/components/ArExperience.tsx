@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { AppConfig } from '@/lib/config';
 import { createScene } from '@/lib/scene';
 import { bootXr, loadEngineScripts } from '@/lib/xr-boot';
@@ -26,7 +26,10 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
   const [booting, setBooting] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [showProvenance, setShowProvenance] = useState(false);
+  const [openPinId, setOpenPinId] = useState<string | null>(null);
   const narratedOnce = useRef(false);
+  const pinAudioRef = useRef<HTMLAudioElement>(null);
+  const openPin = config.pins.find((p) => p.id === openPinId);
 
   const openProvenance = useCallback(() => {
     setShowProvenance(true);
@@ -36,6 +39,7 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
     sceneRef.current = createScene(config, {
       onState: setState,
       onEnterRaw: () => {
+        pinAudioRef.current?.pause();
         if (!config.audio.playOnFirstEnterRaw) {
           openProvenance();
           return;
@@ -66,6 +70,13 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
       },
     });
   }, [config, openProvenance]);
+
+  useEffect(() => {
+    if (state === 'SCANNING' || state === 'START' || state === 'ERROR') {
+      setOpenPinId(null);
+      pinAudioRef.current?.pause();
+    }
+  }, [state]);
 
   const unlockAudio = useCallback(() => {
     if (!config.audio.unlockOnBegin) return;
@@ -118,13 +129,45 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
     }
   }, [config, onRequestStart, unlockAudio]);
 
-  const handleCanvasTap = useCallback(() => {
-    if (state !== 'ANCHORED' && state !== 'RAW' && state !== 'FINISHED') return;
-    const scene = sceneRef.current;
-    if (!scene?.isVisible() || !scene.isModelsReady()) return;
-    const next = scene.toggleMorph();
-    if (next) setState(next);
-  }, [state]);
+  const handleCanvasTap = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      if (state !== 'ANCHORED' && state !== 'RAW' && state !== 'FINISHED') return;
+      const scene = sceneRef.current;
+      const canvas = canvasRef.current;
+      if (!scene?.isVisible() || !scene.isModelsReady() || !canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      const pinId = scene.pickPin(ndcX, ndcY);
+      if (pinId) {
+        const pin = config.pins.find((p) => p.id === pinId);
+        setOpenPinId(pinId);
+        setShowProvenance(false);
+        const pinAudio = pinAudioRef.current;
+        const narration = audioRef.current;
+        if (narration && !narration.paused) narration.pause();
+        if (pinAudio) {
+          if (pin?.audioUrl) {
+            pinAudio.src = pin.audioUrl;
+            pinAudio.currentTime = 0;
+            void pinAudio.play().catch(() => {
+              /* gesture replay on next tap */
+            });
+          } else {
+            pinAudio.pause();
+          }
+        }
+        return;
+      }
+
+      pinAudioRef.current?.pause();
+      setOpenPinId(null);
+      const next = scene.toggleMorph();
+      if (next) setState(next);
+    },
+    [config.pins, state]
+  );
 
   const pc = config.piece;
   const showScan = state === 'SCANNING' && modelsReady && !booting;
@@ -173,7 +216,9 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
         <div className={styles.prompt}>
           {config.usePlaceholderCube
             ? 'Tap the cube to preview the morph'
-            : config.assets.interimRaw
+            : config.pins.length > 0
+              ? 'Tap a pin for a note, or tap the piece to morph'
+              : config.assets.interimRaw
               ? 'Tap to preview the morph (interim raw mesh)'
               : 'Tap the piece to reveal the raw stone'}
         </div>
@@ -187,6 +232,24 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
             Check camera permission, HTTPS, and that the marker JSON exists at{' '}
             {config.imageTargetJson}.
           </p>
+        </div>
+      )}
+
+      {openPin && (
+        <div className={styles.panel}>
+          <button
+            type="button"
+            className={styles.panelClose}
+            onClick={() => {
+              pinAudioRef.current?.pause();
+              setOpenPinId(null);
+            }}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <h2>{openPin.title}</h2>
+          {openPin.body ? <p className={styles.pinBody}>{openPin.body}</p> : null}
         </div>
       )}
 
@@ -230,6 +293,7 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
       )}
 
       <audio ref={audioRef} preload="auto" playsInline />
+      <audio ref={pinAudioRef} preload="auto" playsInline />
 
       {/* Required attribution for @8thwall/engine-binary */}
       <p className={styles.attrib}>

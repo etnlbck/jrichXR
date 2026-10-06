@@ -1,4 +1,13 @@
-import type { GalleryExperience, MuralNode, MuralVec3 } from './types';
+import type {
+  GalleryExperience,
+  MuralNode,
+  MuralVec3,
+  SpatialPin,
+} from './types';
+
+export function galleryPins(experience: GalleryExperience): SpatialPin[] {
+  return experience.gallery.pins ?? [];
+}
 
 export function findNode(
   experience: GalleryExperience,
@@ -46,7 +55,13 @@ export function parseGalleryExperience(raw: unknown): GalleryExperience {
   if (e.kind !== 'mural' || !e.id || !e.gallery || !e.marker?.web) {
     throw new Error('experience: invalid gallery mural package');
   }
-  return e;
+  return {
+    ...e,
+    gallery: {
+      ...e.gallery,
+      pins: Array.isArray(e.gallery.pins) ? e.gallery.pins : [],
+    },
+  };
 }
 
 export interface NodeXr8Placement {
