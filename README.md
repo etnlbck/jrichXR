@@ -56,9 +56,7 @@ npm run convert-usdz     # USDZ checklist / Reality Converter
 
 ## Deploying (Vercel)
 
-**If the Vercel project Root Directory is the monorepo root** (current): root [`vercel.json`](vercel.json) builds `@jrichforms/web` then runs [`scripts/vercel-link-next-output.mjs`](scripts/vercel-link-next-output.mjs) so `.next/routes-manifest.json` exists at the repo root (where the Next builder looks).
-
-**Preferred long-term:** set Root Directory to `apps/web` and use [`apps/web/vercel.json`](apps/web/vercel.json) (`cd ../.. && npm install` / build) — then the link script is unnecessary.
+Vercel Root Directory is **`apps/web`** (see root [`vercel.json`](vercel.json) `rootDirectory`). Install/build run from the monorepo root via `cd ../.. && npm install` / `npm run build -w @jrichforms/web`.
 
 `postinstall` copies the engine and runs `sync-content` into `apps/web/public`.
 

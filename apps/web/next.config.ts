@@ -8,17 +8,17 @@ const monorepoRoot = path.join(appDir, '../..');
 // #region agent log
 const _agentDbg = {
   sessionId: '88764b',
-  runId: process.env.VERCEL ? 'vercel' : 'local',
-  hypothesisId: 'A',
+  runId: process.env.VERCEL ? 'vercel-post-rootdir' : 'local',
+  hypothesisId: 'C',
   location: 'apps/web/next.config.ts',
-  message: 'Next config load — where .next will be written',
+  message: 'Next config load after rootDirectory=apps/web fix',
   data: {
     cwd: process.cwd(),
     appDir,
     monorepoRoot,
     vercel: Boolean(process.env.VERCEL),
     expectedManifest: path.join(appDir, '.next', 'routes-manifest.json'),
-    rootManifest: path.join(monorepoRoot, '.next', 'routes-manifest.json'),
+    hasOutputFileTracingRoot: true,
   },
   timestamp: Date.now(),
 };
@@ -35,8 +35,12 @@ fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b', {
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@jrichforms/experience'],
-  // Trace files from content/ and workspace packages on Vercel.
+  // Trace content/ + packages/* when Vercel Root Directory is apps/web.
   outputFileTracingRoot: monorepoRoot,
+  // Keep Turbopack resolution aligned with the monorepo root (avoids path doubling).
+  turbopack: {
+    root: monorepoRoot,
+  },
 
   // Engine WASM/chunks and GLBs must be served with correct MIME types on Vercel.
   async headers() {
