@@ -1,7 +1,7 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
 import { requireAdminSession } from '@/lib/admin-auth';
-import { DEFAULT_EXPERIENCE_ID } from '@/lib/config';
+import { parseExperienceId } from '@/lib/experience-id';
 import {
   applyAssetUrl,
   getDraft,
@@ -41,15 +41,23 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         let assetId = 'asset';
+        let experienceId: string | null = null;
         try {
           if (clientPayload) {
-            const parsed = JSON.parse(clientPayload) as { assetId?: string };
+            const parsed = JSON.parse(clientPayload) as {
+              assetId?: string;
+              experienceId?: string;
+            };
             if (parsed.assetId) assetId = parsed.assetId;
+            experienceId = parseExperienceId(parsed.experienceId);
           }
         } catch {
           /* ignore */
         }
-        const expectedPrefix = `experiences/${DEFAULT_EXPERIENCE_ID}/assets/${assetId}/`;
+        if (!experienceId) {
+          throw new Error('Invalid experience id');
+        }
+        const expectedPrefix = `experiences/${experienceId}/assets/${assetId}/`;
         if (!pathname.startsWith(expectedPrefix)) {
           throw new Error(`Invalid upload pathname for asset ${assetId}`);
         }
@@ -59,22 +67,32 @@ export async function POST(request: Request): Promise<NextResponse> {
           maximumSizeInBytes: 25 * 1024 * 1024,
           addRandomSuffix: false,
           allowOverwrite: true,
-          tokenPayload: JSON.stringify({ assetId, filename }),
+          tokenPayload: JSON.stringify({ assetId, filename, experienceId }),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         let assetId = 'asset';
+        let experienceId: string | null = null;
         try {
           if (tokenPayload) {
-            const parsed = JSON.parse(tokenPayload) as { assetId?: string };
+            const parsed = JSON.parse(tokenPayload) as {
+              assetId?: string;
+              experienceId?: string;
+            };
             if (parsed.assetId) assetId = parsed.assetId;
+            experienceId = parseExperienceId(parsed.experienceId);
           }
         } catch {
           /* ignore */
         }
-        await seedDraftIfMissing();
-        const draft = await getDraft();
-        if (!draft) return;
+        if (!experienceId) return;
+        try {
+          await seedDraftIfMissing(experienceId);
+        } catch {
+          /* non-default missing drafts skip */
+        }
+        const draft = await getDraft(experienceId);
+        if (draft === null) return;
         const clearInterim =
           assetId === 'raw-glb' || assetId === 'narration'
             ? { interim: false }
@@ -83,7 +101,6 @@ export async function POST(request: Request): Promise<NextResponse> {
           status: 'ready',
           ...clearInterim,
         });
-        // Marker print path for web
         if (assetId === 'marker-display') {
           next.marker = {
             ...next.marker,
@@ -93,7 +110,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             },
           };
         }
-        await putDraft(next);
+        await putDraft(next, experienceId);
       },
     });
 

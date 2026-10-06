@@ -14,7 +14,7 @@ import {
   type GalleryExperience,
 } from '@jrichforms/experience';
 
-export const DEFAULT_EXPERIENCE_ID = 'untitled-no-7';
+export { DEFAULT_EXPERIENCE_ID } from '@/lib/experience-id';
 
 export type AppConfig = {
   experienceId: string;

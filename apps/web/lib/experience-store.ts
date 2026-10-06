@@ -1,9 +1,10 @@
-import { head, put } from '@vercel/blob';
+import { head, list, put } from '@vercel/blob';
 import {
   parseGalleryExperience,
   type GalleryExperience,
 } from '@jrichforms/experience';
 import { DEFAULT_EXPERIENCE_ID, getSeedExperience } from '@/lib/config';
+import { isValidExperienceId, visitorShopPath } from '@/lib/experience-id';
 
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
@@ -59,6 +60,9 @@ export async function putDraft(
     throw new Error('BLOB_READ_WRITE_TOKEN is not set');
   }
   const parsed = parseGalleryExperience(experience);
+  if (parsed.id !== id) {
+    throw new Error(`experience.id (${parsed.id}) does not match path id (${id})`);
+  }
   await put(draftPath(id), JSON.stringify(parsed, null, 2), {
     access: 'public',
     contentType: 'application/json',
@@ -72,7 +76,7 @@ export async function publishDraft(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<GalleryExperience> {
   const draft = await getDraft(id);
-  if (!draft) throw new Error('No draft to publish');
+  if (draft === null) throw new Error('No draft to publish');
   const parsed = parseGalleryExperience(draft);
   const nextVersion = bumpPatchVersion(parsed.version);
   const published: GalleryExperience = { ...parsed, version: nextVersion };
@@ -82,40 +86,68 @@ export async function publishDraft(
     addRandomSuffix: false,
     allowOverwrite: true,
   });
-  // Keep draft version in sync after publish
   await putDraft(published, id);
   return published;
+}
+
+export function cloneSeedForId(id: string, title: string): GalleryExperience {
+  const seed = getSeedExperience();
+  return parseGalleryExperience({
+    ...seed,
+    id,
+    version: '0.1.0',
+    gallery: {
+      ...seed.gallery,
+      title,
+      provenance: { ...seed.gallery.provenance, title },
+      shop: {
+        ...seed.gallery.shop,
+        experienceSlug: id,
+        shopPath: visitorShopPath(id),
+      },
+    },
+  });
+}
+
+export async function createDraftFromSeed(
+  id: string,
+  title: string
+): Promise<GalleryExperience> {
+  if (!isBlobConfigured()) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
+  }
+  if (!isValidExperienceId(id)) {
+    throw new Error('invalid_experience_id');
+  }
+  if (id === DEFAULT_EXPERIENCE_ID) {
+    throw new Error('experience_exists');
+  }
+  const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
+  if (draft !== null || published !== null) {
+    throw new Error('experience_exists');
+  }
+  const experience = cloneSeedForId(id, title.trim() || id);
+  await putDraft(experience, id);
+  return experience;
 }
 
 export async function seedDraftIfMissing(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<{ experience: GalleryExperience; seeded: boolean }> {
-  // #region agent log
-  const _t0 = Date.now();
-  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:entry',message:'seedDraftIfMissing start',data:{id,blobConfigured:isBlobConfigured()},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   const existing = await getDraft(id);
-  // #region agent log
-  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'post-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:after-getDraft',message:'getDraft resolved',data:{hasExisting:existing!==null,existingId:existing?.id??null,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  // Avoid `if (existing)` — Turbopack has miscompiled that as always-true
-  // after await, returning a null draft forever (admin stuck on Loading…).
-  if (existing !== null) {
-    return { experience: existing, seeded: false };
+  // Avoid `if (existing)` — Turbopack has miscompiled that as always-true after await.
+  if (existing !== null) return { experience: existing, seeded: false };
+
+  if (id !== DEFAULT_EXPERIENCE_ID) {
+    throw new Error('experience_not_found');
   }
 
   const seed = getSeedExperience();
   if (!isBlobConfigured()) {
-    // #region agent log
-    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'post-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:seed-no-blob',message:'returning in-memory seed',data:{seedId:seed.id,version:seed.version,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return { experience: seed, seeded: false };
   }
 
   await putDraft(seed, id);
-  // #region agent log
-  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'post-fix',hypothesisId:'F',location:'experience-store:seedDraftIfMissing:seeded',message:'putDraft seed completed',data:{seedId:seed.id,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   return { experience: seed, seeded: true };
 }
 
@@ -144,17 +176,80 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
       hasDraft: false,
       hasPublished: false,
       draftVersion: null,
-      publishedVersion: seed.version,
+      publishedVersion: id === DEFAULT_EXPERIENCE_ID ? seed.version : null,
     };
   }
   const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
   return {
     blobConfigured: true,
-    hasDraft: !!draft,
-    hasPublished: !!published,
+    hasDraft: draft !== null,
+    hasPublished: published !== null,
     draftVersion: draft?.version ?? null,
     publishedVersion: published?.version ?? null,
   };
+}
+
+export type ExperienceIndexItem = {
+  id: string;
+  title: string;
+  blobConfigured: boolean;
+  hasDraft: boolean;
+  hasPublished: boolean;
+  draftVersion: string | null;
+  publishedVersion: string | null;
+};
+
+async function listBlobExperienceIds(): Promise<string[]> {
+  const ids = new Set<string>();
+  if (!isBlobConfigured()) return [];
+  let cursor: string | undefined;
+  do {
+    const result = await list({ prefix: 'experiences/', cursor, limit: 1000 });
+    for (const blob of result.blobs) {
+      const match = /^experiences\/([^/]+)\//.exec(blob.pathname);
+      if (match && isValidExperienceId(match[1])) {
+        ids.add(match[1]);
+      }
+    }
+    cursor = result.hasMore ? result.cursor : undefined;
+  } while (cursor);
+  return [...ids];
+}
+
+export async function listExperiences(): Promise<{
+  blobConfigured: boolean;
+  experiences: ExperienceIndexItem[];
+}> {
+  const blobConfigured = isBlobConfigured();
+  const seed = getSeedExperience();
+  const ids = new Set<string>([DEFAULT_EXPERIENCE_ID, ...(await listBlobExperienceIds())]);
+
+  const experiences = await Promise.all(
+    [...ids].sort().map(async (id) => {
+      const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
+      const pkg =
+        draft !== null
+          ? draft
+          : published !== null
+            ? published
+            : id === DEFAULT_EXPERIENCE_ID
+              ? seed
+              : null;
+      return {
+        id,
+        title: pkg?.gallery.provenance.title ?? id,
+        blobConfigured,
+        hasDraft: draft !== null,
+        hasPublished: published !== null,
+        draftVersion: draft?.version ?? null,
+        publishedVersion:
+          published?.version ??
+          (id === DEFAULT_EXPERIENCE_ID && !blobConfigured ? seed.version : null),
+      };
+    })
+  );
+
+  return { blobConfigured, experiences };
 }
 
 function bumpPatchVersion(version: string): string {

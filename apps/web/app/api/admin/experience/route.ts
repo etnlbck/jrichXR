@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { parseGalleryExperience } from '@jrichforms/experience';
 import { requireAdminSession } from '@/lib/admin-auth';
 import { DEFAULT_EXPERIENCE_ID } from '@/lib/config';
+import { parseExperienceId } from '@/lib/experience-id';
 import {
   getDraft,
   isBlobConfigured,
@@ -10,27 +11,24 @@ import {
   status,
 } from '@/lib/experience-store';
 
-export async function GET() {
-  // #region agent log
-  const _t0 = Date.now();
-  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B,C,E',location:'api/admin/experience:GET:entry',message:'GET experience entered',data:{blobConfigured:isBlobConfigured()},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+function idFromRequest(request: Request): string | null {
+  return parseExperienceId(new URL(request.url).searchParams.get('id'));
+}
+
+export async function GET(request: Request) {
   if (!(await requireAdminSession())) {
-    // #region agent log
-    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'E',location:'api/admin/experience:GET:unauthorized',message:'session missing',data:{ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const st = await status(DEFAULT_EXPERIENCE_ID);
-  // #region agent log
-  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B,C',location:'api/admin/experience:GET:status',message:'status() resolved',data:{st,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  if (!isBlobConfigured()) {
-    const { experience } = await seedDraftIfMissing();
-    // #region agent log
-    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'C',location:'api/admin/experience:GET:seed-no-blob',message:'returning seed without blob',data:{hasExperience:!!experience,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+  const id = idFromRequest(request);
+  if (!id) {
+    return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
+  }
+
+  const st = await status(id);
+
+  if (id === DEFAULT_EXPERIENCE_ID && !isBlobConfigured()) {
+    const { experience } = await seedDraftIfMissing(id);
     return NextResponse.json({
       experience,
       status: st,
@@ -38,11 +36,16 @@ export async function GET() {
     });
   }
 
-  const { experience, seeded } = await seedDraftIfMissing();
-  // #region agent log
-  fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B',location:'api/admin/experience:GET:done',message:'returning draft',data:{seeded,hasExperience:!!experience,version:experience?.version??null,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  return NextResponse.json({ experience, status: st, seeded });
+  try {
+    const { experience, seeded } = await seedDraftIfMissing(id);
+    return NextResponse.json({ experience, status: st, seeded });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === 'experience_not_found') {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function PUT(request: Request) {
@@ -56,6 +59,11 @@ export async function PUT(request: Request) {
     );
   }
 
+  const id = idFromRequest(request);
+  if (!id) {
+    return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -67,12 +75,12 @@ export async function PUT(request: Request) {
     const experience = parseGalleryExperience(
       (body as { experience?: unknown })?.experience ?? body
     );
-    const saved = await putDraft(experience);
-    const draft = await getDraft();
+    const saved = await putDraft(experience, id);
+    const draft = await getDraft(id);
     return NextResponse.json({
       experience: saved,
-      status: await status(),
-      draftExists: !!draft,
+      status: await status(id),
+      draftExists: draft !== null,
     });
   } catch (err) {
     return NextResponse.json(

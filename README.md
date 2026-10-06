@@ -74,7 +74,7 @@ Release sync: [`content/untitled-no-7/RELEASE.md`](content/untitled-no-7/RELEASE
 
 ## Admin CMS
 
-Password-gated editor at `/admin` — draft/publish the experience package to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). Visitor WebAR reads the **published** Blob package, falling back to repo `content/` seed.
+Password-gated editor at `/admin` — list, create, and draft/publish experience packages to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). `/` is Untitled No. 7 (published Blob, else repo `content/` seed). Other published packages are `/e/{id}` and `/e/{id}/shop`.
 
 ```bash
 # apps/web/.env.local (or Vercel project env)
@@ -84,8 +84,9 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_…   # from Vercel → Storage → Blob
 ```
 
 1. Create a Blob store on the Vercel project and pull env locally (`vercel env pull`).
-2. Open `/admin/login`, sign in, **Seed if empty**, edit, upload assets, **Publish**.
-3. Repo `content/untitled-no-7/` remains the git seed; production edits do not write git.
+2. Open `/admin/login`, sign in. Edit Untitled No. 7 at `/admin/untitled-no-7`, or **Create** a new slug (clones the seed package).
+3. Upload assets, **Publish**. Visitors open new pieces at `/e/{slug}`.
+4. Repo `content/untitled-no-7/` remains the git seed; production edits do not write git.
 
 Aura Lenses dual-publish is still via `prepare-lenses` / external API (Export JSON from admin helps).
 

@@ -7,6 +7,13 @@ import {
 } from '@/lib/config';
 import { getPublished, isBlobConfigured } from '@/lib/experience-store';
 
+export class ExperienceNotFoundError extends Error {
+  constructor(public readonly experienceId: string) {
+    super(`experience_not_found:${experienceId}`);
+    this.name = 'ExperienceNotFoundError';
+  }
+}
+
 export type LoadedExperience = {
   experience: GalleryExperience;
   config: AppConfig;
@@ -14,7 +21,8 @@ export type LoadedExperience = {
 };
 
 /**
- * Visitor runtime: published Blob package, else repo seed.
+ * Visitor runtime: published Blob package.
+ * Untitled No. 7 falls back to repo seed; other ids do not.
  */
 export async function loadExperience(
   id = DEFAULT_EXPERIENCE_ID
@@ -30,6 +38,9 @@ export async function loadExperience(
         source: 'blob-published',
       };
     }
+  }
+  if (id !== DEFAULT_EXPERIENCE_ID) {
+    throw new ExperienceNotFoundError(id);
   }
   const seed = getSeedExperience();
   return {

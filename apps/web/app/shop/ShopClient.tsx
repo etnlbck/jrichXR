@@ -160,7 +160,15 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-export default function ShopClient({ piece }: { piece: ShopPiece }) {
+export default function ShopClient({
+  piece,
+  experienceId,
+  arHref = '/',
+}: {
+  piece: ShopPiece;
+  experienceId?: string;
+  arHref?: string;
+}) {
   const [products, setProducts] = useState<Product[]>([]);
   const [state, setState] = useState<LoadState>('loading');
   const [message, setMessage] = useState<string | null>(null);
@@ -169,7 +177,10 @@ export default function ShopClient({ piece }: { piece: ShopPiece }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/shop/products');
+        const qs = experienceId
+          ? `?id=${encodeURIComponent(experienceId)}`
+          : '';
+        const res = await fetch(`/api/shop/products${qs}`);
         const data = await res.json();
 
         setConfigured(data.configured !== false);
@@ -196,12 +207,12 @@ export default function ShopClient({ piece }: { piece: ShopPiece }) {
     };
 
     void load();
-  }, []);
+  }, [experienceId]);
 
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <Link href="/" className={styles.backLink}>
+        <Link href={arHref} className={styles.backLink}>
           ← Back to AR
         </Link>
         <h1 className={styles.title}>Shop {piece.title}</h1>

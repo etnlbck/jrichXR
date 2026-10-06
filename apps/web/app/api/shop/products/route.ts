@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
-import { loadExperience } from '@/lib/load-experience';
+import { DEFAULT_EXPERIENCE_ID } from '@/lib/config';
+import { parseExperienceId } from '@/lib/experience-id';
+import {
+  ExperienceNotFoundError,
+  loadExperience,
+} from '@/lib/load-experience';
 import { getExperienceProducts, isShopifyConfigured } from '@/lib/shopify';
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!isShopifyConfigured()) {
     return NextResponse.json(
       {
@@ -15,8 +20,17 @@ export async function GET() {
     );
   }
 
+  const raw = new URL(request.url).searchParams.get('id');
+  const id = raw ? parseExperienceId(raw) : DEFAULT_EXPERIENCE_ID;
+  if (!id) {
+    return NextResponse.json(
+      { success: false, configured: true, message: 'Invalid experience', products: [] },
+      { status: 400 }
+    );
+  }
+
   try {
-    const { config } = await loadExperience();
+    const { config } = await loadExperience(id);
     const slug = config.piece.shopifyExperienceSlug;
     const { products, source } = await getExperienceProducts(slug);
 
@@ -29,6 +43,17 @@ export async function GET() {
       products,
     });
   } catch (error) {
+    if (error instanceof ExperienceNotFoundError) {
+      return NextResponse.json(
+        {
+          success: false,
+          configured: true,
+          message: 'Experience not found',
+          products: [],
+        },
+        { status: 404 }
+      );
+    }
     console.error('Error fetching shop products:', error);
     return NextResponse.json(
       {

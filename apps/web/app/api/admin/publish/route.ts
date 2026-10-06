@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireAdminSession } from '@/lib/admin-auth';
+import { parseExperienceId } from '@/lib/experience-id';
 import { isBlobConfigured, publishDraft, status } from '@/lib/experience-store';
 
-export async function POST() {
+export async function POST(request: Request) {
   if (!(await requireAdminSession())) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
@@ -13,11 +14,16 @@ export async function POST() {
     );
   }
 
+  const id = parseExperienceId(new URL(request.url).searchParams.get('id'));
+  if (!id) {
+    return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
+  }
+
   try {
-    const experience = await publishDraft();
+    const experience = await publishDraft(id);
     return NextResponse.json({
       experience,
-      status: await status(),
+      status: await status(id),
     });
   } catch (err) {
     return NextResponse.json(

@@ -1,5 +1,5 @@
-import AdminEditor from '@/components/AdminEditor';
+import AdminList from '@/components/AdminList';
 
 export default function AdminPage() {
-  return <AdminEditor />;
+  return <AdminList />;
 }

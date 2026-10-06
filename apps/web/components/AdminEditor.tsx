@@ -3,8 +3,10 @@
 import { upload } from '@vercel/blob/client';
 import type { GalleryExperience, MuralNode } from '@jrichforms/experience';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { assetPathname } from '@/lib/experience-store-client';
+import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
 
 type Tab = 'overview' | 'provenance' | 'placement' | 'assets' | 'nodes';
@@ -29,7 +31,8 @@ const ASSET_SLOTS: Array<{
   { id: 'marker-display', label: 'Marker / print PNG', accept: 'image/png,.png' },
 ];
 
-export default function AdminEditor() {
+export default function AdminEditor({ experienceId }: { experienceId: string }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>('overview');
   const [experience, setExperience] = useState<GalleryExperience | null>(null);
   const [status, setStatus] = useState<StoreStatus | null>(null);
@@ -37,44 +40,41 @@ export default function AdminEditor() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isSeedExperience = experienceId === DEFAULT_EXPERIENCE_ID;
+  const qs = `?id=${encodeURIComponent(experienceId)}`;
 
   const load = useCallback(async () => {
-    setError(null);
-    // #region agent log
-    const _t0 = Date.now();
-    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,B,C',location:'AdminEditor.tsx:load:start',message:'admin experience load started',data:{href:typeof window!=='undefined'?window.location.href:null},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    const res = await fetch('/api/admin/experience');
-    // #region agent log
-    const _ct = res.headers.get('content-type');
-    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,B,C,D',location:'AdminEditor.tsx:load:response',message:'admin experience fetch returned',data:{status:res.status,ok:res.ok,contentType:_ct,redirected:res.redirected,url:res.url,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    let data: Record<string, unknown>;
-    try {
-      data = await res.json();
-    } catch (parseErr) {
-      // #region agent log
-      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,D',location:'AdminEditor.tsx:load:json-fail',message:'response was not JSON',data:{status:res.status,contentType:_ct,parseError:parseErr instanceof Error?parseErr.message:String(parseErr),ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-      throw parseErr;
-    }
-    // #region agent log
-    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'B,C,E',location:'AdminEditor.tsx:load:parsed',message:'admin experience JSON parsed',data:{status:res.status,hasExperience:!!data.experience,error:data.error??null,warning:data.warning??null,blobConfigured:(data.status as {blobConfigured?:boolean}|undefined)?.blobConfigured??null,ms:Date.now()-_t0},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    if (!res.ok) throw new Error((data.error as string) || 'Failed to load');
-    setExperience(data.experience as GalleryExperience);
-    setStatus(data.status as StoreStatus);
-    setWarning((data.warning as string | undefined) ?? null);
-  }, []);
+    const res = await fetch(`/api/admin/experience${qs}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load');
+    setExperience(data.experience);
+    setStatus(data.status);
+    setWarning(data.warning ?? null);
+  }, [qs]);
 
   useEffect(() => {
-    void load().catch((err) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88764b'},body:JSON.stringify({sessionId:'88764b',runId:'pre-fix',hypothesisId:'A,B,C,D,E',location:'AdminEditor.tsx:load:catch',message:'admin experience load failed',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-      setError(err instanceof Error ? err.message : 'Load failed');
-    });
-  }, [load]);
+    let cancelled = false;
+    fetch(`/api/admin/experience${qs}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load');
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setExperience(data.experience);
+        setStatus(data.status);
+        setWarning(data.warning ?? null);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Load failed');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [qs]);
 
   async function save() {
     if (!experience) return;
@@ -82,7 +82,7 @@ export default function AdminEditor() {
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch('/api/admin/experience', {
+      const res = await fetch(`/api/admin/experience${qs}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ experience }),
@@ -105,7 +105,7 @@ export default function AdminEditor() {
     setMessage(null);
     try {
       await save();
-      const res = await fetch('/api/admin/publish', { method: 'POST' });
+      const res = await fetch(`/api/admin/publish${qs}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Publish failed');
       setExperience(data.experience);
@@ -122,7 +122,7 @@ export default function AdminEditor() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/seed', {
+      const res = await fetch(`/api/admin/seed${qs}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ force }),
@@ -131,7 +131,15 @@ export default function AdminEditor() {
       if (!res.ok) throw new Error(data.error || 'Seed failed');
       setExperience(data.experience);
       setStatus(data.status);
-      setMessage(force ? 'Draft reset from seed' : data.seeded ? 'Seeded draft' : 'Draft already present');
+      setMessage(
+        force
+          ? isSeedExperience
+            ? 'Draft reset from seed'
+            : 'Draft reset from template'
+          : data.seeded
+            ? 'Seeded draft'
+            : 'Draft already present'
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Seed failed');
     } finally {
@@ -144,11 +152,11 @@ export default function AdminEditor() {
     setError(null);
     setMessage(null);
     try {
-      const pathname = assetPathname(assetId, file.name);
+      const pathname = assetPathname(assetId, file.name, experienceId);
       await upload(pathname, file, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload',
-        clientPayload: JSON.stringify({ assetId }),
+        clientPayload: JSON.stringify({ assetId, experienceId }),
       });
       await load();
       setMessage(`Uploaded ${assetId}`);
@@ -161,7 +169,7 @@ export default function AdminEditor() {
 
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' });
-    window.location.href = '/admin/login';
+    router.replace('/admin/login');
   }
 
   function updateGallery(patch: Partial<GalleryExperience['gallery']>) {
@@ -221,7 +229,8 @@ export default function AdminEditor() {
               {label}
             </button>
           ))}
-          <Link href="/">WebAR</Link>
+          <Link href="/admin">All experiences</Link>
+          <Link href={visitorArPath(experienceId)}>WebAR</Link>
           <button type="button" onClick={() => void logout()}>
             Log out
           </button>
@@ -266,23 +275,30 @@ export default function AdminEditor() {
               >
                 Publish
               </button>
-              <button
-                type="button"
-                className={styles.btn}
-                disabled={busy}
-                onClick={() => void seed(false)}
-              >
-                Seed if empty
-              </button>
+              {isSeedExperience && (
+                <button
+                  type="button"
+                  className={styles.btn}
+                  disabled={busy}
+                  onClick={() => void seed(false)}
+                >
+                  Seed if empty
+                </button>
+              )}
               <button
                 type="button"
                 className={styles.btnDanger}
                 disabled={busy}
                 onClick={() => {
-                  if (confirm('Replace draft with repo seed?')) void seed(true);
+                  const ok = confirm(
+                    isSeedExperience
+                      ? 'Replace draft with repo seed?'
+                      : 'Replace draft with a fresh Untitled No. 7 clone?'
+                  );
+                  if (ok) void seed(true);
                 }}
               >
-                Reset from seed
+                {isSeedExperience ? 'Reset from seed' : 'Reset from template'}
               </button>
               <a
                 className={styles.btn}
