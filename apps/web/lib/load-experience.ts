@@ -5,7 +5,11 @@ import {
   getSeedExperience,
   type AppConfig,
 } from '@/lib/config';
-import { getPublished, isBlobConfigured } from '@/lib/experience-store';
+import {
+  getPublished,
+  getMeta,
+  isBlobConfigured,
+} from '@/lib/experience-store';
 
 export class ExperienceNotFoundError extends Error {
   constructor(public readonly experienceId: string) {
@@ -28,6 +32,10 @@ export async function loadExperience(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<LoadedExperience> {
   if (isBlobConfigured()) {
+    const meta = await getMeta(id);
+    if (meta.archived === true) {
+      throw new ExperienceNotFoundError(id);
+    }
     const published = await getPublished(id);
     // Prefer !== null — Turbopack has miscompiled truthy checks after await
     // on GalleryExperience | null (see seedDraftIfMissing).

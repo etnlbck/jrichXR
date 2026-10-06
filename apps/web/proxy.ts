@@ -1,32 +1,56 @@
+import { clerkMiddleware } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { verifyAdminCookieHeaderEdge } from '@/lib/admin-auth-edge';
+import { resolveArtistSession } from '@/lib/artist-access';
 
-export async function proxy(request: NextRequest) {
+function isPublicAdminAuth(pathname: string): boolean {
+  return (
+    pathname.startsWith('/admin/sign-in') ||
+    pathname.startsWith('/admin/sign-up') ||
+    pathname.startsWith('/admin/login')
+  );
+}
+
+export default clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl;
-
+  const isPending = pathname.startsWith('/admin/pending');
   const isAdminPage =
-    pathname.startsWith('/admin') && !pathname.startsWith('/admin/login');
-  const isAdminApi =
-    pathname.startsWith('/api/admin') &&
-    !pathname.startsWith('/api/admin/login');
+    pathname.startsWith('/admin') && !isPublicAdminAuth(pathname) && !isPending;
+  const isAdminApi = pathname.startsWith('/api/admin');
 
-  if (!isAdminPage && !isAdminApi) {
+  if (!isAdminPage && !isAdminApi && !isPending) {
     return NextResponse.next();
   }
 
-  const ok = await verifyAdminCookieHeaderEdge(request.headers.get('cookie'));
-  if (ok) return NextResponse.next();
-
-  if (isAdminApi) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const { userId, sessionClaims } = await auth();
+  if (!userId) {
+    if (isAdminApi) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    const signIn = new URL('/admin/sign-in', request.url);
+    signIn.searchParams.set('redirect_url', pathname);
+    return NextResponse.redirect(signIn);
   }
 
-  const login = new URL('/admin/login', request.url);
-  login.searchParams.set('next', pathname);
-  return NextResponse.redirect(login);
-}
+  if (isPending) {
+    return NextResponse.next();
+  }
+
+  const session = await resolveArtistSession(userId, sessionClaims);
+  if (session.allowed) {
+    return NextResponse.next();
+  }
+
+  if (isAdminApi) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
+  return NextResponse.redirect(new URL('/admin/pending', request.url));
+});
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+    '/__clerk/(.*)',
+  ],
 };

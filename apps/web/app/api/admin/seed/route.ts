@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
-import { requireAdminSession } from '@/lib/admin-auth';
+import {
+  isArtistSession,
+  jsonFromNotFound,
+  loadArtist,
+} from '@/lib/artist-access';
 import { DEFAULT_EXPERIENCE_ID, getSeedExperience } from '@/lib/config';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
+  assertCanEdit,
   cloneSeedForId,
   getDraft,
   isBlobConfigured,
@@ -12,9 +17,8 @@ import {
 } from '@/lib/experience-store';
 
 export async function POST(request: Request) {
-  if (!(await requireAdminSession())) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  const artist = await loadArtist();
+  if (!isArtistSession(artist)) return artist;
   if (!isBlobConfigured()) {
     return NextResponse.json(
       { error: 'BLOB_READ_WRITE_TOKEN is required to seed' },
@@ -25,6 +29,15 @@ export async function POST(request: Request) {
   const id =
     parseExperienceId(new URL(request.url).searchParams.get('id')) ??
     DEFAULT_EXPERIENCE_ID;
+
+  try {
+    await assertCanEdit(id, artist);
+  } catch (err) {
+    return (
+      jsonFromNotFound(err) ??
+      NextResponse.json({ error: 'not_found' }, { status: 404 })
+    );
+  }
 
   let force = false;
   try {

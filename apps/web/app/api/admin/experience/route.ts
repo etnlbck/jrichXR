@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { parseGalleryExperience } from '@jrichforms/experience';
-import { requireAdminSession } from '@/lib/admin-auth';
+import {
+  isArtistSession,
+  jsonFromNotFound,
+  loadArtist,
+} from '@/lib/artist-access';
 import { DEFAULT_EXPERIENCE_ID } from '@/lib/config';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
+  assertCanEdit,
   getDraft,
   isBlobConfigured,
   putDraft,
@@ -16,13 +21,21 @@ function idFromRequest(request: Request): string | null {
 }
 
 export async function GET(request: Request) {
-  if (!(await requireAdminSession())) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  const artist = await loadArtist();
+  if (!isArtistSession(artist)) return artist;
 
   const id = idFromRequest(request);
   if (!id) {
     return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
+  }
+
+  try {
+    await assertCanEdit(id, artist);
+  } catch (err) {
+    return (
+      jsonFromNotFound(err) ??
+      NextResponse.json({ error: 'not_found' }, { status: 404 })
+    );
   }
 
   const st = await status(id);
@@ -49,9 +62,8 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!(await requireAdminSession())) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  const artist = await loadArtist();
+  if (!isArtistSession(artist)) return artist;
   if (!isBlobConfigured()) {
     return NextResponse.json(
       { error: 'BLOB_READ_WRITE_TOKEN is required to save drafts' },
@@ -62,6 +74,15 @@ export async function PUT(request: Request) {
   const id = idFromRequest(request);
   if (!id) {
     return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
+  }
+
+  try {
+    await assertCanEdit(id, artist);
+  } catch (err) {
+    return (
+      jsonFromNotFound(err) ??
+      NextResponse.json({ error: 'not_found' }, { status: 404 })
+    );
   }
 
   let body: unknown;

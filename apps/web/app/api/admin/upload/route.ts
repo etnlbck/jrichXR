@@ -1,9 +1,14 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
-import { requireAdminSession } from '@/lib/admin-auth';
+import {
+  isArtistSession,
+  jsonFromNotFound,
+  loadArtist,
+} from '@/lib/artist-access';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
   applyAssetUrl,
+  assertCanEdit,
   getDraft,
   isBlobConfigured,
   putDraft,
@@ -23,9 +28,8 @@ const ALLOWED = [
 ];
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!(await requireAdminSession())) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  const artist = await loadArtist();
+  if (!isArtistSession(artist)) return artist;
   if (!isBlobConfigured()) {
     return NextResponse.json(
       { error: 'BLOB_READ_WRITE_TOKEN is required' },
@@ -57,6 +61,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (!experienceId) {
           throw new Error('Invalid experience id');
         }
+        await assertCanEdit(experienceId, artist);
         const expectedPrefix = `experiences/${experienceId}/assets/${assetId}/`;
         if (!pathname.startsWith(expectedPrefix)) {
           throw new Error(`Invalid upload pathname for asset ${assetId}`);
@@ -116,6 +121,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
+    const notFound = jsonFromNotFound(error);
+    if (notFound) return notFound;
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 400 }

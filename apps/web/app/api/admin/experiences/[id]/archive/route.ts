@@ -6,23 +6,27 @@ import {
 } from '@/lib/artist-access';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
+  archiveExperience,
   assertCanEdit,
   isBlobConfigured,
-  publishDraft,
   status,
 } from '@/lib/experience-store';
 
-export async function POST(request: Request) {
+export async function POST(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const artist = await loadArtist();
   if (!isArtistSession(artist)) return artist;
   if (!isBlobConfigured()) {
     return NextResponse.json(
-      { error: 'BLOB_READ_WRITE_TOKEN is required to publish' },
+      { error: 'BLOB_READ_WRITE_TOKEN is required' },
       { status: 503 }
     );
   }
 
-  const id = parseExperienceId(new URL(request.url).searchParams.get('id'));
+  const { id: raw } = await params;
+  const id = parseExperienceId(raw);
   if (!id) {
     return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
   }
@@ -37,18 +41,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const experience = await publishDraft(id);
-    return NextResponse.json({
-      experience,
-      status: await status(id),
-    });
+    const meta = await archiveExperience(id);
+    return NextResponse.json({ meta, status: await status(id) });
   } catch (err) {
-    return NextResponse.json(
-      {
-        error: 'publish_failed',
-        message: err instanceof Error ? err.message : String(err),
-      },
-      { status: 400 }
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === 'cannot_modify_default') {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

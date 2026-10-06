@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
 import { config } from '@/lib/config';
 import './globals.css';
 
@@ -33,7 +34,15 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <ClerkProvider
+          afterSignOutUrl="/admin/sign-in"
+          signInUrl="/admin/sign-in"
+          signUpUrl="/admin/sign-up"
+        >
+          {children}
+        </ClerkProvider>
+      </body>
     </html>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdminSession } from '@/lib/admin-auth';
+import { isArtistSession, loadArtist } from '@/lib/artist-access';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
   createDraftFromSeed,
@@ -8,17 +8,15 @@ import {
 } from '@/lib/experience-store';
 
 export async function GET() {
-  if (!(await requireAdminSession())) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-  const listed = await listExperiences();
-  return NextResponse.json(listed);
+  const artist = await loadArtist();
+  if (!isArtistSession(artist)) return artist;
+  const listed = await listExperiences(artist);
+  return NextResponse.json({ ...listed, isAdmin: artist.isAdmin });
 }
 
 export async function POST(request: Request) {
-  if (!(await requireAdminSession())) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  const artist = await loadArtist();
+  if (!isArtistSession(artist)) return artist;
   if (!isBlobConfigured()) {
     return NextResponse.json(
       { error: 'BLOB_READ_WRITE_TOKEN is required to create experiences' },
@@ -43,12 +41,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const experience = await createDraftFromSeed(id, title);
+    const experience = await createDraftFromSeed(id, title, artist.userId);
     return NextResponse.json({ experience }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message === 'experience_exists') {
-      return NextResponse.json({ error: 'experience_exists' }, { status: 409 });
+    if (message === 'experience_exists' || message === 'experience_archived') {
+      return NextResponse.json({ error: message }, { status: 409 });
     }
     if (message === 'invalid_experience_id') {
       return NextResponse.json({ error: message }, { status: 400 });

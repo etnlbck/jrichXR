@@ -74,19 +74,31 @@ Release sync: [`content/untitled-no-7/RELEASE.md`](content/untitled-no-7/RELEASE
 
 ## Admin CMS
 
-Password-gated editor at `/admin` — list, create, and draft/publish experience packages to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). `/` is Untitled No. 7 (published Blob, else repo `content/` seed). Other published packages are `/e/{id}` and `/e/{id}/shop`.
+Clerk-gated artist studio at `/admin` — list, create, and draft/publish experience packages to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). `/` is Untitled No. 7 (published Blob, else repo `content/` seed). Other published packages are `/e/{id}` and `/e/{id}/shop`. Public AR and shop stay unauthenticated.
 
 ```bash
 # apps/web/.env.local (or Vercel project env)
-ADMIN_PASSWORD=choose-a-strong-password
-ADMIN_SESSION_SECRET=long-random-string
+# Clerk — provision via `vercel integration add clerk`, then `vercel env pull`
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_…
+CLERK_SECRET_KEY=sk_test_…
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/admin/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/admin/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/admin
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/admin
+ARTIST_ACCESS=signed_in
+# optional: comma-separated Clerk user ids that always act as studio admin
+# CLERK_ADMIN_USER_IDS=user_…
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_…   # from Vercel → Storage → Blob
 ```
 
 1. Create a Blob store on the Vercel project and pull env locally (`vercel env pull`).
-2. Open `/admin/login`, sign in. Edit Untitled No. 7 at `/admin/untitled-no-7`, or **Create** a new slug (clones the seed package).
-3. Upload assets, **Publish**. Visitors open new pieces at `/e/{slug}`.
-4. Repo `content/untitled-no-7/` remains the git seed; production edits do not write git.
+2. Open `/admin/sign-in` (or `/admin/sign-up`). Any signed-in user can create pieces while `ARTIST_ACCESS=signed_in`. Each artist only sees and edits pieces they created. Untitled No. 7 and older Blob packages with no `experiences/{id}/access.json` stay studio-owned (admin only).
+3. Mark a studio admin in Clerk **Users → public metadata**: `{ "role": "admin" }`, or put their user id in `CLERK_ADMIN_USER_IDS`. Admins see every piece, including Untitled No. 7.
+4. When you are ready to whitelist: set `ARTIST_ACCESS=allowlist` and set `publicMetadata.role` to `artist` or `admin` on approved users. Everyone else lands on `/admin/pending`. Optionally also enable Clerk Dashboard → **Restrictions → Allowlist** (or invitations-only) so unknown emails cannot create an account. The env switch is what gates the studio.
+5. Add a session-token claim in Clerk (**Sessions → Customize session token**): `{ "metadata": "{{user.public_metadata}}" }` so allowlist checks can read `role` without an extra Clerk API call.
+6. Upload assets, **Publish**. Visitors open new pieces at `/e/{slug}`.
+7. **Archive** hides a piece from visitors (`/e/{slug}` 404s) but keeps Blob files. Restore from the Archived list, or **Delete permanently** (type the slug to confirm). Untitled No. 7 cannot be archived or deleted.
+8. Repo `content/untitled-no-7/` remains the git seed; production edits do not write git.
 
 Aura Lenses dual-publish is still via `prepare-lenses` / external API (Export JSON from admin helps).
 

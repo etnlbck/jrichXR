@@ -1,4 +1,4 @@
-import { head, list, put } from '@vercel/blob';
+import { del, head, list, put } from '@vercel/blob';
 import {
   parseGalleryExperience,
   type GalleryExperience,
@@ -16,6 +16,37 @@ export function draftPath(id = DEFAULT_EXPERIENCE_ID): string {
 
 export function publishedPath(id = DEFAULT_EXPERIENCE_ID): string {
   return `experiences/${id}/published/experience.json`;
+}
+
+export function metaPath(id = DEFAULT_EXPERIENCE_ID): string {
+  return `experiences/${id}/meta.json`;
+}
+
+export function accessPath(id = DEFAULT_EXPERIENCE_ID): string {
+  return `experiences/${id}/access.json`;
+}
+
+export type ExperienceMeta = {
+  archived: boolean;
+  archivedAt: string | null;
+};
+
+export type ExperienceAccess = {
+  ownerUserId: string;
+  createdAt: string;
+};
+
+export type ExperienceEditor = {
+  userId: string;
+  isAdmin: boolean;
+};
+
+const EMPTY_META: ExperienceMeta = { archived: false, archivedAt: null };
+
+function assertMutableExperience(id: string): void {
+  if (id === DEFAULT_EXPERIENCE_ID) {
+    throw new Error('cannot_modify_default');
+  }
 }
 
 export function assetPathname(
@@ -111,7 +142,8 @@ export function cloneSeedForId(id: string, title: string): GalleryExperience {
 
 export async function createDraftFromSeed(
   id: string,
-  title: string
+  title: string,
+  ownerUserId: string
 ): Promise<GalleryExperience> {
   if (!isBlobConfigured()) {
     throw new Error('BLOB_READ_WRITE_TOKEN is not set');
@@ -122,12 +154,20 @@ export async function createDraftFromSeed(
   if (id === DEFAULT_EXPERIENCE_ID) {
     throw new Error('experience_exists');
   }
+  const meta = await getMeta(id);
+  if (meta.archived === true) {
+    throw new Error('experience_archived');
+  }
   const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
   if (draft !== null || published !== null) {
     throw new Error('experience_exists');
   }
   const experience = cloneSeedForId(id, title.trim() || id);
   await putDraft(experience, id);
+  await putExperienceAccess(id, {
+    ownerUserId,
+    createdAt: new Date().toISOString(),
+  });
   return experience;
 }
 
@@ -161,14 +201,144 @@ export async function blobExists(pathname: string): Promise<boolean> {
   }
 }
 
+export async function getMeta(
+  id = DEFAULT_EXPERIENCE_ID
+): Promise<ExperienceMeta> {
+  if (!isBlobConfigured()) return EMPTY_META;
+  try {
+    const file = await head(metaPath(id));
+    const res = await fetch(file.url, { cache: 'no-store' });
+    if (!res.ok) return EMPTY_META;
+    const json = (await res.json()) as Partial<ExperienceMeta>;
+    return {
+      archived: json.archived === true,
+      archivedAt: typeof json.archivedAt === 'string' ? json.archivedAt : null,
+    };
+  } catch {
+    return EMPTY_META;
+  }
+}
+
+export async function getExperienceAccess(
+  id: string
+): Promise<ExperienceAccess | null> {
+  if (!isBlobConfigured()) return null;
+  try {
+    const file = await head(accessPath(id));
+    const res = await fetch(file.url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = (await res.json()) as Partial<ExperienceAccess>;
+    if (typeof json.ownerUserId !== 'string' || !json.ownerUserId) return null;
+    return {
+      ownerUserId: json.ownerUserId,
+      createdAt:
+        typeof json.createdAt === 'string'
+          ? json.createdAt
+          : new Date(0).toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function putExperienceAccess(
+  id: string,
+  access: ExperienceAccess
+): Promise<ExperienceAccess> {
+  if (!isBlobConfigured()) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
+  }
+  await put(accessPath(id), JSON.stringify(access, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  return access;
+}
+
+export async function canEditExperience(
+  id: string,
+  editor: ExperienceEditor
+): Promise<boolean> {
+  if (editor.isAdmin) return true;
+  const access = await getExperienceAccess(id);
+  return access?.ownerUserId === editor.userId;
+}
+
+export async function assertCanEdit(
+  id: string,
+  editor: ExperienceEditor
+): Promise<void> {
+  if (!(await canEditExperience(id, editor))) {
+    throw new Error('not_found');
+  }
+}
+
+async function putMeta(id: string, meta: ExperienceMeta): Promise<ExperienceMeta> {
+  if (!isBlobConfigured()) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
+  }
+  await put(metaPath(id), JSON.stringify(meta, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  return meta;
+}
+
+export async function archiveExperience(id: string): Promise<ExperienceMeta> {
+  assertMutableExperience(id);
+  return putMeta(id, {
+    archived: true,
+    archivedAt: new Date().toISOString(),
+  });
+}
+
+export async function restoreExperience(id: string): Promise<ExperienceMeta> {
+  assertMutableExperience(id);
+  return putMeta(id, { archived: false, archivedAt: null });
+}
+
+export async function deleteExperience(id: string): Promise<void> {
+  assertMutableExperience(id);
+  if (!isBlobConfigured()) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
+  }
+  const meta = await getMeta(id);
+  if (meta.archived !== true) {
+    throw new Error('not_archived');
+  }
+  const urls: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const result = await list({
+      prefix: `experiences/${id}/`,
+      cursor,
+      limit: 1000,
+    });
+    for (const blob of result.blobs) {
+      urls.push(blob.url);
+    }
+    cursor = result.hasMore ? result.cursor : undefined;
+  } while (cursor);
+  if (urls.length > 0) {
+    await del(urls);
+  }
+}
+
 export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
   blobConfigured: boolean;
   hasDraft: boolean;
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  archived: boolean;
+  archivedAt: string | null;
 }> {
   const blobConfigured = isBlobConfigured();
+  const meta = await getMeta(id);
   if (!blobConfigured) {
     const seed = getSeedExperience();
     return {
@@ -177,6 +347,8 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
       hasPublished: false,
       draftVersion: null,
       publishedVersion: id === DEFAULT_EXPERIENCE_ID ? seed.version : null,
+      archived: false,
+      archivedAt: null,
     };
   }
   const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
@@ -186,6 +358,8 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
     hasPublished: published !== null,
     draftVersion: draft?.version ?? null,
     publishedVersion: published?.version ?? null,
+    archived: meta.archived === true,
+    archivedAt: meta.archivedAt,
   };
 }
 
@@ -197,6 +371,9 @@ export type ExperienceIndexItem = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  archived: boolean;
+  archivedAt: string | null;
+  ownerUserId: string | null;
 };
 
 async function listBlobExperienceIds(): Promise<string[]> {
@@ -216,7 +393,7 @@ async function listBlobExperienceIds(): Promise<string[]> {
   return [...ids];
 }
 
-export async function listExperiences(): Promise<{
+export async function listExperiences(editor: ExperienceEditor): Promise<{
   blobConfigured: boolean;
   experiences: ExperienceIndexItem[];
 }> {
@@ -224,30 +401,43 @@ export async function listExperiences(): Promise<{
   const seed = getSeedExperience();
   const ids = new Set<string>([DEFAULT_EXPERIENCE_ID, ...(await listBlobExperienceIds())]);
 
-  const experiences = await Promise.all(
-    [...ids].sort().map(async (id) => {
-      const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
-      const pkg =
-        draft !== null
-          ? draft
-          : published !== null
-            ? published
-            : id === DEFAULT_EXPERIENCE_ID
-              ? seed
-              : null;
-      return {
-        id,
-        title: pkg?.gallery.provenance.title ?? id,
-        blobConfigured,
-        hasDraft: draft !== null,
-        hasPublished: published !== null,
-        draftVersion: draft?.version ?? null,
-        publishedVersion:
-          published?.version ??
-          (id === DEFAULT_EXPERIENCE_ID && !blobConfigured ? seed.version : null),
-      };
-    })
-  );
+  const experiences = (
+    await Promise.all(
+      [...ids].sort().map(async (id) => {
+        const [draft, published, meta, access] = await Promise.all([
+          getDraft(id),
+          getPublished(id),
+          getMeta(id),
+          getExperienceAccess(id),
+        ]);
+        if (!editor.isAdmin && access?.ownerUserId !== editor.userId) {
+          return null;
+        }
+        const pkg =
+          draft !== null
+            ? draft
+            : published !== null
+              ? published
+              : id === DEFAULT_EXPERIENCE_ID
+                ? seed
+                : null;
+        return {
+          id,
+          title: pkg?.gallery.provenance.title ?? id,
+          blobConfigured,
+          hasDraft: draft !== null,
+          hasPublished: published !== null,
+          draftVersion: draft?.version ?? null,
+          publishedVersion:
+            published?.version ??
+            (id === DEFAULT_EXPERIENCE_ID && !blobConfigured ? seed.version : null),
+          archived: meta.archived === true,
+          archivedAt: meta.archivedAt,
+          ownerUserId: access?.ownerUserId ?? null,
+        };
+      })
+    )
+  ).filter((item): item is ExperienceIndexItem => item !== null);
 
   return { blobConfigured, experiences };
 }

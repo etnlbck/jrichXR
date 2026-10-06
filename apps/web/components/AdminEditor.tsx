@@ -5,6 +5,7 @@ import type { GalleryExperience, MuralNode } from '@jrichforms/experience';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import AdminUserMenu from '@/components/AdminUserMenu';
 import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
@@ -17,6 +18,8 @@ type StoreStatus = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  archived: boolean;
+  archivedAt: string | null;
 };
 
 const ASSET_SLOTS: Array<{
@@ -167,9 +170,46 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
     }
   }
 
-  async function logout() {
-    await fetch('/api/admin/logout', { method: 'POST' });
-    router.replace('/admin/login');
+  async function archive() {
+    if (
+      !confirm(
+        'Archive this experience? Visitors will get a 404 until you restore it.'
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/experiences/${experienceId}/archive`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Archive failed');
+      router.push('/admin');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Archive failed');
+      setBusy(false);
+    }
+  }
+
+  async function restore() {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/experiences/${experienceId}/restore`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Restore failed');
+      setStatus(data.status);
+      setMessage('Restored — visitors can see a published package again');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Restore failed');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function updateGallery(patch: Partial<GalleryExperience['gallery']>) {
@@ -231,9 +271,9 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
           ))}
           <Link href="/admin">All experiences</Link>
           <Link href={visitorArPath(experienceId)}>WebAR</Link>
-          <button type="button" onClick={() => void logout()}>
-            Log out
-          </button>
+          <span className={styles.navEnd}>
+            <AdminUserMenu />
+          </span>
         </nav>
 
         {status && (
@@ -247,6 +287,11 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
         {error && (
           <p className={styles.error} role="alert">
             {error}
+          </p>
+        )}
+        {status?.archived && (
+          <p className={styles.error} role="status">
+            This experience is archived. Visitors see a 404 until you restore it.
           </p>
         )}
         {message && <p className={styles.ok}>{message}</p>}
@@ -307,6 +352,26 @@ export default function AdminEditor({ experienceId }: { experienceId: string }) 
               >
                 Export JSON
               </a>
+              {!isSeedExperience && status?.archived !== true && (
+                <button
+                  type="button"
+                  className={styles.btnDanger}
+                  disabled={busy}
+                  onClick={() => void archive()}
+                >
+                  Archive
+                </button>
+              )}
+              {!isSeedExperience && status?.archived === true && (
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  disabled={busy}
+                  onClick={() => void restore()}
+                >
+                  Restore
+                </button>
+              )}
             </div>
           </section>
         )}
