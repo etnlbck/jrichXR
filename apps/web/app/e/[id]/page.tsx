@@ -10,12 +10,16 @@ export const dynamic = 'force-dynamic';
 
 export default async function ExperiencePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ stage?: string | string[] }>;
 }) {
   const { id: raw } = await params;
   const id = parseExperienceId(raw);
   if (!id) notFound();
+  const query = await searchParams;
+  const stage = query.stage === '1';
 
   let config;
   try {
@@ -25,5 +29,5 @@ export default async function ExperiencePage({
     throw err;
   }
 
-  return <ArExperience appConfig={config} />;
+  return <ArExperience appConfig={config} stage={stage} />;
 }

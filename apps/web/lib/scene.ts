@@ -26,6 +26,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   let overlay: THREE.Mesh | null = null;
   let placeholder: THREE.Mesh | null = null;
   const pinHits: THREE.Object3D[] = [];
+  let stageCamera: THREE.PerspectiveCamera | null = null;
   let modelsReady = false;
   let visible = false;
   let morphT = 0;
@@ -136,7 +137,25 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     anchor!.add(placeholder);
     modelsReady = true;
     mark('models_ready_cube');
+    frameStageCamera();
     callbacks.onModelsReady();
+  }
+
+  function frameStageCamera() {
+    const subject = piece ?? placeholder;
+    if (!stageCamera || !subject) return;
+    const box = new THREE.Box3().setFromObject(subject);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.05);
+    const dist =
+      (maxDim / (2 * Math.tan((stageCamera.fov * Math.PI) / 360))) * 1.6;
+    stageCamera.position.set(center.x, center.y, center.z + dist);
+    stageCamera.near = Math.max(dist / 100, 0.001);
+    stageCamera.far = dist * 20;
+    stageCamera.lookAt(center);
+    stageCamera.updateProjectionMatrix();
   }
 
   async function loadModels() {
@@ -226,6 +245,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
       modelsReady = true;
       mark('models_ready');
+      frameStageCamera();
       callbacks.onModelsReady();
     } catch (err) {
       const message =
@@ -352,12 +372,73 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   }
 
   function pickPin(ndcX: number, ndcY: number): string | null {
-    if (!three || !visible || pinHits.length === 0) return null;
+    const camera = stageCamera ?? three?.camera ?? null;
+    if (!camera || !visible || pinHits.length === 0) return null;
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), three.camera);
+    raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
     const hit = raycaster.intersectObjects(pinHits, true)[0];
     const id = hit?.object.userData.pinId;
     return typeof id === 'string' ? id : null;
+  }
+
+  /**
+   * Desktop stand-in: same piece, pins, and morph, without the camera pipeline.
+   */
+  function startStage(canvas: HTMLCanvasElement) {
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0a0a0c, 1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
+    stageCamera = camera;
+    camera.position.set(0, 0.2, 2);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 1.35));
+    const key = new THREE.DirectionalLight(0xffffff, 1.5);
+    key.position.set(1.2, 2.2, 1.6);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xfff2e4, 0.7);
+    fill.position.set(-1.4, 0.6, 1.8);
+    scene.add(fill);
+
+    anchor = new THREE.Group();
+    scene.add(anchor);
+    visible = true;
+    clock = new THREE.Clock();
+
+    function resize() {
+      const w = canvas.clientWidth || window.innerWidth;
+      const h = canvas.clientHeight || window.innerHeight;
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    renderer.setClearColor(0x161412, 1);
+    void loadModels();
+
+    let frame = 0;
+    const loop = () => {
+      frame = requestAnimationFrame(loop);
+      const dt = clock ? clock.getDelta() : 0.016;
+      updateMorph(dt);
+      renderer.render(scene, camera);
+    };
+    loop();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', resize);
+      renderer.dispose();
+      stageCamera = null;
+    };
   }
 
   return {
@@ -367,6 +448,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     onImageLost,
     toggleMorph,
     pickPin,
+    startStage,
     isVisible: () => visible,
     isModelsReady: () => modelsReady,
   };

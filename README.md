@@ -41,10 +41,18 @@ npm run dev            # → @jrichforms/web
 Env: root [`.env.local`](.env.local) is symlinked to `apps/web/.env.local` for Next.
 
 - AR: `http://localhost:3000`
+- Desktop stand-in (model, pins, morph, sheets — no camera): `http://localhost:3000/?stage=1`
 - Shop: `http://localhost:3000/shop`
 - Printable marker: `http://localhost:3000/marker`
 
-Camera on a phone needs HTTPS — use a Vercel preview or `npx ngrok http 3000`.
+Phone camera needs a real HTTPS certificate. Install the tunnel once, then start it with the dev server:
+
+```bash
+brew install cloudflared
+npm run dev:phone
+```
+
+The command prints `https://….trycloudflare.com`. Open that on the phone, tap Begin, and point at the marker from `/marker`. The address changes every time you start the command, and the dev server is reachable on the internet until you stop it. Iterate the viewer at `http://localhost:3000/?stage=1` first. If the phone misses a hot reload, refresh the page.
 
 ```bash
 npm run make-target      # regenerate test marker JSON

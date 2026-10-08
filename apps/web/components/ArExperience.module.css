@@ -141,10 +141,27 @@
   }
 }
 
+.about {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 16;
+  appearance: none;
+  border: 0;
+  background: rgba(13, 13, 15, 0.45);
+  color: var(--paper);
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
 .prompt {
   position: fixed;
   left: 50%;
-  bottom: max(40px, env(safe-area-inset-bottom));
+  bottom: calc(env(safe-area-inset-bottom) + 28px);
   transform: translateX(-50%);
   z-index: 15;
   pointer-events: none;
@@ -287,8 +304,8 @@
 
 .attrib {
   position: fixed;
-  left: 8px;
-  bottom: 4px;
+  left: max(8px, env(safe-area-inset-left));
+  bottom: max(8px, env(safe-area-inset-bottom));
   z-index: 5;
   margin: 0;
   font-size: 0.55rem;

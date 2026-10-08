@@ -11,9 +11,15 @@ import styles from './ArExperience.module.css';
 type Props = {
   appConfig: AppConfig;
   onRequestStart?: () => void;
+  /** Desktop stand-in: model, pins, and sheets without the camera. */
+  stage?: boolean;
 };
 
-export default function ArExperience({ appConfig, onRequestStart }: Props) {
+export default function ArExperience({
+  appConfig,
+  onRequestStart,
+  stage = false,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const sceneRef = useRef<ReturnType<typeof createScene> | null>(null);
@@ -67,9 +73,10 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
       onModelsReady: () => {
         setModelsReady(true);
         setBooting(false);
+        if (stage) setState('ANCHORED');
       },
     });
-  }, [config, openProvenance]);
+  }, [config, openProvenance, stage]);
 
   useEffect(() => {
     if (state === 'SCANNING' || state === 'START' || state === 'ERROR') {
@@ -129,12 +136,21 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
     }
   }, [config, onRequestStart, unlockAudio]);
 
+  useEffect(() => {
+    if (!stage || !canvasRef.current || !sceneRef.current) return;
+    setBooting(true);
+    setError(null);
+    const stop = sceneRef.current.startStage(canvasRef.current);
+    return stop;
+  }, [stage]);
+
   const handleCanvasTap = useCallback(
     (event: MouseEvent<HTMLCanvasElement>) => {
       if (state !== 'ANCHORED' && state !== 'RAW' && state !== 'FINISHED') return;
       const scene = sceneRef.current;
       const canvas = canvasRef.current;
       if (!scene?.isVisible() || !scene.isModelsReady() || !canvas) return;
+      if (stage) unlockAudio();
 
       const rect = canvas.getBoundingClientRect();
       const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -166,15 +182,26 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
       const next = scene.toggleMorph();
       if (next) setState(next);
     },
-    [config.pins, state]
+    [config.pins, stage, state, unlockAudio]
   );
 
   const pc = config.piece;
-  const showScan = state === 'SCANNING' && modelsReady && !booting;
+  const anchored =
+    state === 'ANCHORED' || state === 'RAW' || state === 'FINISHED';
+  const sheetOpen = Boolean(openPin) || showProvenance;
+  const showScan = !stage && state === 'SCANNING' && modelsReady && !booting;
   const showLoading =
     (booting || (state === 'SCANNING' && !modelsReady)) && state !== 'ERROR';
-  const showTap =
-    (state === 'ANCHORED' || state === 'FINISHED') && modelsReady;
+  const showTap = anchored && modelsReady && !sheetOpen;
+  const morphHint = config.usePlaceholderCube
+    ? 'Tap the cube to preview the morph'
+    : config.pins.length > 0
+      ? state === 'RAW'
+        ? 'Tap a pin for a note, or tap the piece to return'
+        : 'Tap a pin for a note, or tap the piece to morph'
+      : state === 'RAW'
+        ? 'Tap the piece to return to the finished form'
+        : 'Tap the piece to reveal the raw stone';
 
   return (
     <div className={styles.root}>
@@ -185,7 +212,7 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
         onClick={handleCanvasTap}
       />
 
-      {state === 'START' && (
+      {!stage && state === 'START' && (
         <div className={styles.overlay}>
           <div className={styles.gateCard}>
             <h1>{pc.gateTitle}</h1>
@@ -212,16 +239,20 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
         </div>
       )}
 
-      {showTap && (
-        <div className={styles.prompt}>
-          {config.usePlaceholderCube
-            ? 'Tap the cube to preview the morph'
-            : config.pins.length > 0
-              ? 'Tap a pin for a note, or tap the piece to morph'
-              : config.assets.interimRaw
-              ? 'Tap to preview the morph (interim raw mesh)'
-              : 'Tap the piece to reveal the raw stone'}
-        </div>
+      {showTap && <div className={styles.prompt}>{morphHint}</div>}
+
+      {anchored && modelsReady && !sheetOpen && (
+        <button
+          type="button"
+          className={styles.about}
+          onClick={() => {
+            pinAudioRef.current?.pause();
+            setOpenPinId(null);
+            setShowProvenance(true);
+          }}
+        >
+          About this piece
+        </button>
       )}
 
       {error && (
@@ -295,10 +326,11 @@ export default function ArExperience({ appConfig, onRequestStart }: Props) {
       <audio ref={audioRef} preload="auto" playsInline />
       <audio ref={pinAudioRef} preload="auto" playsInline />
 
-      {/* Required attribution for @8thwall/engine-binary */}
-      <p className={styles.attrib}>
-        XR Engine by Niantic Spatial, Inc. © 2026
-      </p>
+      {!stage && (
+        <p className={styles.attrib}>
+          XR Engine by Niantic Spatial, Inc. © 2026
+        </p>
+      )}
     </div>
   );
 }
