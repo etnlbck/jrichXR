@@ -4,13 +4,29 @@
 
 **This POC's job:** Prove the single riskiest chain end-to-end — *marker recognition → anchored 3D → raw↔finished morph → triggered narration* — on a real iPhone in Safari, with no app install.
 
-**Host:** Next.js (App Router) on **Vercel** (HTTPS by default).
+**Host:** npm workspaces monorepo — Next.js WebAR in `apps/web` on **Vercel** (HTTPS by default).
 
 **Chosen anchoring approach:** Image-target marker card. Polished black obsidian is near worst-case for markerless SLAM; a printed placard/card beside the piece drives tracking.
 
 ---
 
-## 1. Why this stack
+## Dual-runtime architecture
+
+Shared experience package: [`content/untitled-no-7/`](content/untitled-no-7/) (`experience.json` = eng-compatible mural + `gallery` extension).
+
+| Consumer | Role |
+|---|---|
+| **jrichforms WebAR** (`apps/web`, 8th Wall) | Primary visitor QR — no app install |
+| **Aura Lenses native** (external) | Staff/demo (TestFlight); hard-cut morph + Flutter provenance/Shop sheet |
+| **Aura MindAR `/w/:token`** | Secondary WebAR share |
+
+Config is derived via [`apps/web/lib/config.ts`](apps/web/lib/config.ts) + [`packages/experience`](packages/experience) (`@jrichforms/experience`). Eng meters → XR8 units: divide by `marker.physicalWidthM`.
+
+See [`content/untitled-no-7/RELEASE.md`](content/untitled-no-7/RELEASE.md) for dual-publish (Vercel ↔ Lenses S3).
+
+---
+
+## 1. Why this stack (WebAR)
 
 iOS Safari still exposes no WebXR (`immersive-ar`). 8th Wall runs a **WASM computer-vision pipeline** over `getUserMedia` and feeds a tracked pose into Three.js.
 
@@ -21,116 +37,107 @@ iOS Safari still exposes no WebXR (`immersive-ar`). 8th Wall runs a **WASM compu
 | Tracking | 8th Wall engine (WASM) | 8th Wall / Niantic Spatial |
 | Rendering | Three.js + GLTF/DRACO loaders | You |
 | UI / narration | React client components | You |
+| Content contract | `content/untitled-no-7/experience.json` | Shared with Aura |
 
-**Engine distribution (current):** The MIT open-source framework at `packages/engine` includes Image Targets but is not yet a drop-in npm release (Bazel build). This POC uses **`@8thwall/engine-binary`** (includes Image Targets via the `slam` chunk) with **`disableWorldTracking: true`**. Attribution is required — see [LICENSING.md](LICENSING.md). Revisit MIT-only if/when an official npm build ships.
-
-**Image target API:** Load CLI JSON with `imageTargetData` (not the old cloud `imageTargets: ['name']` list):
-
-```ts
-XR8.XrController.configure({
-  disableWorldTracking: true,
-  imageTargetData: [await fetch('/assets/targets/jrichforms-placard.json').then(r => r.json())],
-})
-```
-
-Sources: [engine overview](https://8thwall.org/docs/engine/overview), [image targets](https://8thwall.org/docs/engine/guides/image-targets), [repo](https://github.com/8thwall/8thwall).
+**Engine distribution (current):** **`@8thwall/engine-binary`** with `slam` chunk and `disableWorldTracking: true`. Attribution required — see [LICENSING.md](LICENSING.md).
 
 ---
 
 ## 2. Scope
 
-**In scope (POC):**
-- One sculpture ("Untitled No. 7").
-- One printed image target.
-- Two 3D states: finished + raw GLB (placeholder cube until assets land).
-- Tap cross-fade + guide-mark overlay.
-- Narration on morph tap + provenance card.
+**In scope:**
+- One sculpture ("Untitled No. 7") as a shared package.
+- One printed image target (8th Wall now; tracking twin + `.mind` later for Aura).
+- Finished + raw GLB (Draco &lt;10 MB); WebAR cross-fade morph; native hard-cut.
+- Narration on first morph to raw + provenance + `/shop`.
 - iPhone Safari + Android Chrome via Vercel HTTPS URL.
 
-**Out of scope:** Markerless stone tracking, multi-piece CMS, SiteWalks, full aglitch.art vector morph, advanced occlusion/relighting.
+**Staff CMS (in scope):** Password-gated `/admin` edits draft/publish on Vercel Blob (full package + asset uploads). Git `content/` = seed. Aura Lenses publish remains external.
+
+**Out of scope:** Markerless stone tracking, multi-user Clerk roles, Snap/Lens Studio first, replacing 8th Wall with MindAR inside this app, person occlusion on WebAR v1.
 
 ---
 
 ## 3. Architecture
 
 ```
-QR ──► Vercel (Next.js HTTPS)
+content/untitled-no-7/experience.json
           │
-          ▼
-   app/page.tsx ──► ArExperience (client-only)
+          ├─► @jrichforms/experience + apps/web (Vercel) ── QR WebAR ── /shop
           │
-          ├─ public/xr/engine/xr.js  (WASM CV, slam chunk)
-          ├─ imageTargetData JSON
-          └─ Three.js anchor ── finished / raw / overlay
-                    │
-                    └─ morph + narration + provenance
+          └─► prepare-lenses → Aura Lenses publish (external)
+                    ├─ native ARKit/ARCore (demo)
+                    └─ MindAR /w share (secondary)
 ```
 
 **State machine:** `START → SCANNING → ANCHORED → RAW/FINISHED` (morph toggles). Marker loss returns to `SCANNING` but preserves morph state.
 
 **Key paths:**
-- [`app/page.tsx`](app/page.tsx) — mounts client AR
-- [`components/ArExperience.tsx`](components/ArExperience.tsx) — UI + boot gesture
-- [`lib/xr-boot.ts`](lib/xr-boot.ts) — script load, configure, run
-- [`lib/scene.ts`](lib/scene.ts) — models, cube fallback, morph
-- [`lib/config.ts`](lib/config.ts) — piece + asset paths
-- [`public/assets/`](public/assets/) — media + targets
-- [`scripts/copy-xr-assets.mjs`](scripts/copy-xr-assets.mjs) — postinstall copy of engine
+- [`content/untitled-no-7/`](content/untitled-no-7/) — package source of truth
+- [`packages/experience/`](packages/experience/) — `@jrichforms/experience` types + XR8 helpers
+- [`apps/web/lib/config.ts`](apps/web/lib/config.ts) — loads package for WebAR/shop
+- [`apps/web/components/ArExperience.tsx`](apps/web/components/ArExperience.tsx) — UI + boot gesture
+- [`apps/web/lib/xr-boot.ts`](apps/web/lib/xr-boot.ts) / [`apps/web/lib/scene.ts`](apps/web/lib/scene.ts) — 8th Wall + morph
+- [`scripts/sync-content.mjs`](scripts/sync-content.mjs) — content → `apps/web/public/assets`
+- [`scripts/prepare-lenses-publish.mjs`](scripts/prepare-lenses-publish.mjs) — Lenses payload stub
+- [`apps/web/app/admin/`](apps/web/app/admin/) — Blob CMS (draft/publish)
+- [`apps/web/lib/experience-store.ts`](apps/web/lib/experience-store.ts) / [`load-experience.ts`](apps/web/lib/load-experience.ts)
 
 ---
 
 ## 4. Asset pipeline
 
-See **[ASSETS.md](ASSETS.md)** for the parallel capture checklist.
-
 | Asset | How | Notes |
 |---|---|---|
-| Finished / raw GLB | Photogrammetry → Blender align | Shared origin/scale; &lt;10 MB |
-| Overlay PNG | aglitch.art | Static plane fade-in |
-| Image target | `@8thwall/image-target-cli` | Matte print; not the stone |
-| Narration MP3 | Artist recording | Gesture-gated on iOS |
+| Finished / raw GLB | Photogrammetry / Meshy → Draco | Align origin/scale; &lt;10 MB; `npm run convert-meshy` |
+| Overlay PNG | Guide marks | `content/.../overlays/` |
+| Image target | `@8thwall/image-target-cli` | Matte print; one master for all runtimes |
+| Narration MP3 | Artist recording | Begin unlock; first enter-raw only |
+| USDZ twins | Reality Converter / RCP | Aura iOS only |
+| Tracking twin + `.mind` | Aura Lenses tools | Phase 3–4 |
 
 ---
 
 ## 5. Milestones
 
-**Milestone 0 — De-risk (done in scaffold):**
-Engine loads on Vercel HTTPS; test marker processed; orange placeholder cube on target found. Confirm camera permission + recognition on a real iPhone.
+**Milestone 0 — De-risk (done):** Engine + test marker + placeholder cube path.
 
-**Milestone 1 — Anchored model:**
-Drop `finished.glb`, set `usePlaceholderCube: false`, tune `placement`.
+**Milestone 1 — Shared package / WebAR on package (done):** `experience.json` drives config, scene placement, morph timing, audio policy, provenance/shop CTAs, and metadata; loading gate after Begin; sync/prepare scripts.
 
-**Milestone 2 — Morph:**
-Add `raw.glb` + overlay; polish cross-fade timing.
+**Milestone 2 — Anchored models (done in repo):** Finished GLB (Draco &lt;10 MB); interim raw with cool tint for visible morph; overlay; silent narration marked interim; `usePlaceholderCube: false`; `npm run check-assets`; scale checklist on `/marker` + [PHASE2.md](content/untitled-no-7/PHASE2.md).
 
-**Milestone 3 — Narration + provenance:**
-Drop `narration.mp3`; fill piece metadata.
+**Milestone 3 — Field test:** Measure `physicalWidthM` on print; 3+ devices under gallery lighting; replace interim raw + real narration; clear `interim` flags.
 
-**Milestone 4 — Field test:**
-Print real marker beside the piece; 3+ devices; inspect `window.__JRF_METRICS`.
+**Milestone 4 — Aura native publish (in progress):** `prepare-lenses` embeds `gallery`; `publish-lenses` / `convert-usdz`; native hard-cut + Flutter sheet wired in Aura Lenses; USDZ files + live API publish still required — see [PHASE3.md](content/untitled-no-7/PHASE3.md).
 
-**Definition of done:** Stranger scans QR → finished piece anchored ~4s → tap morph + narration → provenance — own iPhone, no install.
+**Milestone 5 — MindAR secondary:** `.mind` + `/w/:token` share QR.
+
+**Definition of done (gallery visitors):** Stranger scans QR → finished piece anchored ~4s → tap morph + narration → provenance → shop — own iPhone, no install.
 
 ---
 
 ## 6. Risks (ranked)
 
-1. **Obsidian scan quality** — specular black stone. Mitigate with cross-pol / dulling spray; validate mesh before wiring.
-2. **iOS camera + gesture** — explicit Begin gate; audio unlock on same tap.
-3. **Engine distribution** — binary license + attribution; MIT npm not ready.
-4. **Gallery lighting vs marker** — matte high-contrast target; test in situ.
-5. **Model weight on cellular** — Draco, &lt;10 MB budget.
-6. **THREE instance mismatch** — keep one `three` npm version; assign `window.THREE` before boot.
+1. **Obsidian scan quality** — specular black stone.
+2. **iOS camera + gesture** — Begin gate; audio unlock.
+3. **Scale parity** — measure placard; eng→XR8 remap; field-test vs native later.
+4. **Dual-publish drift** — follow `RELEASE.md`.
+5. **Model weight** — Draco &lt;10 MB.
+6. **Engine license** — binary attribution.
 
 ---
 
 ## 7. Local / deploy
 
 ```bash
-npm install          # also copies engine → public/xr
-npm run dev          # http://localhost:3000 — use ngrok for phone camera
-npm run build && npm start
-# or: vercel
+npm install          # workspaces + engine → apps/web/public/xr + sync-content
+npm run sync-content # after editing content/untitled-no-7/assets
+npm run prepare-lenses
+npm run convert-usdz # Reality Converter until USDZ exist
+# DRY_RUN=1 npm run publish-lenses
+npm run dev          # @jrichforms/web → http://localhost:3000
 ```
+
+Vercel: Root Directory `apps/web`, install/build from monorepo root (see [`apps/web/vercel.json`](apps/web/vercel.json)).
 
 Phone camera needs HTTPS (or localhost). Prefer a Vercel preview URL for device tests.

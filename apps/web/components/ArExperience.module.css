@@ -1,0 +1,714 @@
+.root {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 120% at 50% 20%, #201c26 0%, #0a0a0c 70%);
+  color: var(--paper);
+  text-align: center;
+  padding: 24px;
+}
+
+.gateCard {
+  max-width: 340px;
+}
+
+.gateCard h1 {
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.5em;
+}
+
+.gateCard p {
+  opacity: 0.8;
+  margin: 0 0 1.6em;
+  line-height: 1.5;
+}
+
+.gateCard small {
+  display: block;
+  margin-top: 1.2em;
+  opacity: 0.45;
+  font-size: 0.72rem;
+}
+
+.beginBtn {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 14px 34px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(120deg, var(--ember), var(--violet));
+}
+
+.beginBtn:active {
+  transform: scale(0.97);
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--paper);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.loading p {
+  margin: 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.loadingPulse {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--ember);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hint {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper);
+}
+
+.hint p {
+  margin-top: 18px;
+  font-size: 0.95rem;
+  opacity: 0.85;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.reticle {
+  width: 210px;
+  height: 210px;
+  border-radius: 18px;
+  border: 2px dashed rgba(255, 255, 255, 0.55);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.9;
+  }
+}
+
+.about {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 16;
+  appearance: none;
+  border: 0;
+  background: rgba(13, 13, 15, 0.45);
+  color: var(--paper);
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 28px);
+  transform: translateX(-50%);
+  z-index: 15;
+  pointer-events: none;
+  background: rgba(13, 13, 15, 0.72);
+  color: var(--paper);
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+
+.errorBanner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: max(16px, env(safe-area-inset-top));
+  z-index: 40;
+  background: #2a1212;
+  color: #ffd4d4;
+  border: 1px solid #7a2e2e;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.errorBanner strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.errorBanner p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.errorHint {
+  margin-top: 8px !important;
+  opacity: 0.7;
+  font-size: 0.78rem !important;
+}
+
+.panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 20px 20px 0 0;
+  padding: 26px 24px max(34px, env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+  animation: slideup 0.35s ease;
+}
+
+@keyframes slideup {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.4rem;
+}
+
+.panel dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  row-gap: 8px;
+  column-gap: 12px;
+}
+
+.panel dt {
+  color: #6a6a6a;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.panel dd {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.pinBody {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.panelClose {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  border: 0;
+  background: none;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cta {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.ctaSecondary {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.attrib {
+  position: fixed;
+  left: max(8px, env(safe-area-inset-left));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 5;
+  margin: 0;
+  font-size: 0.55rem;
+  color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+/* ---- Four-CTA layer: animates in over the anchored artwork ---- */
+
+.ctaLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.pieceLabel {
+  align-self: center;
+  margin-top: auto;
+  margin-bottom: 12px;
+  color: #fff;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 14px;
+  border-radius: 20px;
+  animation: ctaFadeIn 0.5s ease both;
+  pointer-events: none;
+}
+
+.ctaRow {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  pointer-events: auto;
+}
+
+.ctaRow:first-of-type {
+  margin-top: 0;
+}
+
+.ctaPill {
+  flex: 1;
+  max-width: 170px;
+  text-align: center;
+  background: var(--vein);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 13px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(23, 50, 164, 0.35);
+  animation: ctaFadeIn 0.5s ease both;
+}
+
+.ctaRow:nth-of-type(2) .ctaPill:nth-child(1) { animation-delay: 0.05s; }
+.ctaRow:nth-of-type(2) .ctaPill:nth-child(2) { animation-delay: 0.1s; }
+.ctaRow:nth-of-type(3) .ctaPill:nth-child(1) { animation-delay: 0.15s; }
+.ctaRow:nth-of-type(3) .ctaPill:nth-child(2) { animation-delay: 0.2s; }
+
+@keyframes ctaFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---- Preview-mode: sculpture image + pinned CTAs + caption below ---- */
+
+.previewOuter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+}
+
+.previewStage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.previewImg {
+  display: block;
+  max-width: 74vw;
+  max-height: 55dvh;
+  width: auto;
+  height: auto;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.6));
+  opacity: 0;
+  animation: imageFadeIn 0.6s ease forwards;
+}
+
+@keyframes imageFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.previewCaptionBelow {
+  margin-top: 28px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.previewTitle {
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.previewArtist {
+  color: #b8b8bc;
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* ---- CTAs pinned to the sculpture's actual rendered box (percentages
+   are relative to .previewStage, which shrink-wraps exactly to the image) ---- */
+
+.ctaPillScatter {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--vein-light);
+  color: #000;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  line-height: 1.2;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  animation: ctaFadeIn 0.5s ease both;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.ctaTopLeft {
+  top: 3%;
+  left: -4%;
+  animation-delay: 0.5s;
+}
+
+.ctaMidRight {
+  top: 38%;
+  right: -10%;
+  animation-delay: 0.6s;
+}
+
+.ctaBottomLeft {
+  top: 66%;
+  left: -8%;
+  animation-delay: 0.7s;
+}
+
+.ctaBottomRight {
+  top: 82%;
+  right: -6%;
+  animation-delay: 0.8s;
+}
+
+/* ---- Full-screen overlay (Behind the Carving / Artist Profile / Contact) ---- */
+
+.fullOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.overlayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--vein);
+  padding: max(18px, env(safe-area-inset-top)) 20px 18px;
+  border-radius: 0 0 16px 16px;
+}
+
+.overlayHeaderTitle {
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.overlayCloseBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--vein);
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.overlayBody {
+  flex: 1;
+  padding: 24px 20px;
+  overflow-y: auto;
+  color: #fff;
+}
+
+.overlayCaption {
+  font-size: 0.85rem;
+  color: #b8b8bc;
+  line-height: 1.6;
+}
+
+.videoEmbed {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #1a1a1a;
+  margin-bottom: 14px;
+}
+
+.videoEmbed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.avatarLarge {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #2a2a2a;
+  margin: 0 auto 16px;
+  display: block;
+}
+
+.artistName {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #fff;
+  margin: 0 0 8px;
+}
+
+.tagsRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.tag {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vein-light);
+  border: 1px solid rgba(33, 211, 213, 0.35);
+  padding: 4px 9px;
+  border-radius: 10px;
+}
+
+.overlayTabbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid #222;
+  padding: 14px 0 max(14px, env(safe-area-inset-bottom));
+}
+
+.overlayTabBtn {
+  background: none;
+  border: none;
+  color: #8c8c90;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.overlayTabBtn[data-active='true'] {
+  color: var(--vein-light);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 3px;
+  background: #222;
+  border-radius: 2px;
+  margin: 14px 0;
+}
+
+.progressFill {
+  width: 18%;
+  height: 100%;
+  background: var(--vein-light);
+  border-radius: 2px;
+}
+
+.connectLabel {
+  font-size: 0.8rem;
+  color: #b8b8bc;
+  text-align: center;
+  margin: 0 0 14px;
+}
+
+.socialRow {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.socialCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--vein);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.formLabel {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8c8c90;
+  margin: 12px 0 6px;
+}
+
+.formInput {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.formTextarea {
+  width: 100%;
+  min-height: 70px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.submitBtn {
+  width: 100%;
+  margin-top: 18px;
+  background: var(--vein-light);
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  padding: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
