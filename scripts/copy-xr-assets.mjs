@@ -1,5 +1,5 @@
 /**
- * Copy 8th Wall engine binary + helpers into public/xr for static serving.
+ * Copy 8th Wall engine binary + helpers into apps/web/public/xr for static serving.
  * Runs on postinstall so Vercel deploys include the WASM/chunks.
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const outDir = join(root, 'public', 'xr');
+const outDir = join(root, 'apps', 'web', 'public', 'xr');
 
 function resolvePkg(name) {
   return dirname(require.resolve(`${name}/package.json`));

@@ -18,7 +18,7 @@ const { getDefaultCrop } = await import(
 
 const name = 'jrichforms-placard';
 const src = join(root, 'scripts/tmp/test-marker.png');
-const outDir = join(root, 'public/assets/targets');
+const outDir = join(root, 'apps/web/public/assets/targets');
 
 const rawImage = sharp(src);
 const meta = await rawImage.metadata();

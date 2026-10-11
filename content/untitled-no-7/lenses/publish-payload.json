@@ -1,0 +1,224 @@
+{
+  "kind": "mural",
+  "slug": "untitled-no-7",
+  "title": "Untitled No. 7",
+  "access": "public",
+  "experience": {
+    "version": 1,
+    "placement": "merch",
+    "personOcclusion": false,
+    "marker": {
+      "assetId": "marker-display",
+      "physicalWidthM": 0.18
+    },
+    "nodes": [
+      {
+        "id": "finished",
+        "type": "model",
+        "assetId": "finished-usdz",
+        "androidAssetId": "finished-glb",
+        "platforms": "both",
+        "position": {
+          "x": 0,
+          "y": 0.15,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1,
+        "trigger": "onDetect"
+      },
+      {
+        "id": "raw",
+        "type": "model",
+        "assetId": "raw-usdz",
+        "androidAssetId": "raw-glb",
+        "platforms": "both",
+        "position": {
+          "x": 0,
+          "y": 0.15,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1,
+        "trigger": "tap"
+      },
+      {
+        "id": "overlay",
+        "type": "image",
+        "assetId": "guide-marks",
+        "platforms": "both",
+        "position": {
+          "x": 0,
+          "y": 0.35,
+          "z": 0.05
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1,
+        "trigger": "tap"
+      },
+      {
+        "id": "narration",
+        "type": "audio",
+        "assetId": "narration",
+        "platforms": "both",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "trigger": "tap"
+      }
+    ],
+    "gallery": {
+      "morph": {
+        "durationMs": 1400,
+        "overlayFadeMs": 900,
+        "webCrossfade": true,
+        "nativeMode": "hard-cut"
+      },
+      "audio": {
+        "unlockOnBegin": true,
+        "playOnFirstEnterRaw": true
+      },
+      "provenance": {
+        "title": "Untitled No. 7",
+        "material": "Black Obsidian — Hand Carved",
+        "dimensions": "—",
+        "year": "—",
+        "exhibition": "—"
+      },
+      "shop": {
+        "experienceSlug": "untitled-no-7",
+        "shopPath": "/shop",
+        "shopUrl": "https://REPLACE_WITH_VERCEL_HOST/shop",
+        "acquireUrl": "https://jrichforms.com"
+      },
+      "nativeSheet": {
+        "showAfter": "firstEnterRawOrDone",
+        "fields": [
+          "title",
+          "material",
+          "dimensions",
+          "year",
+          "exhibition"
+        ],
+        "cta": {
+          "label": "Shop this piece",
+          "opens": "shopUrl"
+        },
+        "morphMode": "hard-cut"
+      }
+    }
+  },
+  "extensions": {
+    "gallery": {
+      "morph": {
+        "durationMs": 1400,
+        "overlayFadeMs": 900,
+        "webCrossfade": true,
+        "nativeMode": "hard-cut"
+      },
+      "audio": {
+        "unlockOnBegin": true,
+        "playOnFirstEnterRaw": true
+      },
+      "provenance": {
+        "title": "Untitled No. 7",
+        "material": "Black Obsidian — Hand Carved",
+        "dimensions": "—",
+        "year": "—",
+        "exhibition": "—"
+      },
+      "shop": {
+        "experienceSlug": "untitled-no-7",
+        "shopPath": "/shop",
+        "shopUrl": "https://REPLACE_WITH_VERCEL_HOST/shop",
+        "acquireUrl": "https://jrichforms.com"
+      },
+      "nativeSheet": {
+        "showAfter": "firstEnterRawOrDone",
+        "fields": [
+          "title",
+          "material",
+          "dimensions",
+          "year",
+          "exhibition"
+        ],
+        "cta": {
+          "label": "Shop this piece",
+          "opens": "shopUrl"
+        },
+        "morphMode": "hard-cut"
+      }
+    }
+  },
+  "assetManifest": [
+    {
+      "id": "finished-glb",
+      "contentPath": "assets/models/finished.glb",
+      "role": "android+web",
+      "status": "ready",
+      "interim": false
+    },
+    {
+      "id": "raw-glb",
+      "contentPath": "assets/models/raw.glb",
+      "role": "android+web",
+      "status": "ready",
+      "interim": true
+    },
+    {
+      "id": "finished-usdz",
+      "contentPath": "assets/models/finished.usdz",
+      "role": "ios",
+      "status": "pending",
+      "interim": false
+    },
+    {
+      "id": "raw-usdz",
+      "contentPath": "assets/models/raw.usdz",
+      "role": "ios",
+      "status": "pending",
+      "interim": false
+    },
+    {
+      "id": "guide-marks",
+      "contentPath": "assets/overlays/guide-marks.png",
+      "status": "ready",
+      "interim": false
+    },
+    {
+      "id": "narration",
+      "contentPath": "assets/audio/narration.mp3",
+      "status": "ready",
+      "interim": true
+    },
+    {
+      "id": "marker-display",
+      "contentPath": "assets/marker/display.png",
+      "status": "ready",
+      "interim": false
+    }
+  ],
+  "checklist": [
+    "Convert finished/raw GLB → USDZ (npm run convert-usdz) and clear assets.*.status pending",
+    "Upload GLB/USDZ/audio/overlay/marker via npm run publish-lenses (or Labs)",
+    "Marker upload auto-builds tracking twin + .mind when API tools succeed",
+    "Set GALLERY_PUBLIC_URL before prepare-lenses so shopUrl is production",
+    "POST /v1/publish (publish-lenses) with AURA_LENSES_API_URL + PUBLISH_API_KEY",
+    "Deploy same binary hashes to Vercel via npm run sync-content",
+    "Staff TestFlight: hard-cut morph → Flutter provenance sheet → Shop CTA"
+  ]
+}
