@@ -5,7 +5,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 
-const port = process.env.PORT || '3000';
+const port = process.env.PORT || '3001';
 const origin = `http://127.0.0.1:${port}`;
 
 const cloudflared = spawnSync('cloudflared', ['--version'], { stdio: 'ignore' });
