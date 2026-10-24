@@ -225,6 +225,42 @@
   gap: 0.5rem;
 }
 
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 12rem;
+  flex: 1;
+}
+
+.userAvatar {
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.userText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.userText span {
+  font-size: 0.8rem;
+  color: rgba(242, 235, 227, 0.55);
+  word-break: break-all;
+}
+
+.roleSelect {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(242, 235, 227, 0.15);
+  border-radius: 4px;
+  color: #f2ebe3;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+  font-family: system-ui, sans-serif;
+}
+
 .sectionTitle {
   font-size: 1.15rem;
   margin: 0 0 0.75rem;
