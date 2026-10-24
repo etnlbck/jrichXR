@@ -42,6 +42,8 @@ export interface GalleryProvenance {
   exhibition: string;
 }
 
+export type PinForm = 'finished' | 'raw' | 'both';
+
 /** Point on the sculpture in GLB-root local space (before marker placement). */
 export interface SpatialPin {
   id: string;
@@ -49,6 +51,8 @@ export interface SpatialPin {
   body: string;
   position: MuralVec3;
   audioAssetId?: string;
+  /** Which morph form shows the pin. Missing means both. */
+  form?: PinForm;
 }
 
 export interface GalleryExtension {

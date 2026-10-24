@@ -1,9 +1,16 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { pinShowsOn, type PinForm } from '@jrichforms/experience';
 import type { AppConfig } from './config';
 import { mark } from './metrics';
 import type { ImageTargetDetail, UiState } from './types';
+
+export type ScenePin = {
+  id: string;
+  position: { x: number; y: number; z: number };
+  form: PinForm;
+};
 
 export type SceneCallbacks = {
   onState: (state: UiState) => void;
@@ -26,6 +33,13 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   let overlay: THREE.Mesh | null = null;
   let placeholder: THREE.Mesh | null = null;
   const pinHits: THREE.Object3D[] = [];
+  const pinGroups: { id: string; form: PinForm; group: THREE.Group }[] = [];
+  let pins: ScenePin[] = config.pins;
+  let pinRoot: THREE.Group | null = null;
+  let pinRadius = 0.012;
+  let selectedPinId: string | null = null;
+  /** While placing a pin, ignore tracking updates so the model holds still. */
+  let poseHeld = false;
   let stageCamera: THREE.PerspectiveCamera | null = null;
   let modelsReady = false;
   let visible = false;
@@ -68,16 +82,32 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     obj.scale.setScalar(p.scale);
   }
 
-  function addPins(parent: THREE.Object3D, radius: number) {
-    for (const pin of config.pins) {
+  function showingForm(): 'finished' | 'raw' {
+    return morphTarget > 0.5 ? 'raw' : 'finished';
+  }
+
+  function updatePinVisibility() {
+    const showing = morphT > 0.5 ? 'raw' : 'finished';
+    for (const g of pinGroups) {
+      g.group.visible = pinShowsOn(g, showing);
+    }
+  }
+
+  function rebuildPins() {
+    if (!pinRoot) return;
+    pinRoot.clear();
+    pinHits.length = 0;
+    pinGroups.length = 0;
+    for (const pin of pins) {
       const group = new THREE.Group();
       group.position.set(pin.position.x, pin.position.y, pin.position.z);
+      const selected = pin.id === selectedPinId;
       const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 16, 12),
-        new THREE.MeshBasicMaterial({ color: 0xffc46a })
+        new THREE.SphereGeometry(pinRadius * (selected ? 1.4 : 1), 16, 12),
+        new THREE.MeshBasicMaterial({ color: selected ? 0xffe8b8 : 0xffc46a })
       );
       const hit = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 3, 8, 8),
+        new THREE.SphereGeometry(pinRadius * 3, 8, 8),
         new THREE.MeshBasicMaterial({
           visible: false,
           transparent: true,
@@ -89,9 +119,18 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       hit.userData.pinId = pin.id;
       group.add(dot);
       group.add(hit);
-      parent.add(group);
+      pinRoot.add(group);
       pinHits.push(dot, hit);
+      pinGroups.push({ id: pin.id, form: pin.form, group });
     }
+    updatePinVisibility();
+  }
+
+  function addPins(parent: THREE.Object3D, radius: number) {
+    pinRadius = radius;
+    pinRoot = new THREE.Group();
+    parent.add(pinRoot);
+    rebuildPins();
   }
 
   /** Cool/matte look so interim raw (duplicate of finished) still reads as a morph. */
@@ -291,6 +330,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   }
 
   function updateMorph(dt: number) {
+    updatePinVisibility();
     if (!finished || !raw) return;
     const morphMs = Math.max(1, config.morph.durationMs);
     const overlayMs = Math.max(1, config.morph.overlayFadeMs);
@@ -375,7 +415,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   }
 
   function onImageUpdated(detail: ImageTargetDetail) {
-    if (!isConfiguredTarget(detail)) return;
+    if (!isConfiguredTarget(detail) || poseHeld) return;
     positionAnchor(detail);
   }
 
@@ -386,14 +426,57 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     callbacks.onState('SCANNING');
   }
 
+  function activeCamera() {
+    return stageCamera ?? three?.camera ?? null;
+  }
+
   function pickPin(ndcX: number, ndcY: number): string | null {
-    const camera = stageCamera ?? three?.camera ?? null;
+    const camera = activeCamera();
     if (!camera || !visible || pinHits.length === 0) return null;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-    const hit = raycaster.intersectObjects(pinHits, true)[0];
+    const shown = pinHits.filter((o) => o.parent?.visible !== false);
+    const hit = raycaster.intersectObjects(shown, true)[0];
     const id = hit?.object.userData.pinId;
     return typeof id === 'string' ? id : null;
+  }
+
+  /** Point on the form currently showing, in the pins' (GLB-root) space. */
+  function pickSurface(
+    ndcX: number,
+    ndcY: number
+  ): { point: { x: number; y: number; z: number }; form: 'finished' | 'raw' } | null {
+    const camera = activeCamera();
+    if (!camera || !visible || !piece) return null;
+    const form = showingForm();
+    const target = form === 'raw' && raw ? raw : finished;
+    if (!target) return null;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+    const hit = raycaster.intersectObject(target, true)[0];
+    if (!hit) return null;
+    const local = piece.worldToLocal(hit.point.clone());
+    return { point: { x: local.x, y: local.y, z: local.z }, form };
+  }
+
+  /** Screen position of a pin in normalized device coordinates. */
+  function pinNdc(id: string): { x: number; y: number } | null {
+    const camera = activeCamera();
+    const g = pinGroups.find((p) => p.id === id);
+    if (!camera || !g) return null;
+    const v = g.group.getWorldPosition(new THREE.Vector3()).project(camera);
+    return { x: v.x, y: v.y };
+  }
+
+  function setPins(next: ScenePin[]) {
+    pins = next;
+    rebuildPins();
+  }
+
+  function setSelectedPin(id: string | null) {
+    if (selectedPinId === id) return;
+    selectedPinId = id;
+    rebuildPins();
   }
 
   /**
@@ -463,6 +546,15 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     onImageLost,
     toggleMorph,
     pickPin,
+    pickSurface,
+    pinNdc,
+    setPins,
+    setSelectedPin,
+    holdPose: (on: boolean) => {
+      poseHeld = on;
+    },
+    showingForm,
+    hasRawModel: () => raw !== null,
     startStage,
     isVisible: () => visible,
     isModelsReady: () => modelsReady,

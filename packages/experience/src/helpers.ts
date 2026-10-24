@@ -3,11 +3,25 @@ import type {
   MuralNode,
   MuralNodeTrigger,
   MuralVec3,
+  PinForm,
   SpatialPin,
 } from './types';
 
 export function galleryPins(experience: GalleryExperience): SpatialPin[] {
   return experience.gallery.pins ?? [];
+}
+
+export function pinForm(pin: Pick<SpatialPin, 'form'>): PinForm {
+  return pin.form === 'finished' || pin.form === 'raw' ? pin.form : 'both';
+}
+
+/** Whether a pin is visible when the given form is showing. */
+export function pinShowsOn(
+  pin: Pick<SpatialPin, 'form'>,
+  showing: 'finished' | 'raw'
+): boolean {
+  const form = pinForm(pin);
+  return form === 'both' || form === showing;
 }
 
 export function findNode(

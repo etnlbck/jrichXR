@@ -13,7 +13,9 @@ import {
   galleryPins,
   getNodeXr8Placement,
   parseGalleryExperience,
+  pinForm,
   type GalleryExperience,
+  type PinForm,
 } from '@jrichforms/experience';
 
 export { DEFAULT_EXPERIENCE_ID } from '@/lib/experience-id';
@@ -24,6 +26,7 @@ export type AppPin = {
   body: string;
   position: { x: number; y: number; z: number };
   audioUrl?: string;
+  form: PinForm;
 };
 
 export type AppConfig = {
@@ -149,6 +152,7 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
       audioUrl: pin.audioAssetId
         ? assetWebPath(experience, pin.audioAssetId)
         : undefined,
+      form: pinForm(pin),
     })),
   };
 }

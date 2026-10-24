@@ -1,4 +1,12 @@
-import { del, head, list, put } from '@vercel/blob';
+import {
+  BlobNotFoundError,
+  BlobPreconditionFailedError,
+  del,
+  get,
+  head,
+  list,
+  put,
+} from '@vercel/blob';
 import {
   parseGalleryExperience,
   type GalleryExperience,
@@ -71,10 +79,76 @@ async function readJsonBlob(pathname: string): Promise<GalleryExperience | null>
   }
 }
 
+/** Draft was written by someone else since the caller loaded it. */
+export class DraftConflictError extends Error {
+  constructor() {
+    super('draft_conflict');
+    this.name = 'DraftConflictError';
+  }
+}
+
+export type RevisionedDraft = {
+  experience: GalleryExperience;
+  /** Blob ETag of the draft; send it back as baseRevision when saving. */
+  revision: string;
+};
+
+/**
+ * Drafts are overwritten in place, so read from origin rather than the CDN;
+ * a cached copy would make read-modify-write saves silently drop edits.
+ */
+export async function getDraftWithRevision(
+  id = DEFAULT_EXPERIENCE_ID
+): Promise<RevisionedDraft | null> {
+  if (!isBlobConfigured()) return null;
+  try {
+    const res = await get(draftPath(id), { access: 'public', useCache: false });
+    if (res === null || res.statusCode !== 200) return null;
+    const json = await new Response(res.stream).json();
+    return { experience: parseGalleryExperience(json), revision: res.blob.etag };
+  } catch (err) {
+    if (err instanceof BlobNotFoundError) return null;
+    throw err;
+  }
+}
+
 export async function getDraft(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<GalleryExperience | null> {
-  return readJsonBlob(draftPath(id));
+  const draft = await getDraftWithRevision(id);
+  return draft === null ? null : draft.experience;
+}
+
+/**
+ * Write the draft. With `ifRevision`, the write only succeeds when the stored
+ * draft still has that ETag; otherwise DraftConflictError is thrown.
+ */
+export async function putDraftWithRevision(
+  experience: GalleryExperience,
+  id = DEFAULT_EXPERIENCE_ID,
+  ifRevision?: string
+): Promise<RevisionedDraft> {
+  if (!isBlobConfigured()) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
+  }
+  const parsed = parseGalleryExperience(experience);
+  if (parsed.id !== id) {
+    throw new Error(`experience.id (${parsed.id}) does not match path id (${id})`);
+  }
+  try {
+    const result = await put(draftPath(id), JSON.stringify(parsed, null, 2), {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      cacheControlMaxAge: 60,
+      ...(ifRevision ? { ifMatch: ifRevision } : {}),
+    });
+    return { experience: parsed, revision: result.etag };
+  } catch (err) {
+    if (err instanceof BlobPreconditionFailedError) throw new DraftConflictError();
+    throw err;
+  }
 }
 
 export async function getPublished(
@@ -87,28 +161,17 @@ export async function putDraft(
   experience: GalleryExperience,
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<GalleryExperience> {
-  if (!isBlobConfigured()) {
-    throw new Error('BLOB_READ_WRITE_TOKEN is not set');
-  }
-  const parsed = parseGalleryExperience(experience);
-  if (parsed.id !== id) {
-    throw new Error(`experience.id (${parsed.id}) does not match path id (${id})`);
-  }
-  await put(draftPath(id), JSON.stringify(parsed, null, 2), {
-    access: 'public',
-    contentType: 'application/json',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-  return parsed;
+  return (await putDraftWithRevision(experience, id)).experience;
 }
 
 export async function publishDraft(
-  id = DEFAULT_EXPERIENCE_ID
-): Promise<GalleryExperience> {
-  const draft = await getDraft(id);
-  if (draft === null) throw new Error('No draft to publish');
-  const parsed = parseGalleryExperience(draft);
+  id = DEFAULT_EXPERIENCE_ID,
+  ifRevision?: string
+): Promise<RevisionedDraft> {
+  const current = await getDraftWithRevision(id);
+  if (current === null) throw new Error('No draft to publish');
+  if (ifRevision && current.revision !== ifRevision) throw new DraftConflictError();
+  const parsed = parseGalleryExperience(current.experience);
   const nextVersion = bumpPatchVersion(parsed.version);
   const published: GalleryExperience = { ...parsed, version: nextVersion };
   await put(publishedPath(id), JSON.stringify(published, null, 2), {
@@ -117,8 +180,7 @@ export async function publishDraft(
     addRandomSuffix: false,
     allowOverwrite: true,
   });
-  await putDraft(published, id);
-  return published;
+  return putDraftWithRevision(published, id, current.revision);
 }
 
 export function cloneSeedForId(id: string, title: string): GalleryExperience {
@@ -173,10 +235,15 @@ export async function createDraftFromSeed(
 
 export async function seedDraftIfMissing(
   id = DEFAULT_EXPERIENCE_ID
-): Promise<{ experience: GalleryExperience; seeded: boolean }> {
-  const existing = await getDraft(id);
+): Promise<{
+  experience: GalleryExperience;
+  seeded: boolean;
+  /** Null when Blob is not configured (in-memory seed). */
+  revision: string | null;
+}> {
+  const existing = await getDraftWithRevision(id);
   // Avoid `if (existing)` — Turbopack has miscompiled that as always-true after await.
-  if (existing !== null) return { experience: existing, seeded: false };
+  if (existing !== null) return { ...existing, seeded: false };
 
   if (id !== DEFAULT_EXPERIENCE_ID) {
     throw new Error('experience_not_found');
@@ -184,11 +251,11 @@ export async function seedDraftIfMissing(
 
   const seed = getSeedExperience();
   if (!isBlobConfigured()) {
-    return { experience: seed, seeded: false };
+    return { experience: seed, seeded: false, revision: null };
   }
 
-  await putDraft(seed, id);
-  return { experience: seed, seeded: true };
+  const written = await putDraftWithRevision(seed, id);
+  return { ...written, seeded: true };
 }
 
 export async function blobExists(pathname: string): Promise<boolean> {

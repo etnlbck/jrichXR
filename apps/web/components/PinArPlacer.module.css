@@ -1,0 +1,208 @@
+.toolbar {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.toolBtn,
+.toolBtnPrimary {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--paper);
+  background: rgba(13, 13, 15, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+
+.toolBtnPrimary {
+  background: linear-gradient(120deg, var(--ember), var(--violet));
+  color: #fff;
+}
+
+.toolBtn:disabled,
+.toolBtnPrimary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.segmented {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(13, 13, 15, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.segmented button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(242, 235, 227, 0.75);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: rgba(242, 235, 227, 0.92);
+  color: var(--ink);
+}
+
+.segmented button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.count {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 54px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  margin: 0;
+  pointer-events: none;
+  font-size: 0.75rem;
+  color: var(--paper);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+}
+
+.footer {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.footer > * {
+  pointer-events: auto;
+}
+
+.hint,
+.notice {
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 16px;
+  max-width: 100%;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--paper);
+  background: rgba(13, 13, 15, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hint {
+  pointer-events: none !important;
+}
+
+.sheet {
+  max-height: 48dvh;
+  overflow-y: auto;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6a6a6a;
+  padding-right: 32px;
+}
+
+.field input,
+.field textarea,
+.field select {
+  font: inherit;
+  font-size: 16px; /* below 16px iOS zooms the page on focus */
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.nudge {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.nudge button,
+.sheetBtn,
+.sheetBtnDanger {
+  appearance: none;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.nudge button {
+  font-size: 1.15rem;
+}
+
+.sheetActions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sheetBtn[aria-pressed='true'] {
+  background: var(--ink);
+  color: #fff;
+}
+
+.sheetBtnDanger {
+  color: #a32020;
+  border-color: rgba(163, 32, 32, 0.4);
+}
+
+.small {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6a6a6a;
+}
+
+.link {
+  color: inherit;
+}
