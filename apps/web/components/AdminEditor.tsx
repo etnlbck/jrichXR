@@ -14,22 +14,7 @@ import PinPlacer from '@/components/PinPlacer';
 import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
-
-const TABS = [
-  ['overview', 'Overview'],
-  ['provenance', 'Provenance'],
-  ['placement', 'Placement'],
-  ['assets', 'Assets'],
-  ['nodes', 'Nodes'],
-  ['pins', 'Pins'],
-] as const;
-
-export type Tab = (typeof TABS)[number][0];
-
-export function parseEditorTab(value: string | string[] | undefined): Tab {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return TABS.some(([id]) => id === raw) ? (raw as Tab) : 'overview';
-}
+import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
 
 type StoreStatus = {
   blobConfigured: boolean;

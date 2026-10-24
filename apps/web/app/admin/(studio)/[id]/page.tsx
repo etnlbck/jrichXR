@@ -1,5 +1,6 @@
-import AdminEditor, { parseEditorTab } from '@/components/AdminEditor';
+import AdminEditor from '@/components/AdminEditor';
 import { requireArtist } from '@/lib/artist-access';
+import { parseEditorTab } from '@/lib/editor-tabs';
 import { parseExperienceId } from '@/lib/experience-id';
 import { canEditExperience } from '@/lib/experience-store';
 import { notFound } from 'next/navigation';
