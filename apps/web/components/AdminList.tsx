@@ -167,6 +167,7 @@ export default function AdminList() {
         </p>
         <nav className={styles.nav}>
           <Link href="/">WebAR</Link>
+          {isAdmin && <Link href="/admin/users">Users</Link>}
           <span className={styles.navEnd}>
             <AdminUserMenu />
           </span>

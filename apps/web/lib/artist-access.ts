@@ -29,7 +29,7 @@ export function artistAccessMode(): 'signed_in' | 'allowlist' {
   return process.env.ARTIST_ACCESS === 'allowlist' ? 'allowlist' : 'signed_in';
 }
 
-function adminUserIds(): Set<string> {
+export function adminUserIds(): Set<string> {
   return new Set(
     (process.env.CLERK_ADMIN_USER_IDS ?? '')
       .split(',')
@@ -38,7 +38,7 @@ function adminUserIds(): Set<string> {
   );
 }
 
-function parseRole(value: unknown): ArtistRole | null {
+export function parseRole(value: unknown): ArtistRole | null {
   return value === 'artist' || value === 'admin' ? value : null;
 }
 
@@ -85,6 +85,25 @@ export async function requireArtist(): Promise<ArtistSession> {
     throw new ArtistAccessError(403, 'forbidden');
   }
   return { userId: session.userId, isAdmin: session.isAdmin };
+}
+
+export async function requireAdmin(): Promise<ArtistSession> {
+  const session = await requireArtist();
+  if (!session.isAdmin) {
+    throw new ArtistAccessError(403, 'forbidden');
+  }
+  return session;
+}
+
+export async function loadAdmin(): Promise<ArtistSession | NextResponse> {
+  try {
+    return await requireAdmin();
+  } catch (err) {
+    return (
+      jsonFromArtistError(err) ??
+      NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    );
+  }
 }
 
 export function jsonFromArtistError(err: unknown): NextResponse | null {
