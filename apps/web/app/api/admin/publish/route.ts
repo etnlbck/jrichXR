@@ -4,6 +4,7 @@ import {
   jsonFromNotFound,
   loadArtist,
 } from '@/lib/artist-access';
+import { baseRevisionFrom, jsonFromDraftConflict } from '@/lib/draft-response';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
   assertCanEdit,
@@ -36,13 +37,23 @@ export async function POST(request: Request) {
     );
   }
 
+  let body: unknown = null;
   try {
-    const experience = await publishDraft(id);
+    body = await request.json();
+  } catch {
+    /* empty body ok */
+  }
+
+  try {
+    const { experience, revision } = await publishDraft(id, baseRevisionFrom(body));
     return NextResponse.json({
       experience,
+      revision,
       status: await status(id),
     });
   } catch (err) {
+    const conflict = jsonFromDraftConflict(err);
+    if (conflict) return conflict;
     return NextResponse.json(
       {
         error: 'publish_failed',

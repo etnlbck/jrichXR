@@ -6,12 +6,12 @@ import {
   loadArtist,
 } from '@/lib/artist-access';
 import { DEFAULT_EXPERIENCE_ID } from '@/lib/config';
+import { baseRevisionFrom, jsonFromDraftConflict } from '@/lib/draft-response';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
   assertCanEdit,
-  getDraft,
   isBlobConfigured,
-  putDraft,
+  putDraftWithRevision,
   seedDraftIfMissing,
   status,
 } from '@/lib/experience-store';
@@ -50,8 +50,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { experience, seeded } = await seedDraftIfMissing(id);
-    return NextResponse.json({ experience, status: st, seeded });
+    const { experience, seeded, revision } = await seedDraftIfMissing(id);
+    return NextResponse.json({ experience, revision, status: st, seeded });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message === 'experience_not_found') {
@@ -92,18 +92,28 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
 
+  const baseRevision = baseRevisionFrom(body);
+  if (!baseRevision) {
+    return NextResponse.json(
+      { error: 'base_revision_required', message: 'Reload the editor and try again.' },
+      { status: 400 }
+    );
+  }
+
   try {
     const experience = parseGalleryExperience(
       (body as { experience?: unknown })?.experience ?? body
     );
-    const saved = await putDraft(experience, id);
-    const draft = await getDraft(id);
+    const saved = await putDraftWithRevision(experience, id, baseRevision);
     return NextResponse.json({
-      experience: saved,
+      experience: saved.experience,
+      revision: saved.revision,
       status: await status(id),
-      draftExists: draft !== null,
+      draftExists: true,
     });
   } catch (err) {
+    const conflict = jsonFromDraftConflict(err);
+    if (conflict) return conflict;
     return NextResponse.json(
       {
         error: 'invalid_experience',

@@ -1,20 +1,24 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { SpatialPin } from '@jrichforms/experience';
+import { pinShowsOn, type SpatialPin } from '@jrichforms/experience';
 import styles from '@/app/admin/admin.module.css';
+
+type ShownForm = 'finished' | 'raw';
 
 type Props = {
   modelUrl: string | null;
+  rawModelUrl?: string | null;
   dracoDecoderPath: string;
   pins: SpatialPin[];
   selectedId: string | null;
+  showing: ShownForm;
   onSelect: (id: string | null) => void;
-  onAddPin: (position: SpatialPin['position']) => void;
+  onAddPin: (position: SpatialPin['position'], form: ShownForm) => void;
   onMovePin: (id: string, position: SpatialPin['position']) => void;
 };
 
@@ -27,11 +31,25 @@ type PinMarker = {
 const DOT = 0xffc46a;
 const DOT_SELECTED = 0xffe8b8;
 
+const COARSE_QUERY = '(pointer: coarse)';
+
+function isCoarsePointer() {
+  return window.matchMedia(COARSE_QUERY).matches;
+}
+
+function subscribeCoarsePointer(onChange: () => void) {
+  const query = window.matchMedia(COARSE_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
 export default function PinPlacer({
   modelUrl,
+  rawModelUrl = null,
   dracoDecoderPath,
   pins,
   selectedId,
+  showing,
   onSelect,
   onAddPin,
   onMovePin,
@@ -39,18 +57,28 @@ export default function PinPlacer({
   const mountRef = useRef<HTMLDivElement>(null);
   const pinsRef = useRef(pins);
   const selectedRef = useRef(selectedId);
+  const showingRef = useRef(showing);
   const onSelectRef = useRef(onSelect);
   const onAddPinRef = useRef(onAddPin);
   const onMovePinRef = useRef(onMovePin);
   const syncPinsRef = useRef<(next: SpatialPin[], selected: string | null) => void>(
     () => {}
   );
+  const showFormRef = useRef<(form: ShownForm) => void>(() => {});
+  const coarse = useSyncExternalStore(
+    subscribeCoarsePointer,
+    isCoarsePointer,
+    () => false
+  );
 
-  pinsRef.current = pins;
-  selectedRef.current = selectedId;
-  onSelectRef.current = onSelect;
-  onAddPinRef.current = onAddPin;
-  onMovePinRef.current = onMovePin;
+  useLayoutEffect(() => {
+    pinsRef.current = pins;
+    selectedRef.current = selectedId;
+    showingRef.current = showing;
+    onSelectRef.current = onSelect;
+    onAddPinRef.current = onAddPin;
+    onMovePinRef.current = onMovePin;
+  });
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -58,9 +86,11 @@ export default function PinPlacer({
     const host = mount;
 
     let disposed = false;
+    const hitScale = isCoarsePointer() ? 5 : 3;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x14110e, 1);
+    renderer.domElement.style.touchAction = 'none';
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -85,8 +115,17 @@ export default function PinPlacer({
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const markers: PinMarker[] = [];
+    let finishedModel: THREE.Object3D | null = null;
+    let rawModel: THREE.Object3D | null = null;
     let model: THREE.Object3D | null = null;
     let pinRadius = 0.012;
+
+    function showForm(form: ShownForm) {
+      model = form === 'raw' && rawModel ? rawModel : finishedModel;
+      if (finishedModel) finishedModel.visible = model === finishedModel;
+      if (rawModel) rawModel.visible = model === rawModel;
+      syncPins(pinsRef.current, selectedRef.current);
+    }
     let draggingId: string | null = null;
     let pointerDown: { x: number; y: number; pinId: string | null } | null =
       null;
@@ -104,10 +143,13 @@ export default function PinPlacer({
       group.userData.pinId = id;
       const dot = new THREE.Mesh(
         new THREE.SphereGeometry(pinRadius, 16, 12),
-        new THREE.MeshBasicMaterial({ color: selected ? DOT_SELECTED : DOT })
+        new THREE.MeshBasicMaterial({
+          color: selected ? DOT_SELECTED : DOT,
+          transparent: true,
+        })
       );
       const hit = new THREE.Mesh(
-        new THREE.SphereGeometry(pinRadius * 3, 8, 8),
+        new THREE.SphereGeometry(pinRadius * hitScale, 8, 8),
         new THREE.MeshBasicMaterial({
           visible: false,
           transparent: true,
@@ -141,10 +183,12 @@ export default function PinPlacer({
         marker.group.position.set(pin.position.x, pin.position.y, pin.position.z);
         const mat = marker.dot.material as THREE.MeshBasicMaterial;
         mat.color.setHex(pin.id === selected ? DOT_SELECTED : DOT);
+        mat.opacity = pinShowsOn(pin, showingRef.current) ? 1 : 0.3;
       }
     }
 
     syncPinsRef.current = syncPins;
+    showFormRef.current = showForm;
 
     function ndcFromEvent(ev: PointerEvent) {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -167,7 +211,7 @@ export default function PinPlacer({
     }
 
     function onPointerDown(ev: PointerEvent) {
-      if (ev.button !== 0) return;
+      if (ev.button !== 0 || !ev.isPrimary) return;
       ndcFromEvent(ev);
       raycaster.setFromCamera(pointer, camera);
       const pinHit = hitPins()[0];
@@ -220,13 +264,22 @@ export default function PinPlacer({
       const meshHit = hitModel()[0];
       if (!meshHit) return;
       const local = localHit(meshHit.point);
-      onAddPinRef.current({ x: local.x, y: local.y, z: local.z });
+      const form = model === rawModel && rawModel ? 'raw' : 'finished';
+      onAddPinRef.current({ x: local.x, y: local.y, z: local.z }, form);
+    }
+
+    /** Leaving the canvas or a cancelled touch ends a drag but never counts as a tap. */
+    function onPointerCancel() {
+      pointerDown = null;
+      draggingId = null;
+      controls.enabled = true;
     }
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
-    renderer.domElement.addEventListener('pointerleave', onPointerUp);
+    renderer.domElement.addEventListener('pointerleave', onPointerCancel);
+    renderer.domElement.addEventListener('pointercancel', onPointerCancel);
 
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
@@ -237,9 +290,9 @@ export default function PinPlacer({
       modelUrl,
       (gltf) => {
         if (disposed) return;
-        model = gltf.scene;
-        modelRoot.add(model);
-        const box = new THREE.Box3().setFromObject(model);
+        finishedModel = gltf.scene;
+        modelRoot.add(finishedModel);
+        const box = new THREE.Box3().setFromObject(finishedModel);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         pinRadius = Math.max(0.008, Math.max(size.x, size.y, size.z) * 0.018);
@@ -247,13 +300,30 @@ export default function PinPlacer({
         camera.position.copy(center).add(new THREE.Vector3(radius, radius * 0.6, radius * 1.2));
         controls.target.copy(center);
         controls.update();
-        syncPins(pinsRef.current, selectedRef.current);
+        showForm(showingRef.current);
       },
       undefined,
       (err) => {
         console.warn('[jrf] pin placer failed to load GLB', err);
       }
     );
+
+    if (rawModelUrl) {
+      loader.load(
+        rawModelUrl,
+        (gltf) => {
+          if (disposed) return;
+          rawModel = gltf.scene;
+          rawModel.visible = false;
+          modelRoot.add(rawModel);
+          if (finishedModel) showForm(showingRef.current);
+        },
+        undefined,
+        (err) => {
+          console.warn('[jrf] pin placer failed to load raw GLB', err);
+        }
+      );
+    }
 
     resize();
     const ro = new ResizeObserver(resize);
@@ -274,18 +344,24 @@ export default function PinPlacer({
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
-      renderer.domElement.removeEventListener('pointerleave', onPointerUp);
+      renderer.domElement.removeEventListener('pointerleave', onPointerCancel);
+      renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
       controls.dispose();
       draco.dispose();
       renderer.dispose();
       renderer.domElement.remove();
       syncPinsRef.current = () => {};
+      showFormRef.current = () => {};
     };
-  }, [modelUrl, dracoDecoderPath]);
+  }, [modelUrl, rawModelUrl, dracoDecoderPath]);
 
   useEffect(() => {
     syncPinsRef.current(pins, selectedId);
   }, [pins, selectedId]);
+
+  useEffect(() => {
+    showFormRef.current(showing);
+  }, [showing]);
 
   if (!modelUrl) {
     return (
@@ -299,8 +375,10 @@ export default function PinPlacer({
     <div>
       <div ref={mountRef} className={styles.pinViewport} />
       <p className={styles.status}>
-        Click the sculpture to drop a pin. Click a pin to select it, then drag
-        to slide it along the surface.
+        {coarse
+          ? 'Tap the sculpture to drop a pin. Tap a pin to select it, then drag it to slide along the surface. Drag elsewhere to orbit; pinch to zoom.'
+          : 'Click the sculpture to drop a pin. Click a pin to select it, then drag to slide it along the surface.'}{' '}
+        Pins that belong to the other form are dimmed.
       </p>
     </div>
   );

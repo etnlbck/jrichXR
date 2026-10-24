@@ -9,9 +9,10 @@ import { parseExperienceId } from '@/lib/experience-id';
 import {
   applyAssetUrl,
   assertCanEdit,
-  getDraft,
+  DraftConflictError,
+  getDraftWithRevision,
   isBlobConfigured,
-  putDraft,
+  putDraftWithRevision,
   seedDraftIfMissing,
 } from '@/lib/experience-store';
 
@@ -96,26 +97,33 @@ export async function POST(request: Request): Promise<NextResponse> {
         } catch {
           /* non-default missing drafts skip */
         }
-        const draft = await getDraft(experienceId);
-        if (draft === null) return;
         const clearInterim =
           assetId === 'raw-glb' || assetId === 'narration'
             ? { interim: false }
             : undefined;
-        const next = applyAssetUrl(draft, assetId, blob.url, {
-          status: 'ready',
-          ...clearInterim,
-        });
-        if (assetId === 'marker-display') {
-          next.marker = {
-            ...next.marker,
-            web: {
-              ...next.marker.web,
-              printImage: blob.url,
-            },
-          };
+        for (let attempt = 0; ; attempt++) {
+          const current = await getDraftWithRevision(experienceId);
+          if (current === null) return;
+          const next = applyAssetUrl(current.experience, assetId, blob.url, {
+            status: 'ready',
+            ...clearInterim,
+          });
+          if (assetId === 'marker-display') {
+            next.marker = {
+              ...next.marker,
+              web: {
+                ...next.marker.web,
+                printImage: blob.url,
+              },
+            };
+          }
+          try {
+            await putDraftWithRevision(next, experienceId, current.revision);
+            return;
+          } catch (err) {
+            if (!(err instanceof DraftConflictError) || attempt >= 2) throw err;
+          }
         }
-        await putDraft(next, experienceId);
       },
     });
 

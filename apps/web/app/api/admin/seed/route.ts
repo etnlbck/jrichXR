@@ -11,7 +11,7 @@ import {
   cloneSeedForId,
   getDraft,
   isBlobConfigured,
-  putDraft,
+  putDraftWithRevision,
   seedDraftIfMissing,
   status,
 } from '@/lib/experience-store';
@@ -49,18 +49,15 @@ export async function POST(request: Request) {
 
   if (force) {
     const current = await getDraft(id);
-    const experience =
+    const { experience, revision } = await putDraftWithRevision(
       id === DEFAULT_EXPERIENCE_ID
-        ? await putDraft(getSeedExperience(), id)
-        : await putDraft(
-            cloneSeedForId(
-              id,
-              current?.gallery.provenance.title ?? id
-            ),
-            id
-          );
+        ? getSeedExperience()
+        : cloneSeedForId(id, current?.gallery.provenance.title ?? id),
+      id
+    );
     return NextResponse.json({
       experience,
+      revision,
       seeded: true,
       forced: true,
       status: await status(id),
@@ -68,9 +65,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { experience, seeded } = await seedDraftIfMissing(id);
+    const { experience, seeded, revision } = await seedDraftIfMissing(id);
     return NextResponse.json({
       experience,
+      revision,
       seeded,
       forced: false,
       status: await status(id),

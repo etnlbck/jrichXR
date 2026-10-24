@@ -6,7 +6,8 @@ function isPublicAdminAuth(pathname: string): boolean {
   return (
     pathname.startsWith('/admin/sign-in') ||
     pathname.startsWith('/admin/sign-up') ||
-    pathname.startsWith('/admin/login')
+    pathname.startsWith('/admin/login') ||
+    pathname === '/admin/handoff'
   );
 }
 

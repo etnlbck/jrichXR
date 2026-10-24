@@ -10,6 +10,11 @@ const RESERVED = new Set([
   'e',
   'login',
   'users',
+  'place',
+  'handoff',
+  'pending',
+  'sign-in',
+  'sign-up',
 ]);
 
 export function isValidExperienceId(id: string): boolean {

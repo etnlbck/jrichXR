@@ -8,6 +8,7 @@ export type {
   MuralNodeType,
   MuralPlacement,
   MuralVec3,
+  PinForm,
   SpatialPin,
 } from './types';
 
@@ -23,4 +24,6 @@ export {
   getNodeXr8Placement,
   nodesForTrigger,
   parseGalleryExperience,
+  pinForm,
+  pinShowsOn,
 } from './helpers';

@@ -4,17 +4,20 @@ import { upload } from '@vercel/blob/client';
 import type {
   GalleryExperience,
   MuralNode,
+  PinForm,
   SpatialPin,
 } from '@jrichforms/experience';
-import { assetWebPath } from '@jrichforms/experience';
+import { assetWebPath, pinForm } from '@jrichforms/experience';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PhoneHandoff from '@/components/PhoneHandoff';
 import PinPlacer from '@/components/PinPlacer';
 import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
 import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
+import { newPinId, PIN_FORM_LABEL } from '@/lib/pins';
 
 type StoreStatus = {
   blobConfigured: boolean;
@@ -41,9 +44,11 @@ const ASSET_SLOTS: Array<{
 export default function AdminEditor({
   experienceId,
   initialTab = 'overview',
+  initialPinId = null,
 }: {
   experienceId: string;
   initialTab?: Tab;
+  initialPinId?: string | null;
 }) {
   const router = useRouter();
   const [tab, setTabState] = useState<Tab>(initialTab);
@@ -57,15 +62,26 @@ export default function AdminEditor({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(initialPinId);
+  const [pinView, setPinView] = useState<'finished' | 'raw'>('finished');
   const isSeedExperience = experienceId === DEFAULT_EXPERIENCE_ID;
   const qs = `?id=${encodeURIComponent(experienceId)}`;
   const setExperience = setExperienceState;
 
-  const applyServerExperience = useCallback((next: GalleryExperience) => {
-    setExperienceState(next);
-    setSavedJson(JSON.stringify(next));
-  }, []);
+  /** Blob ETag of the draft this editor is based on; sent as baseRevision. */
+  const revisionRef = useRef<string | null>(null);
+  /** Another device saved the draft while this tab had unsaved edits. */
+  const [conflict, setConflict] = useState(false);
+
+  const applyServerExperience = useCallback(
+    (next: GalleryExperience, revision: string | null | undefined) => {
+      setExperienceState(next);
+      setSavedJson(JSON.stringify(next));
+      if (revision !== undefined) revisionRef.current = revision;
+      setConflict(false);
+    },
+    []
+  );
 
   const dirty = useMemo(
     () =>
@@ -74,6 +90,10 @@ export default function AdminEditor({
       JSON.stringify(experience) !== savedJson,
     [experience, savedJson]
   );
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
 
   function setTab(next: Tab) {
     setTabState(next);
@@ -92,7 +112,7 @@ export default function AdminEditor({
     const res = await fetch(`/api/admin/experience${qs}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to load');
-    applyServerExperience(data.experience);
+    applyServerExperience(data.experience, data.revision ?? null);
     setStatus(data.status);
     setWarning(data.warning ?? null);
   }, [qs, applyServerExperience]);
@@ -107,9 +127,12 @@ export default function AdminEditor({
       })
       .then((data) => {
         if (cancelled) return;
-        applyServerExperience(data.experience);
+        const loaded = data.experience as GalleryExperience;
+        applyServerExperience(loaded, data.revision ?? null);
         setStatus(data.status);
         setWarning(data.warning ?? null);
+        const pin = (loaded.gallery.pins ?? []).find((p) => p.id === initialPinId);
+        if (pin && pinForm(pin) !== 'both') setPinView(pinForm(pin) as 'finished' | 'raw');
       })
       .catch((err) => {
         if (!cancelled) {
@@ -119,11 +142,61 @@ export default function AdminEditor({
     return () => {
       cancelled = true;
     };
+  }, [qs, applyServerExperience, initialPinId]);
+
+  // Pick up pins placed on a phone when the artist comes back to this tab.
+  useEffect(() => {
+    let inFlight = false;
+    async function refresh() {
+      if (document.visibilityState !== 'visible' || inFlight) return;
+      if (revisionRef.current === null) return;
+      inFlight = true;
+      try {
+        const res = await fetch(`/api/admin/experience${qs}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.revision || data.revision === revisionRef.current) return;
+        if (dirtyRef.current) {
+          setConflict(true);
+          return;
+        }
+        applyServerExperience(data.experience, data.revision);
+        setStatus(data.status);
+        setMessage('Updated with changes from another device');
+      } catch {
+        /* offline; try again on next focus */
+      } finally {
+        inFlight = false;
+      }
+    }
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, [qs, applyServerExperience]);
 
-  async function save(nextExperience?: GalleryExperience) {
+  async function reloadLatest() {
+    if (dirty && !confirm('Discard your unsaved changes and load the latest draft?')) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await load();
+      setMessage('Loaded the latest draft');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Load failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Returns false when the save failed or hit a conflict. */
+  async function save(nextExperience?: GalleryExperience): Promise<boolean> {
     const payload = nextExperience ?? experience;
-    if (!payload) return;
+    if (!payload) return false;
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -131,30 +204,47 @@ export default function AdminEditor({
       const res = await fetch(`/api/admin/experience${qs}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ experience: payload }),
+        body: JSON.stringify({
+          experience: payload,
+          baseRevision: revisionRef.current,
+        }),
       });
       const data = await res.json();
+      if (res.status === 409) {
+        setConflict(true);
+        return false;
+      }
       if (!res.ok) throw new Error(data.message || data.error || 'Save failed');
-      applyServerExperience(data.experience);
+      applyServerExperience(data.experience, data.revision);
       setStatus(data.status);
       setMessage('Draft saved');
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   async function publish() {
+    if (dirty && !(await save())) return;
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      await save();
-      const res = await fetch(`/api/admin/publish${qs}`, { method: 'POST' });
+      const res = await fetch(`/api/admin/publish${qs}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseRevision: revisionRef.current }),
+      });
       const data = await res.json();
+      if (res.status === 409) {
+        setConflict(true);
+        return;
+      }
       if (!res.ok) throw new Error(data.message || data.error || 'Publish failed');
-      applyServerExperience(data.experience);
+      applyServerExperience(data.experience, data.revision);
       setStatus(data.status);
       setMessage(`Published v${data.experience.version}`);
     } catch (err) {
@@ -175,7 +265,7 @@ export default function AdminEditor({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Seed failed');
-      applyServerExperience(data.experience);
+      applyServerExperience(data.experience, data.revision ?? null);
       setStatus(data.status);
       setMessage(
         force
@@ -283,18 +373,25 @@ export default function AdminEditor({
     setPins(pins.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
-  function addPinAt(position: SpatialPin['position']) {
+  function addPinAt(position: SpatialPin['position'], form: 'finished' | 'raw') {
     if (!experience) return;
     const pins = experience.gallery.pins ?? [];
-    const id = `pin-${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+    const id = newPinId();
     const pin: SpatialPin = {
       id,
       title: `Pin ${pins.length + 1}`,
       body: '',
       position,
+      form,
     };
     setPins([...pins, pin]);
     setSelectedPinId(id);
+  }
+
+  function selectPin(id: string | null) {
+    setSelectedPinId(id);
+    const pin = (experience?.gallery.pins ?? []).find((p) => p.id === id);
+    if (pin && pinForm(pin) !== 'both') setPinView(pinForm(pin) as 'finished' | 'raw');
   }
 
   async function uploadPinAudio(pin: SpatialPin, file: File) {
@@ -310,7 +407,7 @@ export default function AdminEditor({
       },
     };
     setExperience(next);
-    await save(next);
+    if (!(await save(next))) return;
     await onUpload(audioAssetId, file);
   }
 
@@ -325,6 +422,12 @@ export default function AdminEditor({
   const title = experience.gallery.provenance.title;
   const pins = experience.gallery.pins ?? [];
   const selectedPin = pins.find((p) => p.id === selectedPinId);
+  const finishedModelUrl =
+    assetWebPath(experience, 'finished-glb') ??
+    (isSeedExperience ? '/assets/models/finished.glb' : null);
+  const rawModelUrl =
+    assetWebPath(experience, 'raw-glb') ??
+    (isSeedExperience ? '/assets/models/raw.glb' : null);
   const statusText = busy
     ? 'Working…'
     : dirty
@@ -382,6 +485,22 @@ export default function AdminEditor({
         <p className={styles.error} role="status">
           This experience is archived. Visitors see a 404 until you restore it.
         </p>
+      )}
+      {conflict && (
+        <div className={styles.notice} role="alert">
+          <span>
+            This draft was changed on another device, for example pins placed
+            on your phone. Saving now would overwrite those changes.
+          </span>
+          <button
+            type="button"
+            className={styles.btn}
+            disabled={busy}
+            onClick={() => void reloadLatest()}
+          >
+            Load latest
+          </button>
+        </div>
       )}
 
       {tab === 'overview' && (
@@ -696,6 +815,14 @@ export default function AdminEditor({
             Max GLB {(experience.gallery.maxGlbBytes / (1024 * 1024)).toFixed(0)}{' '}
             MB. Uploads go to public Vercel Blob and update draft webPath.
           </p>
+          {pins.length > 0 && (
+            <p className={styles.notice}>
+              This experience has {pins.length} pin{pins.length === 1 ? '' : 's'}.
+              Pins are stored relative to the model, so a replacement GLB should
+              keep the same origin and scale or the pins will float off the
+              surface. Check them on the Pins tab after uploading.
+            </p>
+          )}
           {ASSET_SLOTS.map((slot) => {
             const meta = experience.assets[slot.id];
             return (
@@ -779,16 +906,34 @@ export default function AdminEditor({
             Pins stick to the sculpture in WebAR. Tap a pin to open its note.
             Save the draft from the bar below when you are done placing.
           </p>
+          <div className={styles.actions}>
+            <div className={styles.segmented} role="group" aria-label="Form shown">
+              {(['finished', 'raw'] as const).map((form) => (
+                <button
+                  key={form}
+                  type="button"
+                  aria-pressed={pinView === form}
+                  disabled={form === 'raw' && !rawModelUrl}
+                  onClick={() => setPinView(form)}
+                >
+                  {form === 'finished' ? 'Finished' : 'Raw'}
+                </button>
+              ))}
+            </div>
+            <a className={styles.btn} href={`/admin/place/${experienceId}`}>
+              Place in AR
+            </a>
+          </div>
+          <PhoneHandoff experienceId={experienceId} />
           <div className={styles.pinLayout}>
             <PinPlacer
-              modelUrl={
-                assetWebPath(experience, 'finished-glb') ??
-                (isSeedExperience ? '/assets/models/finished.glb' : null)
-              }
+              modelUrl={finishedModelUrl}
+              rawModelUrl={rawModelUrl}
               dracoDecoderPath={experience.gallery.dracoDecoderPath}
               pins={pins}
               selectedId={selectedPinId}
-              onSelect={setSelectedPinId}
+              showing={pinView}
+              onSelect={selectPin}
               onAddPin={addPinAt}
               onMovePin={(id, position) => updatePin(id, { position })}
             />
@@ -801,16 +946,19 @@ export default function AdminEditor({
                       type="button"
                       className={styles.pinListButton}
                       data-active={selectedPinId === pin.id}
-                      onClick={() => setSelectedPinId(pin.id)}
+                      onClick={() => selectPin(pin.id)}
                     >
                       {pin.title || pin.id}
+                      <span className={styles.pinFormTag}>
+                        {PIN_FORM_LABEL[pinForm(pin)]}
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
               {!selectedPin && (
                 <p className={styles.status}>
-                  Click the model to add a pin, or pick one from the list.
+                  Click or tap the model to add a pin, or pick one from the list.
                 </p>
               )}
               {selectedPin && (
@@ -823,6 +971,22 @@ export default function AdminEditor({
                         updatePin(selectedPin.id, { title: e.target.value })
                       }
                     />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-form">Shows on</label>
+                    <select
+                      id="pin-form"
+                      value={pinForm(selectedPin)}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          form: e.target.value as PinForm,
+                        })
+                      }
+                    >
+                      <option value="finished">Finished</option>
+                      <option value="raw">Raw</option>
+                      <option value="both">Both</option>
+                    </select>
                   </div>
                   <div className={styles.field}>
                     <label>Body</label>
