@@ -7,6 +7,7 @@
 import experienceJson from '@repo/content/untitled-no-7/experience.json';
 import {
   assetWebPath,
+  detectModelNodeId,
   engVecToXr8,
   findNode,
   galleryPins,
@@ -43,6 +44,8 @@ export type AppConfig = {
   imageTargetName: string;
   imageTargetJson: string;
   printImage: string;
+  /** Model node shown when the image target is found (trigger onDetect). */
+  detectNodeId: string;
   assets: {
     finishedModel: string;
     rawModel: string;
@@ -75,7 +78,8 @@ export function getSeedExperience(): GalleryExperience {
 }
 
 export function buildAppConfig(experience: GalleryExperience): AppConfig {
-  const finishedPlacement = getNodeXr8Placement(experience, 'finished');
+  const detectNodeId = detectModelNodeId(experience);
+  const finishedPlacement = getNodeXr8Placement(experience, detectNodeId);
   const overlayNode = findNode(experience, 'overlay');
   const overlayPos = overlayNode
     ? engVecToXr8(overlayNode.position, experience.marker.physicalWidthM)
@@ -105,6 +109,7 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
     imageTargetName: experience.marker.web.imageTargetName,
     imageTargetJson: experience.marker.web.imageTargetJson,
     printImage: experience.marker.web.printImage,
+    detectNodeId,
     assets: {
       finishedModel:
         assetWebPath(experience, 'finished-glb') ??

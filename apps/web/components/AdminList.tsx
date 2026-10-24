@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import AdminUserMenu from '@/components/AdminUserMenu';
 import styles from '@/app/admin/admin.module.css';
-import { DEFAULT_EXPERIENCE_ID } from '@/lib/experience-id';
+import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 
 type ExperienceIndexItem = {
   id: string;
@@ -157,48 +156,67 @@ export default function AdminList() {
   const archived = items.filter((item) => item.archived === true);
 
   return (
-    <div className={styles.page}>
-      <div className={styles.shell}>
-        <h1 className={styles.brand}>Experiences</h1>
-        <p className={styles.sub}>
-          {isAdmin
-            ? 'Studio admin — all experiences'
-            : 'Your pieces — draft, publish, and create XR packages'}
+    <div className={styles.shell}>
+      <div className={styles.headerRow}>
+        <div>
+          <h1 className={styles.brand}>Experiences</h1>
+          <p className={styles.sub}>
+            {isAdmin
+              ? 'Studio admin — all experiences'
+              : 'Your pieces — draft, publish, and create XR packages'}
+          </p>
+        </div>
+        <button
+          type="button"
+          className={styles.btnPrimary}
+          onClick={() => {
+            document
+              .getElementById('new-experience')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('exp-title')?.focus({ preventScroll: true });
+          }}
+        >
+          New experience
+        </button>
+      </div>
+
+      {blobConfigured === false && (
+        <p className={styles.error}>
+          BLOB_READ_WRITE_TOKEN unset — you can edit Untitled No. 7 in memory;
+          creating, archiving, and deleting require Blob.
         </p>
-        <nav className={styles.nav}>
-          <Link href="/">WebAR</Link>
-          {isAdmin && <Link href="/admin/users">Users</Link>}
-          <span className={styles.navEnd}>
-            <AdminUserMenu />
-          </span>
-        </nav>
+      )}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
 
-        {blobConfigured === false && (
-          <p className={styles.error}>
-            BLOB_READ_WRITE_TOKEN unset — you can edit Untitled No. 7 in memory;
-            creating, archiving, and deleting require Blob.
-          </p>
-        )}
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
-
-        <section className={styles.panel}>
-          {items.length === 0 && blobConfigured === null ? (
-            <p className={styles.status}>Loading…</p>
-          ) : (
-            active.map((item) => (
-              <div key={item.id} className={styles.listRow}>
-                <Link href={`/admin/${item.id}`}>
-                  <strong>{item.title}</strong>
-                  <code>{item.id}</code>
-                  <span>
-                    Draft {item.hasDraft ? item.draftVersion : '—'} · Published{' '}
-                    {item.hasPublished ? item.publishedVersion : '—'}
-                  </span>
-                </Link>
+      <section className={styles.panel}>
+        {items.length === 0 && blobConfigured === null ? (
+          <p className={styles.status}>Loading…</p>
+        ) : (
+          active.map((item) => (
+            <div key={item.id} className={styles.listRow}>
+              <Link href={`/admin/${item.id}`}>
+                <strong>{item.title}</strong>
+                <code>{item.id}</code>
+                <span>
+                  Draft {item.hasDraft ? item.draftVersion : '—'} · Published{' '}
+                  {item.hasPublished ? item.publishedVersion : '—'}
+                </span>
+              </Link>
+              <div className={styles.listRowActions}>
+                {item.hasPublished && (
+                  <a
+                    className={styles.btn}
+                    href={visitorArPath(item.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View live
+                  </a>
+                )}
                 {item.id !== DEFAULT_EXPERIENCE_ID && (
                   <button
                     type="button"
@@ -210,88 +228,92 @@ export default function AdminList() {
                   </button>
                 )}
               </div>
-            ))
-          )}
-        </section>
-
-        <section className={styles.panel} style={{ marginTop: '2rem' }}>
-          <h2 className={styles.sectionTitle}>New experience</h2>
-          <p className={styles.status}>
-            Clones the Untitled No. 7 package. Visitors open it at{' '}
-            <code>/e/&#123;slug&#125;</code> after you publish.
-          </p>
-          <form onSubmit={(e) => void onCreate(e)}>
-            <div className={styles.field}>
-              <label htmlFor="exp-title">Title</label>
-              <input
-                id="exp-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
             </div>
-            <div className={styles.field}>
-              <label htmlFor="exp-id">Slug</label>
-              <input
-                id="exp-id"
-                value={id}
-                onChange={(e) => setId(e.target.value.toLowerCase().trim())}
-                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                placeholder="obsidian-altar"
-                required
-              />
-            </div>
-            <div className={styles.actions}>
-              <button
-                className={styles.btnPrimary}
-                type="submit"
-                disabled={busy || blobConfigured === false}
-              >
-                {busy ? 'Creating…' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        {archived.length > 0 && (
-          <section className={styles.panel} style={{ marginTop: '2rem' }}>
-            <h2 className={styles.sectionTitle}>Archived</h2>
-            <p className={styles.status}>
-              Hidden from visitors. Restore to publish again, or delete
-              permanently (assets cannot be recovered).
-            </p>
-            {archived.map((item) => (
-              <div key={item.id} className={styles.listRow}>
-                <Link href={`/admin/${item.id}`}>
-                  <strong>{item.title}</strong>
-                  <code>{item.id}</code>
-                  <span>
-                    Archived {item.archivedAt ? item.archivedAt.slice(0, 10) : ''}
-                  </span>
-                </Link>
-                <div className={styles.listRowActions}>
-                  <button
-                    type="button"
-                    className={styles.btn}
-                    disabled={busy}
-                    onClick={() => void onRestore(item.id)}
-                  >
-                    Restore
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.btnDanger}
-                    disabled={busy}
-                    onClick={() => void onDelete(item.id)}
-                  >
-                    Delete permanently
-                  </button>
-                </div>
-              </div>
-            ))}
-          </section>
+          ))
         )}
-      </div>
+      </section>
+
+      <section
+        id="new-experience"
+        className={styles.panel}
+        style={{ marginTop: '2rem', scrollMarginTop: '4rem' }}
+      >
+        <h2 className={styles.sectionTitle}>New experience</h2>
+        <p className={styles.status}>
+          Clones the Untitled No. 7 package. Visitors open it at{' '}
+          <code>/e/&#123;slug&#125;</code> after you publish.
+        </p>
+        <form onSubmit={(e) => void onCreate(e)}>
+          <div className={styles.field}>
+            <label htmlFor="exp-title">Title</label>
+            <input
+              id="exp-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="exp-id">Slug</label>
+            <input
+              id="exp-id"
+              value={id}
+              onChange={(e) => setId(e.target.value.toLowerCase().trim())}
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              placeholder="obsidian-altar"
+              required
+            />
+          </div>
+          <div className={styles.actions}>
+            <button
+              className={styles.btnPrimary}
+              type="submit"
+              disabled={busy || blobConfigured === false}
+            >
+              {busy ? 'Creating…' : 'Create'}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {archived.length > 0 && (
+        <section className={styles.panel} style={{ marginTop: '2rem' }}>
+          <h2 className={styles.sectionTitle}>Archived</h2>
+          <p className={styles.status}>
+            Hidden from visitors. Restore to publish again, or delete
+            permanently (assets cannot be recovered).
+          </p>
+          {archived.map((item) => (
+            <div key={item.id} className={styles.listRow}>
+              <Link href={`/admin/${item.id}`}>
+                <strong>{item.title}</strong>
+                <code>{item.id}</code>
+                <span>
+                  Archived {item.archivedAt ? item.archivedAt.slice(0, 10) : ''}
+                </span>
+              </Link>
+              <div className={styles.listRowActions}>
+                <button
+                  type="button"
+                  className={styles.btn}
+                  disabled={busy}
+                  onClick={() => void onRestore(item.id)}
+                >
+                  Restore
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnDanger}
+                  disabled={busy}
+                  onClick={() => void onDelete(item.id)}
+                >
+                  Delete permanently
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

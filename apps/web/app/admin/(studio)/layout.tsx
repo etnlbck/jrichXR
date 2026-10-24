@@ -1,13 +1,16 @@
 import { redirect } from 'next/navigation';
+import AdminStudioNav from '@/components/AdminStudioNav';
 import { ArtistAccessError, requireArtist } from '@/lib/artist-access';
+import styles from '../admin.module.css';
 
 export default async function StudioLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  let isAdmin = false;
   try {
-    await requireArtist();
+    ({ isAdmin } = await requireArtist());
   } catch (err) {
     if (err instanceof ArtistAccessError && err.status === 401) {
       redirect('/admin/sign-in');
@@ -17,5 +20,10 @@ export default async function StudioLayout({
     }
     throw err;
   }
-  return children;
+  return (
+    <div className={styles.page}>
+      <AdminStudioNav isAdmin={isAdmin} />
+      {children}
+    </div>
+  );
 }

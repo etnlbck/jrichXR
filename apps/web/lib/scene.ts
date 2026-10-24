@@ -31,6 +31,9 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   let visible = false;
   let morphT = 0;
   let morphTarget = 0;
+  let hasLocked = false;
+  /** Set after the first tap so a re-lock reports RAW/FINISHED instead of ANCHORED. */
+  let hasMorphed = false;
   /** Overlay opacity follows morph, timed by gallery.morph.overlayFadeMs. */
   let overlayT = 0;
   let clock: THREE.Clock | null = null;
@@ -259,6 +262,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
   function toggleMorph() {
     if (!modelsReady || (!finished && !placeholder)) return null;
+    hasMorphed = true;
     // Cube-only mode: still toggle UI/narration path for dry-runs.
     if (!finished || !raw) {
       morphTarget = morphTarget > 0.5 ? 0 : 1;
@@ -353,19 +357,30 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     };
   }
 
+  function isConfiguredTarget(detail?: { name?: string }) {
+    return detail?.name === config.imageTargetName;
+  }
+
   function onImageFound(detail: ImageTargetDetail) {
+    if (!isConfiguredTarget(detail)) return;
     positionAnchor(detail);
     if (anchor) anchor.visible = true;
     visible = true;
-    mark('first_target_found');
-    callbacks.onState('ANCHORED');
+    if (!hasLocked) {
+      hasLocked = true;
+      mark('first_target_found');
+    }
+    if (!hasMorphed) callbacks.onState('ANCHORED');
+    else callbacks.onState(morphTarget > 0.5 ? 'RAW' : 'FINISHED');
   }
 
   function onImageUpdated(detail: ImageTargetDetail) {
+    if (!isConfiguredTarget(detail)) return;
     positionAnchor(detail);
   }
 
-  function onImageLost() {
+  function onImageLost(detail?: { name?: string }) {
+    if (!isConfiguredTarget(detail)) return;
     if (anchor) anchor.visible = false;
     visible = false;
     callbacks.onState('SCANNING');

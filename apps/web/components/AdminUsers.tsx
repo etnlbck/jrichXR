@@ -1,8 +1,6 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import AdminUserMenu from '@/components/AdminUserMenu';
 import styles from '@/app/admin/admin.module.css';
 
 type Role = 'admin' | 'artist' | null;
@@ -90,85 +88,77 @@ export default function AdminUsers() {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.shell}>
-        <h1 className={styles.brand}>Users</h1>
-        <p className={styles.sub}>
-          Studio roles. Admins see every piece and can manage roles; artists can
-          use the studio when access is allowlisted.
+    <div className={styles.shell}>
+      <h1 className={styles.brand}>Users</h1>
+      <p className={styles.sub}>
+        Studio roles. Admins see every piece and can manage roles; artists can
+        use the studio when access is allowlisted.
+      </p>
+
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
         </p>
-        <nav className={styles.nav}>
-          <Link href="/admin">Experiences</Link>
-          <span className={styles.navEnd}>
-            <AdminUserMenu />
-          </span>
-        </nav>
+      )}
+      {message && <p className={styles.ok}>{message}</p>}
 
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
-        {message && <p className={styles.ok}>{message}</p>}
-
-        <section className={styles.panel}>
-          {users === null && !error && <p className={styles.status}>Loading…</p>}
-          {users?.length === 0 && <p className={styles.status}>No users yet.</p>}
-          {users?.map((user) => {
-            const isSelf = user.id === currentUserId;
-            const value = drafts[user.id] ?? user.role ?? '';
-            const dirty = value !== (user.role ?? '');
-            return (
-              <div key={user.id} className={styles.listRow}>
-                <div className={styles.userCell}>
-                  <img
-                    src={user.imageUrl}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className={styles.userAvatar}
-                  />
-                  <div className={styles.userText}>
-                    <strong>
-                      {user.name || user.email || user.id}
-                      {isSelf ? ' (you)' : ''}
-                    </strong>
-                    {user.email && user.name ? <span>{user.email}</span> : null}
-                    {user.isEnvAdmin ? (
-                      <span>Admin via CLERK_ADMIN_USER_IDS</span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className={styles.listRowActions}>
-                  <select
-                    className={styles.roleSelect}
-                    aria-label={`Role for ${user.email ?? user.id}`}
-                    value={value}
-                    disabled={savingId !== null || isSelf}
-                    onChange={(e) =>
-                      setDrafts((prev) => ({ ...prev, [user.id]: e.target.value }))
-                    }
-                  >
-                    {ROLE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className={styles.btnPrimary}
-                    disabled={!dirty || savingId !== null || isSelf}
-                    onClick={() => void save(user)}
-                  >
-                    {savingId === user.id ? 'Saving…' : 'Save'}
-                  </button>
+      <section className={styles.panel}>
+        {users === null && !error && <p className={styles.status}>Loading…</p>}
+        {users?.length === 0 && <p className={styles.status}>No users yet.</p>}
+        {users?.map((user) => {
+          const isSelf = user.id === currentUserId;
+          const value = drafts[user.id] ?? user.role ?? '';
+          const dirty = value !== (user.role ?? '');
+          return (
+            <div key={user.id} className={styles.listRow}>
+              <div className={styles.userCell}>
+                <img
+                  src={user.imageUrl}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className={styles.userAvatar}
+                />
+                <div className={styles.userText}>
+                  <strong>
+                    {user.name || user.email || user.id}
+                    {isSelf ? ' (you)' : ''}
+                  </strong>
+                  {user.email && user.name ? <span>{user.email}</span> : null}
+                  {user.isEnvAdmin ? (
+                    <span>Admin via CLERK_ADMIN_USER_IDS</span>
+                  ) : null}
                 </div>
               </div>
-            );
-          })}
-        </section>
-      </div>
+              <div className={styles.listRowActions}>
+                <select
+                  className={styles.roleSelect}
+                  aria-label={`Role for ${user.email ?? user.id}`}
+                  value={value}
+                  disabled={savingId !== null || isSelf}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({ ...prev, [user.id]: e.target.value }))
+                  }
+                >
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  disabled={!dirty || savingId !== null || isSelf}
+                  onClick={() => void save(user)}
+                >
+                  {savingId === user.id ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </section>
     </div>
   );
 }
