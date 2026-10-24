@@ -150,7 +150,8 @@ export async function bootXr({ canvas, scene, config, onError }: BootOptions) {
         },
         {
           event: 'reality.imagelost',
-          process: () => scene.onImageLost(),
+          process: ({ detail }: { detail?: { name?: string } }) =>
+            scene.onImageLost(detail),
         },
       ],
     });

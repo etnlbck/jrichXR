@@ -1,6 +1,7 @@
 import type {
   GalleryExperience,
   MuralNode,
+  MuralNodeTrigger,
   MuralVec3,
   SpatialPin,
 } from './types';
@@ -14,6 +15,22 @@ export function findNode(
   id: string
 ): MuralNode | undefined {
   return experience.nodes.find((n) => n.id === id);
+}
+
+/** Nodes with an explicit or default trigger; eng treats a missing trigger as onDetect. */
+export function nodesForTrigger(
+  experience: GalleryExperience,
+  trigger: MuralNodeTrigger
+): MuralNode[] {
+  return experience.nodes.filter((n) => (n.trigger ?? 'onDetect') === trigger);
+}
+
+/** Model revealed when the image target is first found. */
+export function detectModelNodeId(experience: GalleryExperience): string {
+  const node = nodesForTrigger(experience, 'onDetect').find(
+    (n) => n.type === 'model' || n.type === 'gltf'
+  );
+  return node?.id ?? 'finished';
 }
 
 export function assetWebPath(

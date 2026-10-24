@@ -15,10 +15,12 @@ export type { NodeXr8Placement } from './helpers';
 
 export {
   assetWebPath,
+  detectModelNodeId,
   engMetersToXr8Units,
   engVecToXr8,
   findNode,
   galleryPins,
   getNodeXr8Placement,
+  nodesForTrigger,
   parseGalleryExperience,
 } from './helpers';
