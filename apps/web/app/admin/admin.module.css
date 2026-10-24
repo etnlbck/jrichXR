@@ -13,6 +13,142 @@
   padding: 2rem 1.25rem 4rem;
 }
 
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(14, 12, 10, 0.88);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(242, 235, 227, 0.08);
+  font-family: system-ui, sans-serif;
+}
+
+.topBarInner {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0.6rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+}
+
+.wordmark {
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #c8a064;
+  text-decoration: none;
+  margin-right: 0.5rem;
+}
+
+.topLink {
+  color: rgba(242, 235, 227, 0.7);
+  text-decoration: none;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid transparent;
+}
+
+.topLink:hover,
+.topLink[aria-current='page'] {
+  color: #f2ebe3;
+  border-bottom-color: rgba(200, 160, 100, 0.7);
+}
+
+.breadcrumb {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: rgba(242, 235, 227, 0.5);
+}
+
+.breadcrumb a {
+  color: rgba(242, 235, 227, 0.7);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: #c8a064;
+}
+
+.headerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 0 1.75rem;
+  border-bottom: 1px solid rgba(242, 235, 227, 0.12);
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.tabs button {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: rgba(242, 235, 227, 0.6);
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+}
+
+.tabs button:hover {
+  color: #f2ebe3;
+}
+
+.tabs button[aria-selected='true'] {
+  color: #f2ebe3;
+  border-bottom-color: #c8a064;
+}
+
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin-top: 2rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(20, 17, 14, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(242, 235, 227, 0.12);
+  border-radius: 6px;
+  font-family: system-ui, sans-serif;
+}
+
+.actionBarStatus {
+  flex: 1;
+  min-width: 10rem;
+  font-size: 0.85rem;
+  color: rgba(242, 235, 227, 0.65);
+}
+
+.actionBarStatus[data-dirty='true'] {
+  color: #e8c48a;
+}
+
+.dangerZone {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid rgba(220, 120, 90, 0.3);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .brand {
   font-size: clamp(1.75rem, 4vw, 2.4rem);
   font-weight: 600;
@@ -114,6 +250,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
+  text-decoration: none;
 }
 
 .btnPrimary {
@@ -137,6 +274,13 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
+}
+
+.btn:disabled,
+.btnPrimary:disabled,
+.btnDanger:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .status {
@@ -199,7 +343,7 @@
   font-family: system-ui, sans-serif;
 }
 
-.listRow a {
+.listRow > a {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -209,7 +353,7 @@
   flex: 1;
 }
 
-.listRow:hover a strong {
+.listRow:hover > a strong {
   color: #c8a064;
 }
 
