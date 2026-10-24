@@ -1,5 +1,5 @@
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,8 +12,10 @@
 /coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
+/apps/web/.next/
+/apps/web/out/
 
 # production
 /build
@@ -32,6 +34,7 @@ yarn-error.log*
 
 # env
 .env*
+.env*.local
 
 # vercel
 .vercel
@@ -40,20 +43,21 @@ yarn-error.log*
 *.tsbuildinfo
 
 # XR engine runtime (copied by postinstall from node_modules)
-/public/xr/engine/
-/public/xr/xrextras/
-/public/xr/landing-page/
-/public/xr/COPY_MANIFEST.json
+/apps/web/public/xr/engine/
+/apps/web/public/xr/xrextras/
+/apps/web/public/xr/landing-page/
+/apps/web/public/xr/COPY_MANIFEST.json
 
-# Binary sculpture assets (track with Git LFS if desired)
-# Keep target JSON + test marker images committed for Milestone 0.
-/public/assets/models/*.glb
-/public/assets/audio/*.mp3
-/public/assets/overlays/*.png
+# Binary sculpture assets synced into the web app (source of truth: content/)
+/apps/web/public/assets/models/*.glb
+/apps/web/public/assets/audio/*.mp3
+/apps/web/public/assets/overlays/*.png
 
 # Local scratch for marker generation
 /scripts/tmp/
 
 # npm pack leftovers
 *.tgz
-.env*.local
+
+# Unused alternate lockfile (npm workspaces)
+bun.lockb
