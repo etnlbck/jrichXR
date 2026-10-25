@@ -1,0 +1,44 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  scroll-margin: 1rem;
+}
+
+.caption {
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(242, 235, 227, 0.55);
+}
+
+.card {
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 20px 20px 0 0;
+  padding: 26px 24px 24px;
+  font-family: system-ui, sans-serif;
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 1.4rem;
+}
+
+.card h2.untitled {
+  color: #999;
+}
+
+.body {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.audio {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+}
