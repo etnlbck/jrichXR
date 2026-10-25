@@ -86,13 +86,28 @@ export function parseGalleryExperience(raw: unknown): GalleryExperience {
   if (e.kind !== 'mural' || !e.id || !e.gallery || !e.marker?.web) {
     throw new Error('experience: invalid gallery mural package');
   }
+  const { pinColor: rawPinColor, ...gallery } = e.gallery;
   return {
     ...e,
     gallery: {
-      ...e.gallery,
+      ...gallery,
       pins: Array.isArray(e.gallery.pins) ? e.gallery.pins : [],
+      ...(isHexColor(rawPinColor) ? { pinColor: rawPinColor.toLowerCase() } : {}),
     },
   };
+}
+
+export const DEFAULT_PIN_COLOR = '#ffc46a';
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX_COLOR.test(value);
+}
+
+export function pinColor(experience: GalleryExperience): string {
+  const c = experience.gallery.pinColor;
+  return isHexColor(c) ? c.toLowerCase() : DEFAULT_PIN_COLOR;
 }
 
 export interface NodeXr8Placement {

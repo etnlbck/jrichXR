@@ -506,6 +506,35 @@
   cursor: default;
 }
 
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.swatch {
+  appearance: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid rgba(242, 235, 227, 0.25);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch[aria-pressed='true'] {
+  border-color: #f2ebe3;
+  box-shadow: 0 0 0 2px #c8a064;
+}
+
+.field input.swatchCustom {
+  width: 2.5rem;
+  height: 2rem;
+  padding: 0.15rem;
+  cursor: pointer;
+}
+
 .handoff {
   display: flex;
   flex-wrap: wrap;

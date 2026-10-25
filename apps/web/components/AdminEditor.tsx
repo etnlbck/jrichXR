@@ -7,7 +7,7 @@ import type {
   PinForm,
   SpatialPin,
 } from '@jrichforms/experience';
-import { assetWebPath, pinForm } from '@jrichforms/experience';
+import { assetWebPath, pinColor, pinForm } from '@jrichforms/experience';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,6 +17,7 @@ import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
 import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
+import { colorLuminance, PIN_COLOR_PRESETS } from '@/lib/pin-color';
 import { newPinId, PIN_FORM_LABEL } from '@/lib/pins';
 
 type StoreStatus = {
@@ -64,6 +65,7 @@ export default function AdminEditor({
   const [busy, setBusy] = useState(false);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(initialPinId);
   const [pinView, setPinView] = useState<'finished' | 'raw'>('finished');
+  const [modelLuminance, setModelLuminance] = useState<number | null>(null);
   const isSeedExperience = experienceId === DEFAULT_EXPERIENCE_ID;
   const qs = `?id=${encodeURIComponent(experienceId)}`;
   const setExperience = setExperienceState;
@@ -422,6 +424,10 @@ export default function AdminEditor({
   const title = experience.gallery.provenance.title;
   const pins = experience.gallery.pins ?? [];
   const selectedPin = pins.find((p) => p.id === selectedPinId);
+  const currentPinColor = pinColor(experience);
+  const pinColorLowContrast =
+    modelLuminance !== null &&
+    Math.abs(colorLuminance(currentPinColor) - modelLuminance) < 0.2;
   const finishedModelUrl =
     assetWebPath(experience, 'finished-glb') ??
     (isSeedExperience ? '/assets/models/finished.glb' : null);
@@ -924,9 +930,58 @@ export default function AdminEditor({
               Place in AR
             </a>
           </div>
+          <div className={styles.field}>
+            <label id="pin-color-label" htmlFor="pin-color-custom">
+              Pin color
+            </label>
+            <div
+              className={styles.swatches}
+              role="group"
+              aria-labelledby="pin-color-label"
+            >
+              {PIN_COLOR_PRESETS.map((preset) => (
+                <button
+                  key={preset.hex}
+                  type="button"
+                  className={styles.swatch}
+                  style={{ background: preset.hex }}
+                  aria-label={preset.label}
+                  title={preset.label}
+                  aria-pressed={currentPinColor === preset.hex}
+                  onClick={() => updateGallery({ pinColor: preset.hex })}
+                />
+              ))}
+              <input
+                id="pin-color-custom"
+                type="color"
+                className={styles.swatchCustom}
+                value={currentPinColor}
+                aria-label="Custom pin color"
+                onChange={(e) =>
+                  updateGallery({ pinColor: e.target.value.toLowerCase() })
+                }
+              />
+              <button
+                type="button"
+                className={styles.btn}
+                disabled={experience.gallery.pinColor === undefined}
+                onClick={() => updateGallery({ pinColor: undefined })}
+              >
+                Default
+              </button>
+            </div>
+            {pinColorLowContrast && (
+              <p className={styles.status}>
+                This color may be hard to see on the sculpture. The outline
+                helps, but a lighter or darker color will stand out more.
+              </p>
+            )}
+          </div>
           <PhoneHandoff experienceId={experienceId} />
           <div className={styles.pinLayout}>
             <PinPlacer
+              pinColor={currentPinColor}
+              onModelLuminance={setModelLuminance}
               modelUrl={finishedModelUrl}
               rawModelUrl={rawModelUrl}
               dracoDecoderPath={experience.gallery.dracoDecoderPath}

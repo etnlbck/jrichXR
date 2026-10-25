@@ -15,6 +15,7 @@ export type {
 export type { NodeXr8Placement } from './helpers';
 
 export {
+  DEFAULT_PIN_COLOR,
   assetWebPath,
   detectModelNodeId,
   engMetersToXr8Units,
@@ -24,6 +25,7 @@ export {
   getNodeXr8Placement,
   nodesForTrigger,
   parseGalleryExperience,
+  pinColor,
   pinForm,
   pinShowsOn,
 } from './helpers';
