@@ -4,8 +4,16 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { AppConfig } from '@/lib/config';
 import { createScene } from '@/lib/scene';
-import { bootXr, loadEngineScripts } from '@/lib/xr-boot';
+import { useCoarsePointer } from '@/lib/use-coarse-pointer';
+import {
+  bootXr,
+  requestMotionPermission,
+  type CameraStatus,
+  type XrIssue,
+} from '@/lib/xr-boot';
 import type { UiState } from '@/lib/types';
+import DesktopGate from './DesktopGate';
+import XrIssueSheet from './XrIssueSheet';
 import styles from './ArExperience.module.css';
 
 type Props = {
@@ -27,7 +35,10 @@ export default function ArExperience({
   const config = appConfig;
 
   const [state, setState] = useState<UiState>('START');
-  const [error, setError] = useState<string | null>(null);
+  const [issue, setIssue] = useState<XrIssue | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus | null>(null);
+  const coarsePointer = useCoarsePointer();
+  const [useCameraAnyway, setUseCameraAnyway] = useState(false);
   const [modelsReady, setModelsReady] = useState(false);
   const [booting, setBooting] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
@@ -69,7 +80,10 @@ export default function ArExperience({
         const audio = audioRef.current;
         if (audio && !audio.paused) audio.pause();
       },
-      onLoadError: (message) => setError(message),
+      onLoadError: (message) => {
+        console.error('[jrf] model load failed:', message);
+        setIssue('generic');
+      },
       onModelsReady: () => {
         setModelsReady(true);
         setBooting(false);
@@ -108,38 +122,32 @@ export default function ArExperience({
 
   const handleBegin = useCallback(async () => {
     if (bootedRef.current || !canvasRef.current || !sceneRef.current) return;
+    const motion = requestMotionPermission();
     bootedRef.current = true;
     setBooting(true);
     unlockAudio();
     setState('SCANNING');
-    setError(null);
+    setIssue(null);
     onRequestStart?.();
 
-    try {
-      if (!window.XR8) await loadEngineScripts(config);
-      await bootXr({
-        canvas: canvasRef.current,
-        scene: sceneRef.current,
-        config,
-        onError: (message) => {
-          setError(message);
-          setState('ERROR');
-          setBooting(false);
-        },
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Camera / engine failed to start';
-      setError(message);
-      setState('ERROR');
-      setBooting(false);
-    }
+    await bootXr({
+      canvas: canvasRef.current,
+      scene: sceneRef.current,
+      config,
+      motion,
+      onStatus: setCameraStatus,
+      onError: (next) => {
+        setIssue(next);
+        setState('ERROR');
+        setBooting(false);
+      },
+    });
   }, [config, onRequestStart, unlockAudio]);
 
   useEffect(() => {
     if (!stage || !canvasRef.current || !sceneRef.current) return;
     setBooting(true);
-    setError(null);
+    setIssue(null);
     const stop = sceneRef.current.startStage(canvasRef.current);
     return stop;
   }, [stage]);
@@ -190,8 +198,14 @@ export default function ArExperience({
     state === 'ANCHORED' || state === 'RAW' || state === 'FINISHED';
   const sheetOpen = Boolean(openPin) || showProvenance;
   const showScan = !stage && state === 'SCANNING' && modelsReady && !booting;
+  const askingCamera = !stage && state === 'SCANNING' && cameraStatus === 'requesting';
   const showLoading =
-    (booting || (state === 'SCANNING' && !modelsReady)) && state !== 'ERROR';
+    (askingCamera || booting || (state === 'SCANNING' && !modelsReady)) &&
+    state !== 'ERROR';
+  const showDesktopGate =
+    !stage && state === 'START' && coarsePointer === false && !useCameraAnyway;
+  const showBeginGate =
+    !stage && state === 'START' && coarsePointer !== null && !showDesktopGate;
   const showTap = anchored && modelsReady && !sheetOpen;
   const morphHint = config.usePlaceholderCube
     ? 'Tap the cube to preview the morph'
@@ -212,7 +226,11 @@ export default function ArExperience({
         onClick={handleCanvasTap}
       />
 
-      {!stage && state === 'START' && (
+      {showDesktopGate && (
+        <DesktopGate title={pc.gateTitle} onUseCamera={() => setUseCameraAnyway(true)} />
+      )}
+
+      {showBeginGate && (
         <div className={styles.overlay}>
           <div className={styles.gateCard}>
             <h1>{pc.gateTitle}</h1>
@@ -228,7 +246,11 @@ export default function ArExperience({
       {showLoading && (
         <div className={styles.loading} role="status" aria-live="polite">
           <div className={styles.loadingPulse} />
-          <p>Loading experience…</p>
+          <p>
+            {askingCamera
+              ? 'Allow camera access when your browser asks'
+              : 'Loading experience…'}
+          </p>
         </div>
       )}
 
@@ -255,16 +277,7 @@ export default function ArExperience({
         </button>
       )}
 
-      {error && (
-        <div className={styles.errorBanner} role="alert">
-          <strong>Something went wrong</strong>
-          <p>{error}</p>
-          <p className={styles.errorHint}>
-            Check camera permission, HTTPS, and that the marker JSON exists at{' '}
-            {config.imageTargetJson}.
-          </p>
-        </div>
-      )}
+      {issue && <XrIssueSheet issue={issue} />}
 
       {openPin && (
         <div className={styles.panel}>
@@ -323,6 +336,9 @@ export default function ArExperience({
                 </a>
               )}
             </div>
+            <p className={styles.credit}>
+              AR engine by Niantic Spatial · <Link href="/licenses">Licenses</Link>
+            </p>
           </div>
         </div>
       )}

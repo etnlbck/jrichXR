@@ -106,8 +106,6 @@ export interface GalleryExperience {
     web: {
       preloadChunks: 'slam';
       xrScript: string;
-      xrextrasScript: string;
-      landingPageScript: string;
     };
   };
 }
