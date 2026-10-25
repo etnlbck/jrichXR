@@ -71,10 +71,77 @@ async function readJsonBlob(pathname: string): Promise<GalleryExperience | null>
   try {
     const meta = await head(pathname);
     const res = await fetch(meta.url, { cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // #region agent log
+      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': '5ef31a',
+        },
+        body: JSON.stringify({
+          sessionId: '5ef31a',
+          runId: 'pre-fix',
+          hypothesisId: 'A',
+          location: 'experience-store.ts:readJsonBlob',
+          message: 'blob fetch not ok',
+          data: { pathname, status: res.status },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return null;
+    }
     const json = await res.json();
-    return parseGalleryExperience(json);
-  } catch {
+    try {
+      return parseGalleryExperience(json);
+    } catch (parseErr) {
+      // #region agent log
+      fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': '5ef31a',
+        },
+        body: JSON.stringify({
+          sessionId: '5ef31a',
+          runId: 'pre-fix',
+          hypothesisId: 'E',
+          location: 'experience-store.ts:readJsonBlob',
+          message: 'published package failed parse',
+          data: {
+            pathname,
+            parseMessage:
+              parseErr instanceof Error ? parseErr.message : String(parseErr),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return null;
+    }
+  } catch (err) {
+    // #region agent log
+    fetch('http://127.0.0.1:7885/ingest/58b6237a-cd93-4c95-a29f-59bd9354a96b', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': '5ef31a',
+      },
+      body: JSON.stringify({
+        sessionId: '5ef31a',
+        runId: 'pre-fix',
+        hypothesisId: 'A',
+        location: 'experience-store.ts:readJsonBlob',
+        message: 'blob head/fetch failed',
+        data: {
+          pathname,
+          errMessage: err instanceof Error ? err.message.slice(0, 120) : String(err),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     return null;
   }
 }
