@@ -1,4 +1,5 @@
 import type {
+  ExperienceKind,
   GalleryExperience,
   MuralNode,
   MuralNodeTrigger,
@@ -7,6 +8,30 @@ import type {
   SpatialPin,
 } from './types';
 import { sanitizeBrand } from './brand';
+
+const EXPERIENCE_KINDS = new Set<ExperienceKind>(['mural', 'experience']);
+
+export function isExperienceKind(value: unknown): value is ExperienceKind {
+  return typeof value === 'string' && EXPERIENCE_KINDS.has(value as ExperienceKind);
+}
+
+/**
+ * Sculpture morph (finished↔raw) is mural-only. Generic `experience` packages
+ * still share the marker/node schema but skip morph chrome.
+ */
+export function supportsMorph(experience: GalleryExperience): boolean {
+  return experience.kind === 'mural';
+}
+
+/**
+ * Image planes authored as mural nodes (excludes the morph-linked `overlay`).
+ * WebAR honors `onDetect` and `tap`; other triggers fall back to onDetect.
+ */
+export function mediaImageNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter(
+    (n) => n.type === 'image' && n.id !== 'overlay'
+  );
+}
 
 export function galleryPins(experience: GalleryExperience): SpatialPin[] {
   return experience.gallery.pins ?? [];
@@ -84,8 +109,8 @@ export function parseGalleryExperience(raw: unknown): GalleryExperience {
     throw new Error('experience: expected object');
   }
   const e = raw as GalleryExperience;
-  if (e.kind !== 'mural' || !e.id || !e.gallery || !e.marker?.web) {
-    throw new Error('experience: invalid gallery mural package');
+  if (!isExperienceKind(e.kind) || !e.id || !e.gallery || !e.marker?.web) {
+    throw new Error('experience: invalid gallery package');
   }
   const { pinColor: rawPinColor, brandOverrides: rawOverrides, ...gallery } = e.gallery;
   const { brand: rawBrand, ...rest } = e;

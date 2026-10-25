@@ -1,8 +1,8 @@
 # Enhancement implementation plans — index
 
-Plans for the post-Arrive enhancement backlog. GitHub issues may be created later via [`scripts/create-enhancement-issues.sh`](../../../scripts/create-enhancement-issues.sh); titles below are the stable keys.
+Plans for the post-Arrive enhancement backlog. GitHub issues may be created later via [`scripts/create-enhancement-issues.sh`](../../../scripts/create-enhancement-issues.sh); titles below are the stable keys. Closing Waves 1–2 (and Wave 3 when ready) uses [`scripts/close-enhancement-waves.sh`](../../../scripts/close-enhancement-waves.sh) so PRs include `Closes #N`.
 
-**Sequencing:** Wave 1 detailed → Wave 2 detailed outlines → Wave 3 stubs (expand on demand).
+**Sequencing:** Wave 1 → Wave 2 → Wave 3 (14–16); 17 parked.
 
 | # | Issue title | Wave | Effort | Plan | Status |
 |---|-------------|------|--------|------|--------|
@@ -19,9 +19,9 @@ Plans for the post-Arrive enhancement backlog. GitHub issues may be created late
 | 11 | Visitor AR accessibility pass | 2 | M | [11-visitor-a11y-pass.md](11-visitor-a11y-pass.md) | done |
 | 12 | In-experience share sheet / QR handoff | 2 | M | [12-in-experience-share.md](12-in-experience-share.md) | done |
 | 13 | Richer pins (links, media, CTAs) | 2 | M | [13-richer-pins.md](13-richer-pins.md) | done |
-| 14 | Honor richer mural node types in WebAR | 3 | L | [14-richer-mural-nodes.md](14-richer-mural-nodes.md) | stub |
-| 15 | Nodes authoring (add/remove/type/triggers) | 3 | L | [15-nodes-authoring.md](15-nodes-authoring.md) | stub |
-| 16 | Support additional experience kinds | 3 | L | [16-experience-kinds.md](16-experience-kinds.md) | stub |
+| 14 | Honor richer mural node types in WebAR | 3 | L | [14-richer-mural-nodes.md](14-richer-mural-nodes.md) | done |
+| 15 | Nodes authoring (add/remove/type/triggers) | 3 | L | [15-nodes-authoring.md](15-nodes-authoring.md) | done |
+| 16 | Support additional experience kinds | 3 | L | [16-experience-kinds.md](16-experience-kinds.md) | done |
 | 17 | Real 3D Gaussian splat pipeline (parked) | 3 | L | [17-real-3dgs-pipeline.md](17-real-3dgs-pipeline.md) | parked |
 
 ## Suggested build order (Wave 1)

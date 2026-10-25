@@ -2,6 +2,7 @@ export type {
   ArtistBrand,
   BrandFontId,
   ExperienceAssetRef,
+  ExperienceKind,
   GalleryExperience,
   GalleryExtension,
   GalleryProvenance,
@@ -26,11 +27,14 @@ export {
   findNode,
   galleryPins,
   getNodeXr8Placement,
+  isExperienceKind,
+  mediaImageNodes,
   nodesForTrigger,
   parseGalleryExperience,
   pinColor,
   pinForm,
   pinShowsOn,
+  supportsMorph,
 } from './helpers';
 
 export {

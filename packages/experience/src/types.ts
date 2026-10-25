@@ -6,6 +6,8 @@
 export type MuralNodeType = 'image' | 'video' | 'model' | 'audio' | 'gltf';
 export type MuralNodeTrigger = 'onDetect' | 'tap' | 'loop' | 'proximity';
 export type MuralPlacement = 'wall' | 'merch';
+/** Package shape shared by sculpture murals and generic marker experiences. */
+export type ExperienceKind = 'mural' | 'experience';
 
 export interface MuralVec3 {
   x: number;
@@ -126,7 +128,7 @@ export interface ArtistBrand {
 export interface GalleryExperience {
   id: string;
   version: string;
-  kind: 'mural';
+  kind: ExperienceKind;
   placement?: MuralPlacement;
   personOcclusion?: boolean;
   marker: {

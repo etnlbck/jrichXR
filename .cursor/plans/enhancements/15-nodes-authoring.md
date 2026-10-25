@@ -1,19 +1,20 @@
 # Nodes authoring (add/remove/type/triggers)
 
 **Issue:** Nodes authoring (add/remove/type/triggers)  
-**Wave:** 3 · **Effort:** L · **Status:** stub — expand before build
+**Wave:** 3 · **Effort:** L · **Status:** done (image nodes)
 
 ## Goal
 
-Studio Nodes tab supports add/remove, type selection, and triggers—not only transform inspect/edit.
+Studio Nodes tab supports add/remove and triggers for WebAR-supported image nodes.
 
-## Expand later
+## Shipped
 
-- UX for node list + type picker constrained to WebAR-supported set
-- Persist through draft/publish (`experience-store`)
-- Validation against package schema
-- Coordinate with mural-nodes runtime (14)
+- Add image node (persists draft + pending asset slot)
+- Remove non-locked nodes (`finished` / `raw` / `overlay` locked)
+- Trigger select: `onDetect` | `tap`
+- Per-node image upload into the node’s `assetId`
+- Kind + support copy on Nodes tab
 
-## Acceptance (when expanded)
+## Acceptance
 
-- Artist can add a supported node, set trigger, publish, and see it in WebAR (for types runtime supports)
+- [x] Artist can add an image node, set trigger, upload, publish, and see it in WebAR

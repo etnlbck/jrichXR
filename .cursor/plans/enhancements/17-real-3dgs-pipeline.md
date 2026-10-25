@@ -1,26 +1,19 @@
 # Real 3D Gaussian splat pipeline (parked)
 
 **Issue:** Real 3D Gaussian splat pipeline (parked)  
-**Wave:** 3 · **Effort:** L · **Status:** parked stub — not next polish
+**Wave:** 3 · **Effort:** L · **Status:** parked
 
 ## Goal
 
-True 3DGS assets for Arrive (or as piece representation), with mobile fallback to Path A densify.
+True 3DGS assets in WebAR — not Path A densify aesthetic.
 
-## Why parked
+## Spike notes (parked)
 
-- Three is pinned at `^0.128.0`; modern splat loaders need a newer Three + XR8 compatibility spike
-- New asset type, Studio upload, Blob/publish, device fallback
+- Current stack: Three `^0.128` + 8th Wall; modern splat loaders want newer Three
+- Needs: XR8-compatible Three bump, splat upload/publish role, mobile perf budget, Path A fallback
+- Do not start until a dedicated platform bet is approved
 
-## Expand later (spike order)
+## Acceptance (when unparked)
 
-1. Three upgrade cost vs 8th Wall
-2. Choose format (`.splat` / `.ply` / `.spz`) and loader
-3. Anchor scale match to image target
-4. Studio field + publish
-5. Fallback to Path A when unsupported
-
-## Acceptance (when expanded)
-
-- Optional splat reveal or piece on a supported device
-- Unsupported devices use Path A densify without crash
+- [ ] Splat asset loads on a supported device class
+- [ ] Low-end / failure path falls back to Path A densify

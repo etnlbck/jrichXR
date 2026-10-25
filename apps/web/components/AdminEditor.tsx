@@ -5,10 +5,17 @@ import type {
   ArtistBrand,
   GalleryExperience,
   MuralNode,
+  MuralNodeTrigger,
   PinForm,
   SpatialPin,
 } from '@jrichforms/experience';
-import { assetWebPath, mergeBrand, pinColor, pinForm } from '@jrichforms/experience';
+import {
+  assetWebPath,
+  mergeBrand,
+  pinColor,
+  pinForm,
+  supportsMorph,
+} from '@jrichforms/experience';
 import BrandFields from '@/components/BrandFields';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -53,6 +60,18 @@ const ASSET_SLOTS: Array<{
   { id: 'narration', label: 'Narration MP3', accept: 'audio/mpeg,.mp3' },
   { id: 'marker-display', label: 'Marker / print PNG', accept: 'image/png,.png' },
 ];
+
+/** Core morph/marker nodes — editable transforms only, not removable. */
+const LOCKED_NODE_IDS = new Set(['finished', 'raw', 'overlay']);
+
+const WEB_AR_TRIGGERS: MuralNodeTrigger[] = ['onDetect', 'tap'];
+
+function newImageNodeId(nodes: MuralNode[]): string {
+  let n = 1;
+  const ids = new Set(nodes.map((node) => node.id));
+  while (ids.has(`image-${n}`)) n += 1;
+  return `image-${n}`;
+}
 
 export default function AdminEditor({
   experienceId,
@@ -446,6 +465,52 @@ export default function AdminEditor({
         n.id === id ? { ...n, ...patch } : n
       ),
     });
+  }
+
+  async function addImageNode() {
+    if (!experience) return;
+    const id = newImageNodeId(experience.nodes);
+    const assetId = id;
+    const node: MuralNode = {
+      id,
+      type: 'image',
+      assetId,
+      position: { x: 0, y: 0.2, z: 0.05 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.35,
+      trigger: 'onDetect',
+    };
+    const next: GalleryExperience = {
+      ...experience,
+      nodes: [...experience.nodes, node],
+      assets: {
+        ...experience.assets,
+        [assetId]: {
+          role: 'media-image',
+          status: 'pending',
+        },
+      },
+    };
+    setExperience(next);
+    const ok = await save(next);
+    if (ok) setMessage(`Added image node ${id} — upload its image next`);
+  }
+
+  async function removeNode(id: string) {
+    if (!experience || LOCKED_NODE_IDS.has(id)) return;
+    if (!confirm(`Remove node ${id}?`)) return;
+    const node = experience.nodes.find((n) => n.id === id);
+    const nextAssets = { ...experience.assets };
+    if (node && !ASSET_SLOTS.some((s) => s.id === node.assetId)) {
+      delete nextAssets[node.assetId];
+    }
+    const next: GalleryExperience = {
+      ...experience,
+      nodes: experience.nodes.filter((n) => n.id !== id),
+      assets: nextAssets,
+    };
+    setExperience(next);
+    await save(next);
   }
 
   function setPins(next: SpatialPin[]) {
@@ -1036,62 +1101,152 @@ export default function AdminEditor({
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Nodes</h2>
           <p className={styles.status}>
-            WebAR currently drives finished/raw GLB, marker overlay, and pins.
-            Other node types and triggers are inspect-only until runtime support
-            lands.
+            WebAR drives finished/raw GLB
+            {supportsMorph(experience) ? ' (morph)' : ''}, the marker overlay,
+            pins, and extra <strong>image</strong> planes. Video, audio, loop,
+            and proximity stay unsupported.
+          </p>
+          <p className={styles.status}>
+            Kind: <code>{experience.kind}</code>
+            {supportsMorph(experience)
+              ? ' — sculpture morph enabled'
+              : ' — generic experience (no morph chrome)'}
           </p>
           {experience.personOcclusion ? (
             <p className={styles.status} role="note">
               personOcclusion — WebAR: not supported yet.
             </p>
           ) : null}
-          {experience.nodes.map((node) => (
-            <div key={node.id} className={styles.panel}>
-              <strong>
-                {node.id} · {node.type} · {node.trigger}
-              </strong>
-              {node.type !== 'gltf' ? (
-                <p className={styles.status}>
-                  {node.type} — WebAR: not supported yet (inspect only).
-                </p>
-              ) : null}
-              <div className={styles.row}>
-                {(['x', 'y', 'z'] as const).map((axis) => (
-                  <div key={axis} className={styles.field}>
-                    <label>pos.{axis}</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={node.position[axis]}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={busy}
+              onClick={() => void addImageNode()}
+            >
+              Add image node
+            </button>
+          </div>
+          {experience.nodes.map((node) => {
+            const locked = LOCKED_NODE_IDS.has(node.id);
+            const imageSupported = node.type === 'image';
+            const modelSupported =
+              node.type === 'model' || node.type === 'gltf';
+            const unsupported = !imageSupported && !modelSupported;
+            const assetUrl = assetWebPath(experience, node.assetId);
+            return (
+              <div key={node.id} className={styles.panel}>
+                <strong>
+                  {node.id} · {node.type}
+                  {node.trigger ? ` · ${node.trigger}` : ''}
+                </strong>
+                {unsupported ? (
+                  <p className={styles.status} role="note">
+                    {node.type} — WebAR: not supported yet (inspect only).
+                  </p>
+                ) : null}
+                {imageSupported && !assetUrl ? (
+                  <p className={styles.status} role="note">
+                    Upload an image for asset <code>{node.assetId}</code> before
+                    publishing.
+                  </p>
+                ) : null}
+                {!locked && imageSupported ? (
+                  <div className={styles.field}>
+                    <label htmlFor={`node-trigger-${node.id}`}>Trigger</label>
+                    <select
+                      id={`node-trigger-${node.id}`}
+                      value={node.trigger ?? 'onDetect'}
                       onChange={(e) =>
                         updateNode(node.id, {
-                          position: {
-                            ...node.position,
-                            [axis]: Number(e.target.value),
-                          },
+                          trigger: e.target.value as MuralNodeTrigger,
                         })
                       }
-                    />
+                    >
+                      {WEB_AR_TRIGGERS.map((t) => (
+                        <option key={t} value={t}>
+                          {t === 'onDetect'
+                            ? 'onDetect — show when marker locks'
+                            : 'tap — reveal when visitor taps the plane'}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ))}
+                ) : null}
+                {imageSupported ? (
+                  <div className={styles.field}>
+                    <label htmlFor={`node-upload-${node.id}`}>
+                      Image asset ({node.assetId})
+                    </label>
+                    <input
+                      id={`node-upload-${node.id}`}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void onUpload(node.assetId, file);
+                      }}
+                    />
+                    {assetUrl ? (
+                      <p className={styles.status}>
+                        Current:{' '}
+                        <a href={assetUrl} target="_blank" rel="noreferrer">
+                          view
+                        </a>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className={styles.row}>
+                  {(['x', 'y', 'z'] as const).map((axis) => (
+                    <div key={axis} className={styles.field}>
+                      <label>pos.{axis}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={node.position[axis]}
+                        onChange={(e) =>
+                          updateNode(node.id, {
+                            position: {
+                              ...node.position,
+                              [axis]: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.field}>
+                  <label>scale (number)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={
+                      typeof node.scale === 'number'
+                        ? node.scale
+                        : (node.scale?.x ?? 1)
+                    }
+                    onChange={(e) =>
+                      updateNode(node.id, { scale: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                {!locked ? (
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.btn}
+                      disabled={busy}
+                      onClick={() => void removeNode(node.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <div className={styles.field}>
-                <label>scale (number)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={
-                    typeof node.scale === 'number'
-                      ? node.scale
-                      : (node.scale?.x ?? 1)
-                  }
-                  onChange={(e) =>
-                    updateNode(node.id, { scale: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </section>
       )}
 
