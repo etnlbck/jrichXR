@@ -570,8 +570,9 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
                 : null;
         const brandChanged =
           published !== null && access !== null
-            ? brandHash(pendingBrand(published, await profileFor(access.ownerUserId))) !==
-              brandHash(published.brand)
+            ? brandHash(
+                pendingBrand(published.experience, await profileFor(access.ownerUserId))
+              ) !== brandHash(published.experience.brand)
             : false;
         return {
           id,
