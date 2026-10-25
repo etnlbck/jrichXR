@@ -4,6 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { pinShowsOn, type PinForm } from '@jrichforms/experience';
 import type { AppConfig } from './config';
 import { mark } from './metrics';
+import { applyStageBackdrop } from './stage-backdrop';
 import {
   disposePinLabel,
   fitPinLabels,
@@ -54,6 +55,8 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   /** While placing a pin, ignore tracking updates so the model holds still. */
   let poseHeld = false;
   let stageCamera: THREE.PerspectiveCamera | null = null;
+  let stageScene: THREE.Scene | null = null;
+  let clearStageBackdrop: (() => void) | null = null;
   let modelsReady = false;
   let visible = false;
   let morphT = 0;
@@ -260,6 +263,8 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       piece.add(finished);
       setOpacity(finished, 1);
       mark('finished_model_loaded');
+      // The camera feed is the backdrop in AR; only the desktop stage needs one.
+      if (stageScene) clearStageBackdrop = applyStageBackdrop(stageScene, finished);
 
       if (hasRaw) {
         raw = await loadGltf(config.assets.rawModel);
@@ -537,6 +542,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     renderer.setClearColor(0x0a0a0c, 1);
 
     const scene = new THREE.Scene();
+    stageScene = scene;
     const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
     stageCamera = camera;
     viewportEl = canvas;
@@ -582,6 +588,9 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
       renderer.dispose();
+      clearStageBackdrop?.();
+      clearStageBackdrop = null;
+      stageScene = null;
       stageCamera = null;
     };
   }
