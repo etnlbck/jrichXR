@@ -123,6 +123,14 @@ SHOPIFY_API_VERSION=2024-01
 
 Use the **Headless Storefront** token (not Admin `shpat_`). Tag products `experience:untitled-no-7` (see `gallery.shop.experienceSlug` in the package). WebAR ships with Inquire fallback until merch is ready.
 
+## Visitor metrics (optional)
+
+Set `NEXT_PUBLIC_METRICS=1` to beacon Arrive funnel marks (`boot`, `first_target_found`, `reveal_start` / `reveal_complete` / `reveal_cancel`) to `POST /api/metrics`. Events always land in the browser console and `window.__JRF_METRICS`. No PII is sent.
+
+## Accessibility notes
+
+Visitor sheets support Escape, focus trap, and dialog semantics. With `prefers-reduced-motion: reduce`, Arrive skips the densify point cloud and uses a short opacity fade; About / Share chrome still appear after lock. The WebAR canvas remains primarily pointer-driven.
+
 ## Scale field test
 
 1. Measure printed placard width → set `marker.physicalWidthM` in `experience.json`.

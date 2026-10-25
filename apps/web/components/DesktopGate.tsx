@@ -52,6 +52,9 @@ export default function DesktopGate({ title, logo, artistName, onUseCamera }: Pr
         <button type="button" className={styles.textLink} onClick={onUseCamera}>
           Use this device&apos;s camera
         </button>
+        <p className={styles.desktopHint}>
+          Prefer keyboard? Use Tab to reach View in 3D, then Enter.
+        </p>
       </div>
     </div>
   );

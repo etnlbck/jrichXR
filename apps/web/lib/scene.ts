@@ -16,7 +16,12 @@ import {
   updateLabelOcclusion,
   type PinLabel,
 } from './pin-label';
-import { REVEAL, prefersReducedMotion, type RevealState } from './reveal';
+import {
+  REVEAL,
+  prefersReducedMotion,
+  revealPointBudget,
+  type RevealState,
+} from './reveal';
 import type { ImageTargetDetail, UiState } from './types';
 
 export type ScenePin = {
@@ -93,8 +98,36 @@ export function createScene(
   let revealTargets: Float32Array | null = null;
   let revealStarts: Float32Array | null = null;
   let revealReduced = false;
+  /** Mesh used to sample densify points; cloud built lazily at beginReveal. */
+  let revealSource: THREE.Object3D | null = null;
+  let revealBaseSize = 0.012;
+  let revealDiscTex: THREE.Texture | null = null;
+  const revealColorFrom = new THREE.Color();
+  const revealColorTo = new THREE.Color();
+  const revealColorMix = new THREE.Color();
   let stableLockTimer: ReturnType<typeof setTimeout> | null = null;
+  let trackingGraceTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingReveal = false;
+
+  function softDiscTexture(): THREE.Texture {
+    if (revealDiscTex) return revealDiscTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    if (!ctx) {
+      revealDiscTex = new THREE.Texture();
+      return revealDiscTex;
+    }
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.9)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+    revealDiscTex = new THREE.CanvasTexture(c);
+    revealDiscTex.needsUpdate = true;
+    return revealDiscTex;
+  }
   /** Brand font for pin labels, set once it has loaded. */
   let labelFontFamily: string | undefined;
   if (config.brand.font !== 'system' && typeof document !== 'undefined') {
@@ -157,6 +190,13 @@ export function createScene(
     }
   }
 
+  function clearTrackingGraceTimer() {
+    if (trackingGraceTimer !== null) {
+      clearTimeout(trackingGraceTimer);
+      trackingGraceTimer = null;
+    }
+  }
+
   function disposeRevealCloud() {
     if (!revealCloud) return;
     revealCloud.parent?.remove(revealCloud);
@@ -200,7 +240,9 @@ export function createScene(
       }
     }
 
-    const step = Math.max(1, Math.ceil(worldPts.length / REVEAL.pointBudget));
+    const budget = revealPointBudget();
+    console.info(`[jrf] reveal point budget: ${budget}`);
+    const step = Math.max(1, Math.ceil(worldPts.length / budget));
     const sampled: THREE.Vector3[] = [];
     for (let i = 0; i < worldPts.length; i += step) {
       const local = piece.worldToLocal(worldPts[i].clone());
@@ -210,7 +252,9 @@ export function createScene(
     const box = new THREE.Box3().setFromObject(source);
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
-    const scatter = Math.max(sphere.radius * REVEAL.scatterFactor, 0.04);
+    const scatterFactor = config.reveal?.scatterFactor ?? REVEAL.scatterFactor;
+    const scatter = Math.max(sphere.radius * scatterFactor, 0.04);
+    const center = piece.worldToLocal(sphere.center.clone());
 
     const n = sampled.length;
     revealTargets = new Float32Array(n * 3);
@@ -221,12 +265,21 @@ export function createScene(
       revealTargets[i * 3] = t.x;
       revealTargets[i * 3 + 1] = t.y;
       revealTargets[i * 3 + 2] = t.z;
-      const ox = (Math.random() - 0.5) * 2 * scatter;
-      const oy = (Math.random() - 0.5) * 2 * scatter;
-      const oz = (Math.random() - 0.5) * 2 * scatter;
-      revealStarts[i * 3] = t.x + ox;
-      revealStarts[i * 3 + 1] = t.y + oy;
-      revealStarts[i * 3 + 2] = t.z + oz;
+      // Bias scatter outward from model center (surface bloom, not cube noise).
+      let dx = t.x - center.x;
+      let dy = t.y - center.y;
+      let dz = t.z - center.z;
+      const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      dx /= len;
+      dy /= len;
+      dz /= len;
+      const dist = scatter * (0.35 + Math.random() * 0.9);
+      const jitter = scatter * 0.2;
+      revealStarts[i * 3] = t.x + dx * dist + (Math.random() - 0.5) * jitter;
+      revealStarts[i * 3 + 1] =
+        t.y + dy * dist + (Math.random() - 0.5) * jitter;
+      revealStarts[i * 3 + 2] =
+        t.z + dz * dist + (Math.random() - 0.5) * jitter;
       positions[i * 3] = revealStarts[i * 3];
       positions[i * 3 + 1] = revealStarts[i * 3 + 1];
       positions[i * 3 + 2] = revealStarts[i * 3 + 2];
@@ -234,14 +287,18 @@ export function createScene(
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const color = new THREE.Color(config.brand.accentFrom || '#ffffff');
+    revealColorFrom.set(config.brand.accentTo || '#21d3d5');
+    revealColorTo.set(config.brand.accentFrom || '#1732a4');
+    revealBaseSize = Math.max(sphere.radius * 0.045, 0.01);
     const mat = new THREE.PointsMaterial({
-      color,
-      size: Math.max(sphere.radius * 0.028, 0.006),
+      color: revealColorFrom.clone(),
+      map: softDiscTexture(),
+      size: revealBaseSize * 1.6,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.95,
       depthWrite: false,
       sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
     });
     revealCloud = new THREE.Points(geo, mat);
     revealCloud.visible = false;
@@ -255,7 +312,9 @@ export function createScene(
     arr.set(revealStarts);
     attr.needsUpdate = true;
     const mat = revealCloud.material as THREE.PointsMaterial;
-    mat.opacity = 0.92;
+    mat.opacity = 0.95;
+    mat.size = revealBaseSize * 1.6;
+    mat.color.copy(revealColorFrom);
   }
 
   function applyMorphOpacities() {
@@ -285,6 +344,7 @@ export function createScene(
 
   function completeReveal() {
     clearStableLockTimer();
+    clearTrackingGraceTimer();
     revealState = 'done';
     revealT = 1;
     disposeRevealCloud();
@@ -292,13 +352,17 @@ export function createScene(
     revealStarts = null;
     applyMorphOpacities();
     updatePinVisibility();
+    mark('reveal_complete');
     callbacks.onRevealComplete?.();
   }
 
   /** Abort mid-reveal so the next lock can retry densify. */
   function cancelReveal() {
     clearStableLockTimer();
+    clearTrackingGraceTimer();
     if (revealState === 'done') return;
+    const wasActive =
+      revealState === 'playing' || revealState === 'waiting';
     revealState = 'idle';
     revealT = 0;
     if (revealCloud) {
@@ -308,10 +372,12 @@ export function createScene(
     hidePieceForReveal();
     if (anchor) anchor.visible = false;
     visible = false;
+    if (wasActive) mark('reveal_cancel');
   }
 
   function beginReveal() {
     clearStableLockTimer();
+    clearTrackingGraceTimer();
     if (revealState === 'done' || revealState === 'playing') return;
     if (!modelsReady) {
       pendingReveal = true;
@@ -319,12 +385,16 @@ export function createScene(
     }
 
     revealReduced = prefersReducedMotion();
+    if (!revealReduced && revealSource && !revealCloud) {
+      buildRevealCloud(revealSource);
+    }
     const useCloud = !revealReduced && revealCloud !== null;
+    const densifyMs = config.reveal?.densifyMs ?? REVEAL.densifyMs;
     revealDurationSec =
       (useCloud
         ? stageScene
-          ? Math.min(REVEAL.densifyMs, 700)
-          : REVEAL.densifyMs
+          ? Math.min(densifyMs, 700)
+          : densifyMs
         : REVEAL.shortFadeMs) / 1000;
     revealT = 0;
     revealState = 'playing';
@@ -338,6 +408,7 @@ export function createScene(
     if (anchor) anchor.visible = true;
     visible = true;
 
+    mark('reveal_start');
     callbacks.onRevealStart?.();
     if (!hasMorphed) callbacks.onState('ANCHORED');
     else callbacks.onState(morphTarget > 0.5 ? 'RAW' : 'FINISHED');
@@ -393,7 +464,10 @@ export function createScene(
       }
       attr.needsUpdate = true;
       const mat = revealCloud.material as THREE.PointsMaterial;
-      mat.opacity = 0.92 * (1 - Math.max(0, (ease - 0.55) / 0.45));
+      mat.size = revealBaseSize * (1.6 - 0.85 * ease);
+      revealColorMix.copy(revealColorFrom).lerp(revealColorTo, ease);
+      mat.color.copy(revealColorMix);
+      mat.opacity = 0.95 * (1 - Math.max(0, (ease - 0.5) / 0.5));
     }
 
     const solid = Math.max(0, (ease - 0.4) / 0.6);
@@ -509,7 +583,7 @@ export function createScene(
     applyPlacement(placeholder);
     anchor!.add(placeholder);
     if (activationReveal) {
-      buildRevealCloud(placeholder);
+      revealSource = placeholder;
       hidePieceForReveal();
     } else {
       revealState = 'done';
@@ -602,7 +676,7 @@ export function createScene(
       );
       addPins(piece, pinRadius);
       if (activationReveal) {
-        buildRevealCloud(finished);
+        revealSource = finished;
         hidePieceForReveal();
       } else {
         revealState = 'done';
@@ -771,6 +845,7 @@ export function createScene(
   function onImageFound(detail: ImageTargetDetail) {
     if (!isConfiguredTarget(detail)) return;
     positionAnchor(detail);
+    clearTrackingGraceTimer();
     if (!hasLocked) {
       hasLocked = true;
       mark('first_target_found');
@@ -803,8 +878,17 @@ export function createScene(
   function onImageLost(detail?: { name?: string }) {
     if (!isConfiguredTarget(detail)) return;
     if (revealState === 'waiting' || revealState === 'playing') {
-      cancelReveal();
-    } else if (revealState === 'done') {
+      // Brief flicker: wait before canceling densify.
+      if (trackingGraceTimer !== null) return;
+      trackingGraceTimer = setTimeout(() => {
+        trackingGraceTimer = null;
+        if (revealState !== 'waiting' && revealState !== 'playing') return;
+        cancelReveal();
+        callbacks.onState('SCANNING');
+      }, REVEAL.trackingGraceMs);
+      return;
+    }
+    if (revealState === 'done') {
       if (anchor) anchor.visible = false;
       visible = false;
     }

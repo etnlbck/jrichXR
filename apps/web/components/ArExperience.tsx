@@ -11,9 +11,11 @@ import {
 } from 'react';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
+import { setMetricsContext } from '@/lib/metrics';
 import { REVEAL } from '@/lib/reveal';
 import { createScene } from '@/lib/scene';
 import { useCoarsePointer } from '@/lib/use-coarse-pointer';
+import { useDialogFocus } from '@/lib/use-dialog-focus';
 import {
   bootXr,
   requestMotionPermission,
@@ -83,13 +85,32 @@ export default function ArExperience({
   const [revealComplete, setRevealComplete] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [reticleSuccess, setReticleSuccess] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const narratedOnce = useRef(false);
   const pinAudioRef = useRef<HTMLAudioElement>(null);
+  const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
 
   const openProvenance = useCallback(() => {
     setShowProvenance(true);
   }, []);
+
+  const closeSheet = useCallback(() => {
+    pinAudioRef.current?.pause();
+    setOpenPinId(null);
+    setShowProvenance(false);
+  }, []);
+
+  const sheetOpen = Boolean(openPin) || showProvenance;
+  const { panelRef: sheetPanelRef, closeRef: sheetCloseRef } = useDialogFocus(
+    sheetOpen,
+    closeSheet,
+    aboutBtnRef
+  );
+
+  useEffect(() => {
+    setMetricsContext({ experienceId: config.experienceId });
+  }, [config.experienceId]);
 
   useEffect(() => {
     sceneRef.current = createScene(config, {
@@ -205,6 +226,25 @@ export default function ArExperience({
     });
   }, [config, onRequestStart, unlockAudio]);
 
+  const handleShare = useCallback(async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const title = config.piece.gateTitle || config.piece.title;
+    const name = config.brand.displayName;
+    const text = name ? `${title} by ${name}` : title;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        setShareStatus(null);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setShareStatus('Link copied');
+      window.setTimeout(() => setShareStatus(null), 2000);
+    } catch {
+      setShareStatus(null);
+    }
+  }, [config.brand.displayName, config.piece.gateTitle, config.piece.title]);
+
   useEffect(() => {
     if (!stage || !canvasRef.current || !sceneRef.current) return;
     setBooting(true);
@@ -258,7 +298,6 @@ export default function ArExperience({
   const pc = config.piece;
   const anchored =
     state === 'ANCHORED' || state === 'RAW' || state === 'FINISHED';
-  const sheetOpen = Boolean(openPin) || showProvenance;
   const showScan =
     !stage &&
     state === 'SCANNING' &&
@@ -321,6 +360,12 @@ export default function ArExperience({
         ref={canvasRef}
         className={styles.canvas}
         onClick={handleCanvasTap}
+        role="img"
+        aria-label={
+          revealComplete
+            ? `${pc.title}. Tap the piece to morph, or tap a pin for a note.`
+            : `${pc.title} augmented reality view`
+        }
       />
 
       {showDesktopGate && (
@@ -359,6 +404,7 @@ export default function ArExperience({
           className={`${styles.loading} ${fadeClass(loadingFade)}`}
           role="status"
           aria-live="polite"
+          aria-busy="true"
         >
           {logo}
           <div className={styles.loadingPulse} />
@@ -371,13 +417,20 @@ export default function ArExperience({
       )}
 
       {scanFade !== 'gone' && (
-        <div className={`${styles.hint} ${fadeClass(scanFade)}`}>
+        <div
+          className={`${styles.hint} ${fadeClass(scanFade)}`}
+          role="status"
+          aria-live="polite"
+        >
           <div
             className={`${styles.reticle} ${
               reticleSuccess ? styles.reticleSuccess : ''
             }`}
+            aria-hidden
           />
-          <p>{reticleSuccess ? 'Found' : 'Aim at the marker…'}</p>
+          <p>
+            {reticleSuccess ? brand.scanFoundText : brand.scanText}
+          </p>
         </div>
       )}
 
@@ -386,57 +439,101 @@ export default function ArExperience({
           <div className={`${styles.prompt} ${fadeClass(chromeFade)}`}>
             {morphHint}
           </div>
-          <button
-            type="button"
-            className={`${styles.about} ${fadeClass(chromeFade)}`}
-            onClick={() => {
-              pinAudioRef.current?.pause();
-              setOpenPinId(null);
-              setShowProvenance(true);
-            }}
-            disabled={chromeFade === 'out'}
-          >
-            About this piece
-          </button>
+          <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
+            <button
+              type="button"
+              className={styles.shareBtn}
+              onClick={() => void handleShare()}
+              disabled={chromeFade === 'out'}
+            >
+              {shareStatus ?? 'Share'}
+            </button>
+            <button
+              type="button"
+              ref={aboutBtnRef}
+              className={styles.about}
+              onClick={() => {
+                pinAudioRef.current?.pause();
+                setOpenPinId(null);
+                setShowProvenance(true);
+              }}
+              disabled={chromeFade === 'out'}
+            >
+              About this piece
+            </button>
+          </div>
         </>
       )}
 
       {issue && <XrIssueSheet issue={issue} />}
 
       {openPin && (
-        <div className={styles.panel}>
+        <div
+          className={styles.panel}
+          ref={sheetPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pin-sheet-title"
+          tabIndex={-1}
+        >
           <button
             type="button"
+            ref={sheetCloseRef}
             className={styles.panelClose}
-            onClick={() => {
-              pinAudioRef.current?.pause();
-              setOpenPinId(null);
-            }}
+            onClick={closeSheet}
             aria-label="Close"
           >
             ×
           </button>
           <div className={styles.panelScroll}>
-            <h2>{openPin.title}</h2>
+            <h2 id="pin-sheet-title">{openPin.title}</h2>
+            {openPin.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- artist pin media
+              <img
+                className={styles.pinImage}
+                src={openPin.imageUrl}
+                alt=""
+              />
+            ) : null}
             {openPin.body ? (
               <p className={styles.pinBody}>{openPin.body}</p>
+            ) : null}
+            {openPin.href ? (
+              <div className={styles.ctaRow}>
+                <a
+                  className={styles.cta}
+                  href={openPin.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {openPin.ctaLabel || 'Learn more'}
+                </a>
+              </div>
             ) : null}
           </div>
         </div>
       )}
 
       {showProvenance && (
-        <div className={styles.panel}>
+        <div
+          className={styles.panel}
+          ref={sheetPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="provenance-sheet-title"
+          tabIndex={-1}
+        >
           <button
             type="button"
+            ref={sheetCloseRef}
             className={styles.panelClose}
-            onClick={() => setShowProvenance(false)}
+            onClick={closeSheet}
             aria-label="Close"
           >
             ×
           </button>
           <div className={styles.panelScroll}>
-            <h2>{pc.title}</h2>
+            <h2 id="provenance-sheet-title">{pc.title}</h2>
             {brand.displayName && (
               <p className={styles.brandName}>{brand.displayName}</p>
             )}

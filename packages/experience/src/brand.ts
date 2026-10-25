@@ -15,6 +15,8 @@ export const BRAND_TEXT_LIMITS = {
   beginText: 160,
   beginLabel: 40,
   loadingText: 40,
+  scanText: 80,
+  scanFoundText: 40,
 } as const;
 
 export type ResolvedBrand = {
@@ -26,6 +28,8 @@ export type ResolvedBrand = {
   beginText: string;
   beginLabel: string;
   loadingText: string;
+  scanText: string;
+  scanFoundText: string;
   shareImageUrl: string | null;
   /** Text color on the accent gradient. */
   buttonInk: string;
@@ -38,6 +42,8 @@ export const BRAND_DEFAULTS = {
   beginText: 'Point your phone at the marker.',
   beginLabel: 'Begin',
   loadingText: 'Loading experience…',
+  scanText: 'Aim at the marker…',
+  scanFoundText: 'Found',
 };
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -50,6 +56,8 @@ const BRAND_KEYS: (keyof ArtistBrand)[] = [
   'beginText',
   'beginLabel',
   'loadingText',
+  'scanText',
+  'scanFoundText',
   'shareImageUrl',
 ];
 
@@ -95,6 +103,10 @@ export function sanitizeBrand(raw: unknown): ArtistBrand {
   if (beginLabel) out.beginLabel = beginLabel;
   const loadingText = cleanText(r.loadingText, BRAND_TEXT_LIMITS.loadingText);
   if (loadingText) out.loadingText = loadingText;
+  const scanText = cleanText(r.scanText, BRAND_TEXT_LIMITS.scanText);
+  if (scanText) out.scanText = scanText;
+  const scanFoundText = cleanText(r.scanFoundText, BRAND_TEXT_LIMITS.scanFoundText);
+  if (scanFoundText) out.scanFoundText = scanFoundText;
   if (isBrandImageUrl(r.shareImageUrl)) out.shareImageUrl = r.shareImageUrl;
   return out;
 }
@@ -155,6 +167,8 @@ export function resolveBrand(brand: ArtistBrand | null | undefined): ResolvedBra
     beginText: b.beginText ?? BRAND_DEFAULTS.beginText,
     beginLabel: b.beginLabel ?? BRAND_DEFAULTS.beginLabel,
     loadingText: b.loadingText ?? BRAND_DEFAULTS.loadingText,
+    scanText: b.scanText ?? BRAND_DEFAULTS.scanText,
+    scanFoundText: b.scanFoundText ?? BRAND_DEFAULTS.scanFoundText,
     shareImageUrl: b.shareImageUrl ?? null,
     buttonInk: buttonInk(accentFrom, accentTo),
   };
