@@ -5,7 +5,13 @@ import { usePathname } from 'next/navigation';
 import AdminUserMenu from '@/components/AdminUserMenu';
 import styles from '@/app/admin/admin.module.css';
 
-export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
+export default function AdminStudioNav({
+  isAdmin,
+  bypass = false,
+}: {
+  isAdmin: boolean;
+  bypass?: boolean;
+}) {
   const pathname = usePathname();
   const onUsers = pathname.startsWith('/admin/users');
   const onBrand = pathname.startsWith('/admin/brand');
@@ -41,7 +47,7 @@ export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
           </Link>
         )}
         <span className={styles.navEnd}>
-          <AdminUserMenu />
+          <AdminUserMenu bypass={bypass} />
         </span>
       </nav>
     </header>

@@ -96,11 +96,13 @@ NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/admin
 ARTIST_ACCESS=signed_in
 # optional: comma-separated Clerk user ids that always act as studio admin
 # CLERK_ADMIN_USER_IDS=user_…
+# local only: skip Clerk and open /admin as admin (ignored unless NODE_ENV=development)
+# CLERK_BYPASS=1
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_…   # from Vercel → Storage → Blob
 ```
 
 1. Create a Blob store on the Vercel project and pull env locally (`vercel env pull`).
-2. Open `/admin/sign-in` (or `/admin/sign-up`). Any signed-in user can create pieces while `ARTIST_ACCESS=signed_in`. Each artist only sees and edits pieces they created. Untitled No. 7 and older Blob packages with no `experiences/{id}/access.json` stay studio-owned (admin only).
+2. Open `/admin/sign-in` (or `/admin/sign-up`). Any signed-in user can create pieces while `ARTIST_ACCESS=signed_in`. Each artist only sees and edits pieces they created. Untitled No. 7 and older Blob packages with no `experiences/{id}/access.json` stay studio-owned (admin only). For local Studio work without signing in, set `CLERK_BYPASS=1` in `apps/web/.env.local` and restart `npm run dev`, then open `/admin`. That flag does nothing in production.
 3. Make the first studio admin once: Clerk **Users → public metadata** `{ "role": "admin" }`, or put their user id in `CLERK_ADMIN_USER_IDS`. After that, admins manage everyone’s role at `/admin/users` (it writes Clerk `publicMetadata.role`). Admins see every piece, including Untitled No. 7.
 4. When you are ready to whitelist: set `ARTIST_ACCESS=allowlist` and set `publicMetadata.role` to `artist` or `admin` on approved users. Everyone else lands on `/admin/pending`. Optionally also enable Clerk Dashboard → **Restrictions → Allowlist** (or invitations-only) so unknown emails cannot create an account. The env switch is what gates the studio.
 5. Add a session-token claim in Clerk (**Sessions → Customize session token**): `{ "metadata": "{{user.public_metadata}}" }` so allowlist checks can read `role` without an extra Clerk API call.

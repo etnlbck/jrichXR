@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import AdminStudioNav from '@/components/AdminStudioNav';
 import { ArtistAccessError, requireArtist } from '@/lib/artist-access';
+import { isClerkBypass } from '@/lib/clerk-bypass';
 import styles from '../admin.module.css';
 
 export default async function StudioLayout({
@@ -22,7 +23,7 @@ export default async function StudioLayout({
   }
   return (
     <div className={styles.page}>
-      <AdminStudioNav isAdmin={isAdmin} />
+      <AdminStudioNav isAdmin={isAdmin} bypass={isClerkBypass()} />
       {children}
     </div>
   );
