@@ -67,6 +67,37 @@
   transform: scale(0.97);
 }
 
+a.beginBtn {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.desktopQr {
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 1.6em;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.desktopQr img {
+  display: block;
+}
+
+.textLink {
+  display: block;
+  margin: 1.2em auto 0;
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .loading {
   position: fixed;
   inset: 0;
@@ -176,36 +207,6 @@
   text-align: center;
 }
 
-.errorBanner {
-  position: fixed;
-  left: 16px;
-  right: 16px;
-  top: max(16px, env(safe-area-inset-top));
-  z-index: 40;
-  background: #2a1212;
-  color: #ffd4d4;
-  border: 1px solid #7a2e2e;
-  border-radius: 12px;
-  padding: 14px 16px;
-}
-
-.errorBanner strong {
-  display: block;
-  margin-bottom: 6px;
-}
-
-.errorBanner p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.errorHint {
-  margin-top: 8px !important;
-  opacity: 0.7;
-  font-size: 0.78rem !important;
-}
-
 .panel {
   position: fixed;
   left: 0;
@@ -263,6 +264,16 @@
 .panel dd {
   margin: 0;
   font-size: 0.95rem;
+}
+
+.credit {
+  margin: 18px 0 0;
+  font-size: 0.72rem;
+  color: #8a8a8a;
+}
+
+.credit a {
+  color: inherit;
 }
 
 .pinBody {

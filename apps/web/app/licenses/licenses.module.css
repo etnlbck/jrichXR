@@ -1,0 +1,38 @@
+.page {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+  color: var(--paper);
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+.page h1 {
+  font-size: 1.8rem;
+  margin: 0 0 1.5rem;
+}
+
+.page h2 {
+  font-size: 1.15rem;
+  margin: 2rem 0 0.75rem;
+}
+
+.page a {
+  color: inherit;
+}
+
+.licenseText {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.list {
+  padding-left: 1.2rem;
+}

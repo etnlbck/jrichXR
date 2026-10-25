@@ -16,7 +16,13 @@ import {
 } from '@/lib/pins';
 import { createScene, type ScenePin } from '@/lib/scene';
 import type { UiState } from '@/lib/types';
-import { bootXr, loadEngineScripts } from '@/lib/xr-boot';
+import {
+  bootXr,
+  requestMotionPermission,
+  type CameraStatus,
+  type XrIssue,
+} from '@/lib/xr-boot';
+import XrIssueSheet from '@/components/XrIssueSheet';
 import ar from './ArExperience.module.css';
 import styles from './PinArPlacer.module.css';
 
@@ -82,7 +88,8 @@ export default function PinArPlacer({
   const [modelsReady, setModelsReady] = useState(false);
   const [hasRaw, setHasRaw] = useState(false);
   const [booting, setBooting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [issue, setIssue] = useState<XrIssue | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus | null>(null);
   const [showing, setShowing] = useState<Showing>('finished');
 
   const [savedPins, setSavedPins] = useState<SpatialPin[]>(initialPins);
@@ -104,7 +111,10 @@ export default function PinArPlacer({
       onState: setPhase,
       onEnterRaw: () => setShowing('raw'),
       onEnterFinished: () => setShowing('finished'),
-      onLoadError: (message) => setError(message),
+      onLoadError: (message) => {
+        console.error('[jrf] model load failed:', message);
+        setIssue('generic');
+      },
       onModelsReady: () => {
         setModelsReady(true);
         setBooting(false);
@@ -184,27 +194,23 @@ export default function PinArPlacer({
 
   async function begin() {
     if (bootedRef.current || !canvasRef.current || !sceneRef.current) return;
+    const motion = requestMotionPermission();
     bootedRef.current = true;
     setBooting(true);
     setPhase('SCANNING');
-    setError(null);
-    try {
-      if (!window.XR8) await loadEngineScripts(config);
-      await bootXr({
-        canvas: canvasRef.current,
-        scene: sceneRef.current,
-        config,
-        onError: (message) => {
-          setError(message);
-          setPhase('ERROR');
-          setBooting(false);
-        },
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Camera / engine failed to start');
-      setPhase('ERROR');
-      setBooting(false);
-    }
+    setIssue(null);
+    await bootXr({
+      canvas: canvasRef.current,
+      scene: sceneRef.current,
+      config,
+      motion,
+      onStatus: setCameraStatus,
+      onError: (next) => {
+        setIssue(next);
+        setPhase('ERROR');
+        setBooting(false);
+      },
+    });
   }
 
   function ndcFromEvent(event: MouseEvent<HTMLCanvasElement>) {
@@ -382,8 +388,10 @@ export default function PinArPlacer({
     const f = pinForm(p);
     return f === 'both' || f === showing;
   }).length;
+  const askingCamera = !stage && phase === 'SCANNING' && cameraStatus === 'requesting';
   const showLoading =
-    (booting || (phase === 'SCANNING' && !modelsReady)) && phase !== 'ERROR';
+    (askingCamera || booting || (phase === 'SCANNING' && !modelsReady)) &&
+    phase !== 'ERROR';
   const hint = `Tap the ${showing} sculpture to add a pin, or tap a pin to edit it`;
 
   return (
@@ -419,7 +427,9 @@ export default function PinArPlacer({
       {showLoading && (
         <div className={ar.loading} role="status" aria-live="polite">
           <div className={ar.loadingPulse} />
-          <p>Loading the draft…</p>
+          <p>
+            {askingCamera ? 'Allow camera access when your browser asks' : 'Loading the draft…'}
+          </p>
         </div>
       )}
 
@@ -464,12 +474,7 @@ export default function PinArPlacer({
         </p>
       )}
 
-      {error && (
-        <div className={ar.errorBanner} role="alert">
-          <strong>Something went wrong</strong>
-          <p>{error}</p>
-        </div>
-      )}
+      {issue && <XrIssueSheet issue={issue} />}
 
       {selected ? (
         <div className={`${ar.panel} ${styles.sheet}`}>

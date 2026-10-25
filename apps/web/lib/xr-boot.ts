@@ -3,6 +3,7 @@ import type { AppConfig } from './config';
 import { mark, metricsStart } from './metrics';
 import type { createScene } from './scene';
 import type { ImageTargetData, XR8Api } from './types';
+import { fullWindowCanvasModule } from './xr-canvas';
 
 function loadScript(src: string, attrs: Record<string, string> = {}) {
   return new Promise<void>((resolve, reject) => {
@@ -65,10 +66,6 @@ export async function loadEngineScripts(config: AppConfig) {
   // Provide THREE before pipeline modules that may reference the global.
   window.THREE = THREE;
 
-  await loadScript(config.engine.xrextrasScript);
-  mark('xrextras_loaded');
-  await loadScript(config.engine.landingPageScript);
-  mark('landing_loaded');
   // Image targets with the distributed binary require the slam chunk.
   await loadScript(config.engine.xrScript, {
     'data-preload-chunks': config.engine.preloadChunks,
@@ -93,20 +90,76 @@ export async function fetchImageTargetData(
   return data;
 }
 
+/** What went wrong, in terms a visitor can act on. */
+export type XrIssue = 'camera' | 'motion' | 'unsupported' | 'generic';
+
+export type CameraStatus = 'requesting' | 'hasVideo';
+
 export type BootOptions = {
   canvas: HTMLCanvasElement;
   scene: ReturnType<typeof createScene>;
   config: AppConfig;
-  onError: (message: string) => void;
+  /** Pending result of `requestMotionPermission()`, started in the tap. */
+  motion?: Promise<boolean>;
+  onStatus?: (status: CameraStatus) => void;
+  onError: (issue: XrIssue) => void;
 };
+
+type MotionEventClass = { requestPermission?: () => Promise<string> };
+
+/**
+ * iOS only grants motion sensors during a user gesture, and by the time
+ * XR8.run asks, the gesture has expired behind our awaits. Call this first
+ * thing in the tap handler, before any await, so the engine's own request
+ * succeeds immediately and its built-in prompt never appears.
+ */
+export function requestMotionPermission(): Promise<boolean> {
+  const classes = [
+    typeof DeviceMotionEvent === 'undefined' ? undefined : DeviceMotionEvent,
+    typeof DeviceOrientationEvent === 'undefined' ? undefined : DeviceOrientationEvent,
+  ] as (MotionEventClass | undefined)[];
+  const asks = classes
+    .filter((c) => typeof c?.requestPermission === 'function')
+    .map((c) => c!.requestPermission!().catch(() => 'denied'));
+  if (asks.length === 0) return Promise.resolve(true);
+  return Promise.all(asks).then((results) => results.every((r) => r === 'granted'));
+}
+
+function issueFromException(err: unknown): XrIssue {
+  const e = err as { type?: string; permission?: string } | null;
+  if (e?.type === 'permission') {
+    return e.permission === 'camera' ? 'camera' : 'motion';
+  }
+  return 'generic';
+}
 
 /**
  * Configure image-target-only tracking and start the camera pipeline.
  * Must run inside a user-gesture handler on iOS.
  */
-export async function bootXr({ canvas, scene, config, onError }: BootOptions) {
+export async function bootXr({
+  canvas,
+  scene,
+  config,
+  motion,
+  onStatus,
+  onError,
+}: BootOptions) {
   try {
+    if (motion && !(await motion)) {
+      onError('motion');
+      return;
+    }
     const XR8 = window.XR8 ?? (await loadEngineScripts(config));
+    const allowedDevices = XR8.XrConfig?.device()?.ANY;
+    if (XR8.XrDevice && !XR8.XrDevice.isDeviceBrowserCompatible({ allowedDevices })) {
+      console.error(
+        '[jrf] browser incompatible with XR:',
+        XR8.XrDevice.incompatibleReasons({ allowedDevices })
+      );
+      onError('unsupported');
+      return;
+    }
     const target = await fetchImageTargetData(config);
 
     // disableWorldTracking MUST be set before pipelineModule() and run().
@@ -122,14 +175,32 @@ export async function bootXr({ canvas, scene, config, onError }: BootOptions) {
       XR8.XrController.pipelineModule(),
     ];
 
-    if (window.LandingPage?.pipelineModule) {
-      modules.push(window.LandingPage.pipelineModule());
-    }
-    if (window.XRExtras) {
-      modules.push(window.XRExtras.FullWindowCanvas.pipelineModule());
-      modules.push(window.XRExtras.Loading.pipelineModule());
-      modules.push(window.XRExtras.RuntimeError.pipelineModule());
-    }
+    let failed = false;
+    const fail = (issue: XrIssue) => {
+      if (failed) return;
+      failed = true;
+      try {
+        XR8.stop();
+      } catch {
+        /* already stopped */
+      }
+      onError(issue);
+    };
+    modules.push(fullWindowCanvasModule());
+    modules.push({
+      name: 'jrf-status',
+      onCameraStatusChange: ({ status, reason }: { status: string; reason?: string }) => {
+        if (status === 'requesting' || status === 'hasVideo') onStatus?.(status);
+        else if (status === 'failed') {
+          console.error('[jrf] camera failed:', reason);
+          fail('camera');
+        }
+      },
+      onException: (err: unknown) => {
+        console.error('[jrf] XR exception:', err);
+        fail(issueFromException(err));
+      },
+    });
 
     modules.push(scene.pipelineModule());
     modules.push({
@@ -158,7 +229,6 @@ export async function bootXr({ canvas, scene, config, onError }: BootOptions) {
 
     XR8.addCameraPipelineModules(modules);
 
-    const allowedDevices = XR8.XrConfig?.device()?.ANY;
     XR8.run(
       allowedDevices
         ? { canvas, allowedDevices }
@@ -166,8 +236,7 @@ export async function bootXr({ canvas, scene, config, onError }: BootOptions) {
     );
     mark('xr_run');
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Failed to start AR experience';
-    onError(message);
+    console.error('[jrf] AR failed to start:', err);
+    onError(issueFromException(err));
   }
 }

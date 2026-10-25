@@ -15,8 +15,6 @@
   },
   "dependencies": {
     "@8thwall/engine-binary": "^1.0.0",
-    "@8thwall/landing-page": "^1.0.0",
-    "@8thwall/xrextras": "^1.0.0",
     "@clerk/nextjs": "^7.9.11",
     "@jrichforms/experience": "*",
     "@vercel/blob": "^2.8.0",

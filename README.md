@@ -10,7 +10,7 @@ See **[BUILD-PLAN.md](BUILD-PLAN.md)** for dual-runtime architecture, **[ASSETS.
 
 ## Status
 
-1. Engine + XRExtras + Landing Page copied to `apps/web/public/xr/` on `npm install`.
+1. Engine binary copied to `apps/web/public/xr/` on `npm install`; the loading, permission, error and desktop screens are our own.
 2. Image target under `apps/web/public/assets/targets/` (print cropped PNG via `/marker`).
 3. Experience package drives config (`apps/web/lib/config.ts` ← `experience.json` + `@jrichforms/experience`).
 4. Phase 2 assets: Draco `finished.glb`, interim tinted `raw.glb`, overlay; placeholder off. Run `npm run check-assets`. Replace interim raw + narration; measure print width → `physicalWidthM` ([PHASE2.md](content/untitled-no-7/PHASE2.md)).
