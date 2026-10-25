@@ -231,7 +231,7 @@ export default function PinArPlacer({
     if (moving && selected) {
       const hit = scene.pickSurface(ndc.x, ndc.y);
       if (!hit) {
-        setNotice('Tap on the sculpture to drop the pin there.');
+        setNotice('Tap on the model to drop the pin there.');
         return;
       }
       const form = pinForm(selected);
@@ -256,7 +256,7 @@ export default function PinArPlacer({
 
     const hit = scene.pickSurface(ndc.x, ndc.y);
     if (!hit) {
-      setNotice('Tap directly on the sculpture to add a pin.');
+      setNotice('Tap directly on the model to add a pin.');
       return;
     }
     const id = newPinId();
@@ -281,7 +281,7 @@ export default function PinArPlacer({
     const y = at.y - (2 * dyPx) / Math.max(canvas.clientHeight, 1);
     const hit = scene.pickSurface(x, y);
     if (!hit) {
-      setNotice('That nudge would leave the sculpture surface.');
+      setNotice('That nudge would leave the model surface.');
       return;
     }
     change({ id: selected.id, position: hit.point });
@@ -399,7 +399,7 @@ export default function PinArPlacer({
   const showLoading =
     (askingCamera || booting || (phase === 'SCANNING' && !modelsReady)) &&
     phase !== 'ERROR';
-  const hint = `Tap the ${showing} sculpture to add a pin, or tap a pin to edit it`;
+  const hint = `Tap the ${showing} model to add a pin, or tap a pin to edit it`;
 
   return (
     <div className={ar.root} style={brandStyle(config.brand)}>
@@ -410,8 +410,8 @@ export default function PinArPlacer({
           <div className={ar.gateCard}>
             <h1>Place pins</h1>
             <p>
-              Point your phone at the placard. The virtual sculpture appears on it;
-              tap the sculpture to drop a pin.
+              Point your phone at the placard. The virtual model appears on it;
+              tap the model to drop a pin.
             </p>
             <button type="button" className={ar.beginBtn} onClick={() => void begin()}>
               Start camera
@@ -561,7 +561,7 @@ export default function PinArPlacer({
           </div>
           <p className={styles.small} role="status">
             {moving
-              ? 'Tap the sculpture where the pin should go.'
+              ? 'Tap the model where the pin should go.'
               : (notice ?? 'Audio for pins is added from the studio on a computer.')}
           </p>
         </div>

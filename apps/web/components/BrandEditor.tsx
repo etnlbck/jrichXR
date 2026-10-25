@@ -157,7 +157,7 @@ export default function BrandEditor({ userId, isAdmin, currentUserId }: Props) {
     setFailures(failed);
     setMessage(
       failed.length === 0
-        ? `Brand applied to ${stale.length} sculpture${stale.length === 1 ? '' : 's'}`
+        ? `Brand applied to ${stale.length} experience${stale.length === 1 ? '' : 's'}`
         : null
     );
     try {
@@ -182,7 +182,7 @@ export default function BrandEditor({ userId, isAdmin, currentUserId }: Props) {
         <div>
           <h1 className={styles.brand}>Brand</h1>
           <p className={styles.sub}>
-            How your sculptures look to visitors: Begin screen, loading, link
+            How your experiences look to visitors: Begin screen, loading, link
             previews, marker and shop pages.
           </p>
         </div>
@@ -229,14 +229,14 @@ export default function BrandEditor({ userId, isAdmin, currentUserId }: Props) {
       </section>
 
       <section className={styles.panel} style={{ marginTop: '2rem' }}>
-        <h2 className={styles.sectionTitle}>Published sculptures</h2>
+        <h2 className={styles.sectionTitle}>Published experiences</h2>
         <p className={styles.status}>
-          Each published sculpture keeps the brand it was published with.
+          Each published experience keeps the brand it was published with.
           Apply your saved brand to update them; their unpublished draft edits
           stay unpublished.
         </p>
         {owned.length === 0 ? (
-          <p className={styles.status}>No published sculptures yet.</p>
+          <p className={styles.status}>No published experiences yet.</p>
         ) : (
           owned.map((e) => (
             <div key={e.id} className={styles.listRow}>
@@ -262,7 +262,7 @@ export default function BrandEditor({ userId, isAdmin, currentUserId }: Props) {
         {progress && <p className={styles.status}>{progress}</p>}
         {failures.length > 0 && (
           <div className={styles.error} role="alert">
-            Some sculptures weren’t updated:
+            Some experiences weren’t updated:
             <ul>
               {failures.map((f) => (
                 <li key={f}>{f}</li>

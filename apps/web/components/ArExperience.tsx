@@ -216,7 +216,7 @@ export default function ArExperience({
         : 'Tap a pin for a note, or tap the piece to morph'
       : state === 'RAW'
         ? 'Tap the piece to return to the finished form'
-        : 'Tap the piece to reveal the raw stone';
+        : 'Tap the piece to reveal the raw form';
 
   const brand = config.brand;
   const logo = brand.logoUrl ? (

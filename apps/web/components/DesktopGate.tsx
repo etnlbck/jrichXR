@@ -39,7 +39,7 @@ export default function DesktopGate({ title, logo, artistName, onUseCamera }: Pr
         {logo}
         {artistName && <p className={styles.brandName}>{artistName}</p>}
         <h1>{title}</h1>
-        <p>Scan with your phone to see it in AR, beside the sculpture.</p>
+        <p>Scan with your phone to see it in AR.</p>
         <div className={styles.desktopQr}>
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URL

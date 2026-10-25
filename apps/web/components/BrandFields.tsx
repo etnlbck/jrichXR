@@ -70,7 +70,7 @@ export default function BrandFields({
   uploadUserId,
   inherited,
   disabled,
-  previewTitle = 'Your sculpture',
+  previewTitle = 'Your experience',
 }: Props) {
   const overrideMode = inherited !== undefined;
   const effective = resolveBrand({ ...(inherited ?? {}), ...value });

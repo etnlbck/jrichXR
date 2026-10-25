@@ -5,7 +5,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'AR experience',
-  description: 'Scan the marker beside the sculpture to see it in augmented reality.',
+  description: 'Scan the marker to see it in augmented reality.',
   // Declared here (not app/favicon.ico) so artist pages can replace it.
   icons: { icon: '/favicon.ico' },
   other: {

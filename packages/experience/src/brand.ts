@@ -35,7 +35,7 @@ export const BRAND_DEFAULTS = {
   accentFrom: '#1732a4',
   accentTo: '#21d3d5',
   font: 'system' as BrandFontId,
-  beginText: 'Point your phone at the marker beside the sculpture.',
+  beginText: 'Point your phone at the marker.',
   beginLabel: 'Begin',
   loadingText: 'Loading experience…',
 };
