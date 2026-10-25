@@ -575,6 +575,15 @@
   font-size: 0.9rem;
 }
 
+.listRow span.badge {
+  align-self: flex-start;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid rgba(232, 196, 138, 0.4);
+  border-radius: 999px;
+  color: #e8c48a;
+  font-size: 0.75rem;
+}
+
 @media (max-width: 640px) {
   .shell {
     padding: 1.25rem 1rem 3rem;

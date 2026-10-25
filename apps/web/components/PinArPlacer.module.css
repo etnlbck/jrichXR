@@ -29,7 +29,7 @@
 
 .toolBtnPrimary {
   background: linear-gradient(120deg, var(--ember), var(--violet));
-  color: #fff;
+  color: var(--brand-ink, #fff);
 }
 
 .toolBtn:disabled,

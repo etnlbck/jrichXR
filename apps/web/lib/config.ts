@@ -15,8 +15,10 @@ import {
   parseGalleryExperience,
   pinColor,
   pinForm,
+  resolveBrand,
   type GalleryExperience,
   type PinForm,
+  type ResolvedBrand,
 } from '@jrichforms/experience';
 
 export { DEFAULT_EXPERIENCE_ID } from '@/lib/experience-id';
@@ -77,6 +79,7 @@ export type AppConfig = {
   pins: AppPin[];
   /** `#rrggbb` for pin dots and leader lines. */
   pinColor: string;
+  brand: ResolvedBrand;
 };
 
 export function getSeedExperience(): GalleryExperience {
@@ -158,6 +161,7 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
       form: pinForm(pin),
     })),
     pinColor: pinColor(experience),
+    brand: resolveBrand(experience.brand),
   };
 }
 

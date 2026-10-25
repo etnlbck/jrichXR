@@ -3,9 +3,12 @@ import PinArPlacer from '@/components/PinArPlacer';
 import { requireArtist } from '@/lib/artist-access';
 import { buildAppConfig } from '@/lib/config';
 import { parseExperienceId } from '@/lib/experience-id';
+import { getArtistBrand } from '@/lib/brand-store';
 import {
   canEditExperience,
+  getExperienceAccess,
   isBlobConfigured,
+  pendingBrand,
   seedDraftIfMissing,
 } from '@/lib/experience-store';
 
@@ -31,11 +34,16 @@ export default async function AdminPlacePinsPage({
     notFound();
   }
   const { stage } = await searchParams;
+  const access = await getExperienceAccess(id);
+  const brand = pendingBrand(
+    draft.experience,
+    access ? await getArtistBrand(access.ownerUserId) : {}
+  );
 
   return (
     <PinArPlacer
       experienceId={id}
-      appConfig={buildAppConfig(draft.experience)}
+      appConfig={buildAppConfig({ ...draft.experience, brand })}
       initialPins={draft.experience.gallery.pins ?? []}
       initialRevision={draft.revision}
       canSave={isBlobConfigured()}

@@ -2,12 +2,14 @@
 
 import { upload } from '@vercel/blob/client';
 import type {
+  ArtistBrand,
   GalleryExperience,
   MuralNode,
   PinForm,
   SpatialPin,
 } from '@jrichforms/experience';
-import { assetWebPath, pinColor, pinForm } from '@jrichforms/experience';
+import { assetWebPath, mergeBrand, pinColor, pinForm } from '@jrichforms/experience';
+import BrandFields from '@/components/BrandFields';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,7 +17,11 @@ import PhoneHandoff from '@/components/PhoneHandoff';
 import PinPlacer from '@/components/PinPlacer';
 import PinPreview from '@/components/PinPreview';
 import { assetPathname } from '@/lib/experience-store-client';
-import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
+import {
+  DEFAULT_EXPERIENCE_ID,
+  visitorArPath,
+  visitorMarkerPath,
+} from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
 import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
 import { colorLuminance, PIN_COLOR_PRESETS } from '@/lib/pin-color';
@@ -79,6 +85,57 @@ export default function AdminEditor({
   const revisionRef = useRef<string | null>(null);
   /** Another device saved the draft while this tab had unsaved edits. */
   const [conflict, setConflict] = useState(false);
+  const [owner, setOwner] = useState<{
+    ownerUserId: string | null;
+    brand: ArtistBrand;
+    viewerUserId: string;
+    isAdmin: boolean;
+  } | null>(null);
+  const [artists, setArtists] = useState<{ id: string; label: string }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/experiences/${experienceId}/owner`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setOwner(data);
+        if (!data.isAdmin) return;
+        return fetch('/api/admin/users')
+          .then((res) => (res.ok ? res.json() : { users: [] }))
+          .then((list: { users: { id: string; name: string | null; email: string | null }[] }) => {
+            if (cancelled) return;
+            setArtists(list.users.map((u) => ({ id: u.id, label: u.name || u.email || u.id })));
+          });
+      })
+      .catch(() => {
+        /* brand tab falls back to platform defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [experienceId]);
+
+  async function changeOwner(ownerUserId: string) {
+    if (!confirm('Change the owner? The new owner’s brand applies on the next publish.')) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/experiences/${experienceId}/owner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerUserId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Owner change failed');
+      setOwner((prev) => (prev ? { ...prev, ownerUserId: data.ownerUserId, brand: data.brand } : prev));
+      setMessage('Owner changed — publish to apply their brand');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Owner change failed');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const applyServerExperience = useCallback(
     (next: GalleryExperience, revision: string | null | undefined) => {
@@ -438,7 +495,9 @@ export default function AdminEditor({
   const title = experience.gallery.provenance.title;
   const pins = experience.gallery.pins ?? [];
   const selectedPin = pins.find((p) => p.id === selectedPinId);
-  const currentPinColor = pinColor(experience);
+  const ownerBrand = owner?.brand ?? {};
+  const pendingBrand = mergeBrand(ownerBrand, experience.gallery.brandOverrides);
+  const currentPinColor = pinColor({ ...experience, brand: pendingBrand });
   const pinColorLowContrast =
     modelLuminance !== null &&
     Math.abs(colorLuminance(currentPinColor) - modelLuminance) < 0.2;
@@ -471,14 +530,24 @@ export default function AdminEditor({
             {status && !status.blobConfigured ? ' · Blob missing' : ''}
           </p>
         </div>
-        <a
-          className={styles.btn}
-          href={visitorArPath(experienceId)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Preview in AR
-        </a>
+        <div className={styles.actions}>
+          <a
+            className={styles.btn}
+            href={visitorArPath(experienceId)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Preview in AR
+          </a>
+          <a
+            className={styles.btn}
+            href={visitorMarkerPath(experienceId)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Print marker
+          </a>
+        </div>
       </div>
 
       <div className={styles.tabs} role="tablist" aria-label="Experience sections">
@@ -1137,6 +1206,50 @@ export default function AdminEditor({
               )}
             </div>
           </div>
+        </section>
+      )}
+
+      {tab === 'brand' && (
+        <section className={styles.panel}>
+          <h2 className={styles.sectionTitle}>Brand overrides</h2>
+          <p className={styles.status}>
+            This sculpture uses the owner’s{' '}
+            <Link href="/admin/brand">brand profile</Link>. Anything set here
+            replaces the profile for this sculpture only. Changes reach visitors
+            when you publish.
+          </p>
+          {owner?.isAdmin && !isSeedExperience && artists.length > 0 && (
+            <div className={styles.field} style={{ maxWidth: '22rem' }}>
+              <label htmlFor="owner-artist">Owner</label>
+              <select
+                id="owner-artist"
+                value={owner.ownerUserId ?? ''}
+                disabled={busy}
+                onChange={(e) => e.target.value && void changeOwner(e.target.value)}
+              >
+                {owner.ownerUserId === null && <option value="">No owner</option>}
+                {artists.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {owner && (
+            <BrandFields
+              value={experience.gallery.brandOverrides ?? {}}
+              onChange={(next) =>
+                updateGallery({
+                  brandOverrides: Object.keys(next).length > 0 ? next : undefined,
+                })
+              }
+              inherited={ownerBrand}
+              uploadUserId={owner.ownerUserId ?? owner.viewerUserId}
+              disabled={busy}
+              previewTitle={experience.gallery.title}
+            />
+          )}
         </section>
       )}
 

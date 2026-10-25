@@ -1,0 +1,66 @@
+.layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.colorRow code {
+  font-size: 0.8rem;
+  color: rgba(242, 235, 227, 0.6);
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: rgba(242, 235, 227, 0.5);
+}
+
+.thumbLogo {
+  max-height: 40px;
+  max-width: 140px;
+  object-fit: contain;
+  background: #0a0a0c;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.thumbShare {
+  width: 120px;
+  height: 63px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.previewWrap {
+  margin: 0;
+  position: sticky;
+  top: 4.5rem;
+}
+
+.preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 28px 22px;
+  border-radius: 18px;
+  text-align: center;
+  color: var(--paper);
+  background: radial-gradient(120% 120% at 50% 20%, #201c26 0%, #0a0a0c 70%);
+  border: 1px solid rgba(242, 235, 227, 0.1);
+}
+
+.preview h1 {
+  font-size: 1.5rem;
+}
