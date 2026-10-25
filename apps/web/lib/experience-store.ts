@@ -242,7 +242,7 @@ export function cloneSeedForId(
   kind: GalleryExperience['kind'] = 'mural'
 ): GalleryExperience {
   const seed = getSeedExperience();
-  return parseGalleryExperience({
+  const base = {
     ...seed,
     id,
     kind,
@@ -257,7 +257,28 @@ export function cloneSeedForId(
         shopPath: visitorShopPath(id),
       },
     },
-  });
+  };
+  if (kind === 'experience') {
+    // Finished-focused: drop raw morph node; clear sculpture-only copy.
+    base.nodes = seed.nodes.filter((n) => n.id !== 'raw');
+    base.gallery = {
+      ...base.gallery,
+      provenance: {
+        title,
+        material: '',
+        dimensions: '',
+        year: '',
+        exhibition: '',
+      },
+      shop: {
+        experienceSlug: id,
+        shopPath: '',
+        acquireUrl: '',
+      },
+      usePlaceholderCube: false,
+    };
+  }
+  return parseGalleryExperience(base);
 }
 
 export async function createDraftFromSeed(

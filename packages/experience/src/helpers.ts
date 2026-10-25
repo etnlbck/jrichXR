@@ -33,6 +33,39 @@ export function mediaImageNodes(experience: GalleryExperience): MuralNode[] {
   );
 }
 
+/** Video planes (same placement rules as images). */
+export function mediaVideoNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter((n) => n.type === 'video');
+}
+
+/** Package audio nodes (not pin audio / narration). */
+export function mediaAudioNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter((n) => n.type === 'audio');
+}
+
+/**
+ * Extra model/gltf props — excludes the morph pair (`finished` / `raw`).
+ */
+export function extraModelNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter(
+    (n) =>
+      (n.type === 'model' || n.type === 'gltf') &&
+      n.id !== 'finished' &&
+      n.id !== 'raw'
+  );
+}
+
+/** Normalize trigger for WebAR; unknown → onDetect. */
+export function runtimeTrigger(
+  node: Pick<MuralNode, 'trigger'>
+): MuralNodeTrigger {
+  const t = node.trigger ?? 'onDetect';
+  if (t === 'tap' || t === 'loop' || t === 'proximity' || t === 'onDetect') {
+    return t;
+  }
+  return 'onDetect';
+}
+
 export function galleryPins(experience: GalleryExperience): SpatialPin[] {
   return experience.gallery.pins ?? [];
 }

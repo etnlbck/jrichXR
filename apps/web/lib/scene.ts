@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { pinShowsOn, type PinForm } from '@jrichforms/experience';
+import { pinShowsOn, type MuralNodeTrigger, type PinForm } from '@jrichforms/experience';
 import { resolvedBrandFontFamily } from './brand-font-options';
 import type { AppConfig } from './config';
 import { mark } from './metrics';
@@ -29,6 +29,7 @@ export type ScenePin = {
   title: string;
   position: { x: number; y: number; z: number };
   form: PinForm;
+  style?: 'dot' | 'cta';
 };
 
 export type SceneCallbacks = {
@@ -65,13 +66,29 @@ export function createScene(
   let raw: THREE.Object3D | null = null;
   let overlay: THREE.Mesh | null = null;
   let placeholder: THREE.Mesh | null = null;
-  /** Extra image planes from package nodes (`mediaNodes` in config). */
+  /** Extra image/video planes from package nodes. */
   const mediaMeshes: {
     id: string;
-    trigger: 'onDetect' | 'tap';
+    kind: 'image' | 'video';
+    trigger: MuralNodeTrigger;
     mesh: THREE.Mesh;
     revealed: boolean;
+    video?: HTMLVideoElement;
   }[] = [];
+  const audioNodes: {
+    id: string;
+    trigger: MuralNodeTrigger;
+    audio: HTMLAudioElement;
+    position: THREE.Vector3;
+    started: boolean;
+  }[] = [];
+  const extraModelRoots: {
+    id: string;
+    trigger: MuralNodeTrigger;
+    root: THREE.Object3D;
+    revealed: boolean;
+  }[] = [];
+  let audioUnlocked = false;
   const pinHits: THREE.Object3D[] = [];
   const pinGroups: { id: string; form: PinForm; group: THREE.Group }[] = [];
   let pins: ScenePin[] = config.pins;
@@ -573,6 +590,7 @@ export function createScene(
     pinGroups.length = 0;
     const colors = pinColors(config.pinColor);
     for (const pin of pins) {
+      if (pin.style === 'cta') continue;
       const group = new THREE.Group();
       group.position.set(pin.position.x, pin.position.y, pin.position.z);
       const selected = pin.id === selectedPinId;
@@ -788,7 +806,7 @@ export function createScene(
         anchor.add(overlay);
       }
 
-      await loadMediaNodes();
+      await loadMediaNodes(loadGltf);
 
       modelsReady = true;
       mark('models_ready');
@@ -805,15 +823,48 @@ export function createScene(
     }
   }
 
-  async function loadMediaNodes() {
+  function placeOnAnchor(
+    obj: THREE.Object3D,
+    placement: AppConfig['mediaNodes'][number]['placement']
+  ) {
+    const p = placement.position;
+    obj.position.set(p.x, p.y, p.z);
+    const r = placement.rotationDeg;
+    obj.rotation.set(
+      THREE.MathUtils.degToRad(r.x),
+      THREE.MathUtils.degToRad(r.y),
+      THREE.MathUtils.degToRad(r.z)
+    );
+  }
+
+  function startsHidden(trigger: MuralNodeTrigger): boolean {
+    return trigger === 'tap' || trigger === 'proximity';
+  }
+
+  async function loadMediaNodes(
+    loadGltf: (url: string) => Promise<THREE.Group>
+  ) {
     if (!anchor) return;
     for (const entry of mediaMeshes) {
+      entry.video?.pause();
       entry.mesh.parent?.remove(entry.mesh);
       entry.mesh.geometry.dispose();
       const mat = entry.mesh.material;
-      if (mat instanceof THREE.Material) mat.dispose();
+      if (mat instanceof THREE.Material) {
+        const map = (mat as THREE.MeshBasicMaterial).map;
+        map?.dispose();
+        mat.dispose();
+      }
     }
     mediaMeshes.length = 0;
+    for (const a of audioNodes) {
+      a.audio.pause();
+    }
+    audioNodes.length = 0;
+    for (const m of extraModelRoots) {
+      m.root.parent?.remove(m.root);
+    }
+    extraModelRoots.length = 0;
 
     for (const node of config.mediaNodes) {
       try {
@@ -827,10 +878,11 @@ export function createScene(
             : 1;
         const width = Math.max(0.05, node.placement.scale);
         const height = width * aspect;
+        const hidden = startsHidden(node.trigger);
         const mat = new THREE.MeshBasicMaterial({
           map: tex,
           transparent: true,
-          opacity: node.trigger === 'tap' ? 0 : 1,
+          opacity: hidden ? 0 : 1,
           depthWrite: false,
           side: THREE.DoubleSide,
         });
@@ -838,37 +890,172 @@ export function createScene(
           new THREE.PlaneGeometry(width, height),
           mat
         );
-        const p = node.placement.position;
-        mesh.position.set(p.x, p.y, p.z);
-        const r = node.placement.rotationDeg;
-        mesh.rotation.set(
-          THREE.MathUtils.degToRad(r.x),
-          THREE.MathUtils.degToRad(r.y),
-          THREE.MathUtils.degToRad(r.z)
-        );
+        placeOnAnchor(mesh, node.placement);
         mesh.userData.mediaNodeId = node.id;
-        // Tap planes stay in the scene at opacity 0 so raycasts can find them.
         anchor.add(mesh);
         mediaMeshes.push({
           id: node.id,
+          kind: 'image',
           trigger: node.trigger,
           mesh,
-          revealed: node.trigger !== 'tap',
+          revealed: !hidden,
         });
       } catch {
         console.warn(`[jrf] media node failed to load: ${node.id}`);
+      }
+    }
+
+    for (const node of config.videoNodes) {
+      try {
+        const video = document.createElement('video');
+        video.src = node.url;
+        video.crossOrigin = 'anonymous';
+        video.playsInline = true;
+        video.muted = true;
+        video.loop = node.trigger === 'loop';
+        video.preload = 'auto';
+        await new Promise<void>((resolve, reject) => {
+          video.onloadeddata = () => resolve();
+          video.onerror = () => reject(new Error('video load failed'));
+        });
+        const tex = new THREE.VideoTexture(video);
+        const aspect =
+          video.videoWidth > 0 ? video.videoHeight / video.videoWidth : 9 / 16;
+        const width = Math.max(0.05, node.placement.scale);
+        const height = width * aspect;
+        const hidden = startsHidden(node.trigger);
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex,
+          transparent: true,
+          opacity: hidden ? 0 : 1,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(width, height),
+          mat
+        );
+        placeOnAnchor(mesh, node.placement);
+        mesh.userData.mediaNodeId = node.id;
+        anchor.add(mesh);
+        mediaMeshes.push({
+          id: node.id,
+          kind: 'video',
+          trigger: node.trigger,
+          mesh,
+          revealed: !hidden,
+          video,
+        });
+        if (!hidden) void video.play().catch(() => undefined);
+      } catch {
+        console.warn(`[jrf] video node failed to load: ${node.id}`);
+      }
+    }
+
+    for (const node of config.audioNodes) {
+      const audio = new Audio(node.url);
+      audio.preload = 'auto';
+      audio.loop = node.trigger === 'loop';
+      const p = node.placement.position;
+      audioNodes.push({
+        id: node.id,
+        trigger: node.trigger,
+        audio,
+        position: new THREE.Vector3(p.x, p.y, p.z),
+        started: false,
+      });
+      if (node.trigger === 'onDetect' || node.trigger === 'loop') {
+        /* start after unlock + reveal */
+      }
+    }
+
+    for (const node of config.extraModels) {
+      try {
+        const gltf = await loadGltf(node.url);
+        const root = gltf;
+        placeOnAnchor(root, node.placement);
+        const s = node.placement.scale;
+        root.scale.setScalar(s);
+        const hidden = startsHidden(node.trigger);
+        root.visible = !hidden;
+        anchor.add(root);
+        extraModelRoots.push({
+          id: node.id,
+          trigger: node.trigger,
+          root,
+          revealed: !hidden,
+        });
+      } catch {
+        console.warn(`[jrf] extra model failed to load: ${node.id}`);
+      }
+    }
+  }
+
+  function setAudioUnlocked(next: boolean) {
+    audioUnlocked = next;
+    if (next && revealState === 'done') {
+      for (const a of audioNodes) {
+        if (
+          (a.trigger === 'onDetect' || a.trigger === 'loop') &&
+          !a.started
+        ) {
+          a.started = true;
+          void a.audio.play().catch(() => undefined);
+        }
       }
     }
   }
 
   function revealMediaNode(id: string): boolean {
     const entry = mediaMeshes.find((m) => m.id === id);
-    if (!entry || entry.trigger !== 'tap') return false;
+    if (!entry) {
+      const model = extraModelRoots.find((m) => m.id === id);
+      if (!model || model.revealed) return false;
+      model.revealed = true;
+      model.root.visible = true;
+      return true;
+    }
+    if (entry.revealed && entry.trigger !== 'tap') return false;
     entry.revealed = true;
     entry.mesh.visible = true;
     const mat = entry.mesh.material as THREE.MeshBasicMaterial;
     mat.opacity = 1;
+    if (entry.video) void entry.video.play().catch(() => undefined);
+    const audio = audioNodes.find((a) => a.id === id);
+    if (audio && audioUnlocked && !audio.started) {
+      audio.started = true;
+      void audio.audio.play().catch(() => undefined);
+    }
     return true;
+  }
+
+  function updateProximity() {
+    if (revealState !== 'done' || !visible) return;
+    const camera = activeCamera();
+    if (!camera || !anchor) return;
+    const cam = camera.position.clone();
+    const thresh = 0.55;
+    const tryNear = (world: THREE.Vector3, id: string, revealed: boolean) => {
+      if (revealed) return;
+      if (cam.distanceTo(world) < thresh) revealMediaNode(id);
+    };
+    for (const entry of mediaMeshes) {
+      if (entry.trigger !== 'proximity' || entry.revealed) continue;
+      tryNear(entry.mesh.getWorldPosition(new THREE.Vector3()), entry.id, false);
+    }
+    for (const m of extraModelRoots) {
+      if (m.trigger !== 'proximity' || m.revealed) continue;
+      tryNear(m.root.getWorldPosition(new THREE.Vector3()), m.id, false);
+    }
+    for (const a of audioNodes) {
+      if (a.trigger !== 'proximity' || a.started || !audioUnlocked) continue;
+      const world = a.position.clone();
+      anchor.localToWorld(world);
+      if (cam.distanceTo(world) < thresh) {
+        a.started = true;
+        void a.audio.play().catch(() => undefined);
+      }
+    }
   }
 
   function toggleMorph() {
@@ -983,6 +1170,7 @@ export function createScene(
         const dt = clock ? clock.getDelta() : 0.016;
         updateReveal(dt);
         updatePostRevealFade(dt);
+        updateProximity();
         updateMorph(dt);
         updateLabels();
       },
@@ -1076,23 +1264,51 @@ export function createScene(
     return typeof id === 'string' ? id : null;
   }
 
-  /** Tap-trigger image plane under the cursor; reveals it when hit. */
+  /** Tap-trigger media / extra model under the cursor; reveals it when hit. */
   function pickMediaNode(ndcX: number, ndcY: number): string | null {
     const camera = activeCamera();
     if (revealState !== 'done') return null;
-    if (!camera || !visible || mediaMeshes.length === 0) return null;
-    const pending = mediaMeshes.filter((m) => m.trigger === 'tap' && !m.revealed);
-    if (pending.length === 0) return null;
+    if (!camera || !visible) return null;
+    const pendingMeshes = mediaMeshes.filter(
+      (m) => m.trigger === 'tap' && !m.revealed
+    );
+    const pendingModels = extraModelRoots.filter(
+      (m) => m.trigger === 'tap' && !m.revealed
+    );
+    if (pendingMeshes.length === 0 && pendingModels.length === 0) {
+      // Tap audio with no mesh: play nearest pending tap audio
+      for (const a of audioNodes) {
+        if (a.trigger === 'tap' && !a.started && audioUnlocked) {
+          a.started = true;
+          void a.audio.play().catch(() => undefined);
+          return a.id;
+        }
+      }
+      return null;
+    }
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-    const hit = raycaster.intersectObjects(
-      pending.map((m) => m.mesh),
-      false
-    )[0];
-    const id = hit?.object.userData.mediaNodeId;
-    if (typeof id !== 'string') return null;
-    revealMediaNode(id);
-    return id;
+    const targets: THREE.Object3D[] = [
+      ...pendingMeshes.map((m) => m.mesh),
+      ...pendingModels.map((m) => m.root),
+    ];
+    const hit = raycaster.intersectObjects(targets, true)[0];
+    if (!hit) return null;
+    let obj: THREE.Object3D | null = hit.object;
+    while (obj) {
+      const id = obj.userData.mediaNodeId as string | undefined;
+      if (id) {
+        revealMediaNode(id);
+        return id;
+      }
+      const model = pendingModels.find((m) => m.root === obj);
+      if (model) {
+        revealMediaNode(model.id);
+        return model.id;
+      }
+      obj = obj.parent;
+    }
+    return null;
   }
 
   /** Point on the form currently showing, in the pins' (GLB-root) space. */
@@ -1119,6 +1335,20 @@ export function createScene(
     const g = pinGroups.find((p) => p.id === id);
     if (!camera || !g) return null;
     const v = g.group.getWorldPosition(new THREE.Vector3()).project(camera);
+    return { x: v.x, y: v.y };
+  }
+
+  /** Project GLB-root local position to NDC (for CTA overlays). */
+  function projectLocal(pos: {
+    x: number;
+    y: number;
+    z: number;
+  }): { x: number; y: number } | null {
+    const camera = activeCamera();
+    if (!camera || !piece || !visible) return null;
+    const v = new THREE.Vector3(pos.x, pos.y, pos.z);
+    piece.localToWorld(v);
+    v.project(camera);
     return { x: v.x, y: v.y };
   }
 
@@ -1184,6 +1414,7 @@ export function createScene(
       const dt = clock ? clock.getDelta() : 0.016;
       updateReveal(dt);
       updatePostRevealFade(dt);
+      updateProximity();
       updateMorph(dt);
       updateLabels();
       renderer.render(scene, camera);
@@ -1211,8 +1442,10 @@ export function createScene(
     pickMediaNode,
     pickSurface,
     pinNdc,
+    projectLocal,
     setPins,
     setSelectedPin,
+    setAudioUnlocked,
     holdPose: (on: boolean) => {
       poseHeld = on;
     },

@@ -6,7 +6,9 @@ import type {
   GalleryExperience,
   MuralNode,
   MuralNodeTrigger,
+  MuralNodeType,
   PinForm,
+  PinStyle,
   SpatialPin,
 } from '@jrichforms/experience';
 import {
@@ -31,9 +33,13 @@ import {
 } from '@/lib/experience-id';
 import { formatPublishedAt } from '@/lib/format';
 import styles from '@/app/admin/admin.module.css';
-import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
+import {
+  EDITOR_TABS as ALL_TABS,
+  type EditorTab as Tab,
+} from '@/lib/editor-tabs';
 import { colorLuminance, PIN_COLOR_PRESETS } from '@/lib/pin-color';
 import { newPinId, PIN_FORM_LABEL } from '@/lib/pins';
+import { getPublishReadiness } from '@/lib/publish-readiness';
 
 /** Matches the `.pinLayout` two-column breakpoint in admin.module.css. */
 const SINGLE_COLUMN_QUERY = '(max-width: 899px)';
@@ -64,13 +70,50 @@ const ASSET_SLOTS: Array<{
 /** Core morph/marker nodes — editable transforms only, not removable. */
 const LOCKED_NODE_IDS = new Set(['finished', 'raw', 'overlay']);
 
-const WEB_AR_TRIGGERS: MuralNodeTrigger[] = ['onDetect', 'tap'];
+const WEB_AR_TRIGGERS: MuralNodeTrigger[] = [
+  'onDetect',
+  'tap',
+  'loop',
+  'proximity',
+];
 
-function newImageNodeId(nodes: MuralNode[]): string {
+const ADDABLE_NODE_TYPES: Array<{
+  type: MuralNodeType;
+  prefix: string;
+  accept: string;
+  role: string;
+}> = [
+  {
+    type: 'image',
+    prefix: 'image',
+    accept: 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp',
+    role: 'media-image',
+  },
+  {
+    type: 'video',
+    prefix: 'video',
+    accept: 'video/mp4,.mp4',
+    role: 'media-video',
+  },
+  {
+    type: 'audio',
+    prefix: 'audio',
+    accept: 'audio/mpeg,.mp3',
+    role: 'media-audio',
+  },
+  {
+    type: 'model',
+    prefix: 'prop',
+    accept: '.glb,model/gltf-binary',
+    role: 'media-model',
+  },
+];
+
+function newTypedNodeId(nodes: MuralNode[], prefix: string): string {
   let n = 1;
   const ids = new Set(nodes.map((node) => node.id));
-  while (ids.has(`image-${n}`)) n += 1;
-  return `image-${n}`;
+  while (ids.has(`${prefix}-${n}`)) n += 1;
+  return `${prefix}-${n}`;
 }
 
 export default function AdminEditor({
@@ -87,6 +130,7 @@ export default function AdminEditor({
   const [experience, setExperienceState] = useState<GalleryExperience | null>(
     null
   );
+  const [publishOverride, setPublishOverride] = useState(false);
   /** JSON of the last loaded or saved draft; drives the unsaved indicator. */
   const [savedJson, setSavedJson] = useState<string | null>(null);
   const [status, setStatus] = useState<StoreStatus | null>(null);
@@ -315,16 +359,16 @@ export default function AdminEditor({
   async function publish() {
     if (!experience) return;
     if (dirty && !(await save())) return;
-    const readiness: string[] = [];
-    if (experience.gallery.usePlaceholderCube) {
-      readiness.push('placeholder cube is on');
+    const readiness = getPublishReadiness(experience);
+    if (readiness.level === 'block' && !publishOverride) {
+      setError(
+        'Fix blocking readiness issues or check “Publish interim anyway” below.'
+      );
+      return;
     }
-    if (experience.assets['raw-glb']?.interim === true) {
-      readiness.push('raw GLB is marked interim');
-    }
-    if (readiness.length > 0) {
+    if (readiness.level === 'warn' || (readiness.level === 'block' && publishOverride)) {
       const ok = confirm(
-        `Publishing with ${readiness.join(' and ')}. Continue?`
+        `Publishing with: ${readiness.items.map((i) => i.message).join('; ')}. Continue?`
       );
       if (!ok) return;
     }
@@ -335,16 +379,24 @@ export default function AdminEditor({
       const res = await fetch(`/api/admin/publish${qs}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseRevision: revisionRef.current }),
+        body: JSON.stringify({
+          baseRevision: revisionRef.current,
+          readinessOverride: publishOverride,
+        }),
       });
       const data = await res.json();
       if (res.status === 409) {
+        if (data.error === 'readiness') {
+          setError(data.message || 'Draft is not ready to publish');
+          return;
+        }
         setConflict(true);
         return;
       }
       if (!res.ok) throw new Error(data.message || data.error || 'Publish failed');
       applyServerExperience(data.experience, data.revision);
       setStatus(data.status);
+      setPublishOverride(false);
       const when = formatPublishedAt(data.status?.publishedAt);
       setMessage(
         when
@@ -467,17 +519,19 @@ export default function AdminEditor({
     });
   }
 
-  async function addImageNode() {
+  async function addTypedNode(type: MuralNodeType) {
     if (!experience) return;
-    const id = newImageNodeId(experience.nodes);
+    const meta = ADDABLE_NODE_TYPES.find((t) => t.type === type);
+    if (!meta) return;
+    const id = newTypedNodeId(experience.nodes, meta.prefix);
     const assetId = id;
     const node: MuralNode = {
       id,
-      type: 'image',
+      type,
       assetId,
       position: { x: 0, y: 0.2, z: 0.05 },
       rotation: { x: 0, y: 0, z: 0 },
-      scale: 0.35,
+      scale: type === 'model' ? 0.5 : 0.35,
       trigger: 'onDetect',
     };
     const next: GalleryExperience = {
@@ -486,14 +540,14 @@ export default function AdminEditor({
       assets: {
         ...experience.assets,
         [assetId]: {
-          role: 'media-image',
+          role: meta.role,
           status: 'pending',
         },
       },
     };
     setExperience(next);
     const ok = await save(next);
-    if (ok) setMessage(`Added image node ${id} — upload its image next`);
+    if (ok) setMessage(`Added ${type} node ${id} — upload its asset next`);
   }
 
   async function removeNode(id: string) {
@@ -613,6 +667,13 @@ export default function AdminEditor({
     : dirty
       ? 'Unsaved changes'
       : (message ?? 'All changes saved');
+  const readiness = getPublishReadiness(experience);
+  const TABS = ALL_TABS.filter(([id]) => {
+    if (experience.kind === 'experience' && id === 'provenance') return false;
+    return true;
+  });
+  const activeTab =
+    experience.kind === 'experience' && tab === 'provenance' ? 'overview' : tab;
 
   return (
     <div className={styles.shell}>
@@ -673,7 +734,7 @@ export default function AdminEditor({
             key={id}
             type="button"
             role="tab"
-            aria-selected={tab === id}
+            aria-selected={activeTab === id}
             onClick={() => setTab(id)}
           >
             {label}
@@ -709,7 +770,7 @@ export default function AdminEditor({
         </div>
       )}
 
-      {tab === 'overview' && (
+      {activeTab === 'overview' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Overview</h2>
           <p className={styles.status}>
@@ -809,7 +870,7 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'provenance' && (
+      {activeTab === 'provenance' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Provenance & shop</h2>
           <div className={styles.field}>
@@ -936,9 +997,11 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'placement' && (
+      {activeTab === 'placement' && (
         <section className={styles.panel}>
-          <h2 className={styles.sectionTitle}>Placement & morph</h2>
+          <h2 className={styles.sectionTitle}>
+            {supportsMorph(experience) ? 'Placement & morph' : 'Placement'}
+          </h2>
           {experience.placement ? (
             <p className={styles.status} role="note">
               Package placement <code>{experience.placement}</code> is stored
@@ -964,38 +1027,40 @@ export default function AdminEditor({
               }
             />
           </div>
-          <div className={styles.row}>
-            <div className={styles.field}>
-              <label>Morph duration (ms)</label>
-              <input
-                type="number"
-                value={experience.gallery.morph.durationMs}
-                onChange={(e) =>
-                  updateGallery({
-                    morph: {
-                      ...experience.gallery.morph,
-                      durationMs: Number(e.target.value),
-                    },
-                  })
-                }
-              />
+          {supportsMorph(experience) ? (
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label>Morph duration (ms)</label>
+                <input
+                  type="number"
+                  value={experience.gallery.morph.durationMs}
+                  onChange={(e) =>
+                    updateGallery({
+                      morph: {
+                        ...experience.gallery.morph,
+                        durationMs: Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </div>
+              <div className={styles.field}>
+                <label>Overlay fade (ms)</label>
+                <input
+                  type="number"
+                  value={experience.gallery.morph.overlayFadeMs}
+                  onChange={(e) =>
+                    updateGallery({
+                      morph: {
+                        ...experience.gallery.morph,
+                        overlayFadeMs: Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </div>
             </div>
-            <div className={styles.field}>
-              <label>Overlay fade (ms)</label>
-              <input
-                type="number"
-                value={experience.gallery.morph.overlayFadeMs}
-                onChange={(e) =>
-                  updateGallery({
-                    morph: {
-                      ...experience.gallery.morph,
-                      overlayFadeMs: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-            </div>
-          </div>
+          ) : null}
           <div className={styles.row}>
             <div className={styles.field}>
               <label htmlFor="reveal-densify">Arrive densify (ms)</label>
@@ -1040,6 +1105,69 @@ export default function AdminEditor({
             Longer densify / higher scatter can feel richer but may jank on
             mid-range phones.
           </p>
+          <div className={styles.field}>
+            <label>
+              <input
+                type="checkbox"
+                checked={experience.gallery.reveal?.haptics === true}
+                onChange={(e) =>
+                  updateGallery({
+                    reveal: {
+                      ...experience.gallery.reveal,
+                      haptics: e.target.checked,
+                    },
+                  })
+                }
+              />{' '}
+              Arrive haptics (vibration when supported)
+            </label>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="reveal-sting">Arrive sting URL (optional)</label>
+            <input
+              id="reveal-sting"
+              type="url"
+              placeholder="https://…blob…/sting.mp3"
+              value={experience.gallery.reveal?.stingUrl ?? ''}
+              onChange={(e) =>
+                updateGallery({
+                  reveal: {
+                    ...experience.gallery.reveal,
+                    stingUrl: e.target.value || undefined,
+                  },
+                })
+              }
+            />
+          </div>
+          <div className={styles.assetRow}>
+            <strong>Arrive sting audio</strong>
+            <label className={styles.btn}>
+              Upload MP3
+              <input
+                type="file"
+                accept="audio/mpeg,.mp3"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !experience) return;
+                  void (async () => {
+                    const assetId = 'arrive-sting';
+                    const next = {
+                      ...experience,
+                      assets: {
+                        ...experience.assets,
+                        [assetId]: { role: 'arrive-sting', status: 'pending' },
+                      },
+                    };
+                    setExperience(next);
+                    if (!(await save(next))) return;
+                    await onUpload(assetId, file);
+                  })();
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
           <div className={styles.field}>
             <label>
               <input
@@ -1100,7 +1228,7 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'assets' && (
+      {activeTab === 'assets' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Assets</h2>
           <p className={styles.status}>
@@ -1115,7 +1243,15 @@ export default function AdminEditor({
               surface. Check them on the Pins tab after uploading.
             </p>
           )}
-          {ASSET_SLOTS.map((slot) => {
+          {ASSET_SLOTS.filter((slot) => {
+            if (
+              experience.kind === 'experience' &&
+              (slot.id === 'raw-glb' || slot.id === 'guide-marks')
+            ) {
+              return false;
+            }
+            return true;
+          }).map((slot) => {
             const meta = experience.assets[slot.id];
             return (
               <div key={slot.id} className={styles.assetRow}>
@@ -1143,14 +1279,14 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'nodes' && (
+      {activeTab === 'nodes' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Nodes</h2>
           <p className={styles.status}>
             WebAR drives finished/raw GLB
-            {supportsMorph(experience) ? ' (morph)' : ''}, the marker overlay,
-            pins, and extra <strong>image</strong> planes. Video, audio, loop,
-            and proximity stay unsupported.
+            {supportsMorph(experience) ? ' (morph)' : ''}, overlay, pins, and
+            extra image / video / audio / model nodes. Proximity uses coarse
+            camera distance (approximate).
           </p>
           <p className={styles.status}>
             Kind: <code>{experience.kind}</code>
@@ -1164,21 +1300,24 @@ export default function AdminEditor({
             </p>
           ) : null}
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.btn}
-              disabled={busy}
-              onClick={() => void addImageNode()}
-            >
-              Add image node
-            </button>
+            {ADDABLE_NODE_TYPES.map((t) => (
+              <button
+                key={t.type}
+                type="button"
+                className={styles.btn}
+                disabled={busy}
+                onClick={() => void addTypedNode(t.type)}
+              >
+                Add {t.type}
+              </button>
+            ))}
           </div>
           {experience.nodes.map((node) => {
             const locked = LOCKED_NODE_IDS.has(node.id);
-            const imageSupported = node.type === 'image';
-            const modelSupported =
-              node.type === 'model' || node.type === 'gltf';
-            const unsupported = !imageSupported && !modelSupported;
+            const addable = ADDABLE_NODE_TYPES.find((t) => t.type === node.type);
+            const modelMorph =
+              (node.type === 'model' || node.type === 'gltf') && locked;
+            const runtimeSupported = Boolean(addable) || modelMorph;
             const assetUrl = assetWebPath(experience, node.assetId);
             return (
               <div key={node.id} className={styles.panel}>
@@ -1186,18 +1325,18 @@ export default function AdminEditor({
                   {node.id} · {node.type}
                   {node.trigger ? ` · ${node.trigger}` : ''}
                 </strong>
-                {unsupported ? (
+                {!runtimeSupported ? (
                   <p className={styles.status} role="note">
                     {node.type} — WebAR: not supported yet (inspect only).
                   </p>
                 ) : null}
-                {imageSupported && !assetUrl ? (
+                {addable && !assetUrl ? (
                   <p className={styles.status} role="note">
-                    Upload an image for asset <code>{node.assetId}</code> before
+                    Upload an asset for <code>{node.assetId}</code> before
                     publishing.
                   </p>
                 ) : null}
-                {!locked && imageSupported ? (
+                {!locked && addable ? (
                   <div className={styles.field}>
                     <label htmlFor={`node-trigger-${node.id}`}>Trigger</label>
                     <select
@@ -1211,23 +1350,21 @@ export default function AdminEditor({
                     >
                       {WEB_AR_TRIGGERS.map((t) => (
                         <option key={t} value={t}>
-                          {t === 'onDetect'
-                            ? 'onDetect — show when marker locks'
-                            : 'tap — reveal when visitor taps the plane'}
+                          {t}
                         </option>
                       ))}
                     </select>
                   </div>
                 ) : null}
-                {imageSupported ? (
+                {addable ? (
                   <div className={styles.field}>
                     <label htmlFor={`node-upload-${node.id}`}>
-                      Image asset ({node.assetId})
+                      Asset ({node.assetId})
                     </label>
                     <input
                       id={`node-upload-${node.id}`}
                       type="file"
-                      accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                      accept={addable.accept}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) void onUpload(node.assetId, file);
@@ -1296,7 +1433,7 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'pins' && (
+      {activeTab === 'pins' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Spatial pins</h2>
           <p className={styles.status}>
@@ -1446,6 +1583,21 @@ export default function AdminEditor({
                     </select>
                   </div>
                   <div className={styles.field}>
+                    <label htmlFor="pin-style">Style</label>
+                    <select
+                      id="pin-style"
+                      value={selectedPin.style === 'cta' ? 'cta' : 'dot'}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          style: e.target.value as PinStyle,
+                        })
+                      }
+                    >
+                      <option value="dot">Dot (note)</option>
+                      <option value="cta">CTA overlay button</option>
+                    </select>
+                  </div>
+                  <div className={styles.field}>
                     <label>Body</label>
                     <textarea
                       value={selectedPin.body}
@@ -1585,7 +1737,7 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'brand' && (
+      {activeTab === 'brand' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Brand overrides</h2>
           <p className={styles.status}>
@@ -1624,10 +1776,85 @@ export default function AdminEditor({
               uploadUserId={owner.ownerUserId ?? owner.viewerUserId}
               disabled={busy}
               previewTitle={experience.gallery.title}
+              densifyMs={experience.gallery.reveal?.densifyMs ?? 1000}
+              scatterFactor={experience.gallery.reveal?.scatterFactor ?? 0.55}
             />
           )}
+          <h3 className={styles.sectionTitle}>Share targets</h3>
+          <p className={styles.status}>
+            Extra intents under the visitor Share control. Uncheck all for
+            system share / copy only.
+          </p>
+          {(
+            [
+              ['whatsapp', 'WhatsApp'],
+              ['x', 'X'],
+              ['email', 'Email'],
+            ] as const
+          ).map(([id, label]) => {
+            const current = experience.gallery.shareTargets;
+            const enabled =
+              current === undefined
+                ? true
+                : current.includes(id);
+            return (
+              <label key={id} className={styles.field}>
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={(e) => {
+                    const base =
+                      current === undefined
+                        ? (['whatsapp', 'x', 'email'] as const)
+                        : current;
+                    const next = e.target.checked
+                      ? Array.from(new Set([...base, id]))
+                      : base.filter((t) => t !== id);
+                    updateGallery({
+                      shareTargets: next.length === 3 ? undefined : [...next],
+                    });
+                  }}
+                />{' '}
+                {label}
+              </label>
+            );
+          })}
         </section>
       )}
+
+      {readiness.level !== 'ok' ? (
+        <div
+          className={styles.notice}
+          role="status"
+          style={{ marginTop: '1.5rem' }}
+        >
+          <div>
+            <strong>
+              {readiness.level === 'block'
+                ? 'Not ready to publish'
+                : 'Publish warnings'}
+            </strong>
+            <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
+              {readiness.items.map((item) => (
+                <li key={item.code}>
+                  {item.level === 'block' ? '[block] ' : ''}
+                  {item.message}
+                </li>
+              ))}
+            </ul>
+            {readiness.level === 'block' ? (
+              <label style={{ display: 'block', marginTop: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  checked={publishOverride}
+                  onChange={(e) => setPublishOverride(e.target.checked)}
+                />{' '}
+                Publish interim anyway
+              </label>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.actionBar}>
         <span
@@ -1649,7 +1876,9 @@ export default function AdminEditor({
         <button
           type="button"
           className={styles.btnPrimary}
-          disabled={busy}
+          disabled={
+            busy || (readiness.level === 'block' && !publishOverride)
+          }
           onClick={() => void publish()}
         >
           Publish

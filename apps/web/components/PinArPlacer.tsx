@@ -65,6 +65,7 @@ function toScenePins(pins: SpatialPin[]): ScenePin[] {
     title: p.title,
     position: p.position,
     form: pinForm(p),
+    style: p.style === 'cta' ? ('cta' as const) : ('dot' as const),
   }));
 }
 

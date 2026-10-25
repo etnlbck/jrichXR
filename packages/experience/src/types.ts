@@ -45,6 +45,10 @@ export interface GalleryProvenance {
 }
 
 export type PinForm = 'finished' | 'raw' | 'both';
+/** Dot = spatial note; cta = HTML overlay button after Arrive. */
+export type PinStyle = 'dot' | 'cta';
+
+export type ShareTargetId = 'whatsapp' | 'x' | 'email';
 
 /** Point on the sculpture in GLB-root local space (before marker placement). */
 export interface SpatialPin {
@@ -61,6 +65,8 @@ export interface SpatialPin {
   ctaLabel?: string;
   /** Optional image shown in the pin sheet (https Blob URL). */
   imageUrl?: string;
+  /** Presentation. Missing means dot. */
+  style?: PinStyle;
 }
 
 export interface GalleryExtension {
@@ -79,7 +85,16 @@ export interface GalleryExtension {
   reveal?: {
     densifyMs?: number;
     scatterFactor?: number;
+    /** One-shot Arrive sting (https Blob or site URL). */
+    stingUrl?: string;
+    /** Short vibration on densify complete when supported. Default off. */
+    haptics?: boolean;
   };
+  /**
+   * Extra share intents under Share. Missing means whatsapp + x + email.
+   * Empty array = system share / copy only.
+   */
+  shareTargets?: ShareTargetId[];
   provenance: GalleryProvenance;
   shop: {
     experienceSlug: string;

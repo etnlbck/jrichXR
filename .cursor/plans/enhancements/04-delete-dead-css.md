@@ -30,3 +30,7 @@ Remove unused visitor CSS in `ArExperience.module.css` (cta/preview/social/fullO
 ## Notes
 
 If any class is used only in BrandFields preview via string import, verify BrandFields before deleting.
+
+## Follow-up
+
+Intentional post-morph scene CTAs (new data model, not revived dead CSS) → [24](24-post-morph-scene-ctas.md).

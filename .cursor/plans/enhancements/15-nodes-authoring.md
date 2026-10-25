@@ -15,6 +15,10 @@ Studio Nodes tab supports add/remove and triggers for WebAR-supported image node
 - Per-node image upload into the node’s `assetId`
 - Kind + support copy on Nodes tab
 
+## Follow-up
+
+Non-image types (video/audio/extra model) → [19](19-non-image-node-authoring.md) after runtime [18](18-video-audio-proximity-nodes.md).
+
 ## Acceptance
 
 - [x] Artist can add an image node, set trigger, upload, publish, and see it in WebAR

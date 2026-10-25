@@ -33,3 +33,7 @@ Warn (soft-block with confirm) when publishing with placeholder cube or interim 
 ## Notes
 
 Soft-block only (confirm), not hard 403 on API—artists may intentionally ship interim for field tests.
+
+## Follow-up
+
+Persistent banner + hard block with override → [21](21-hard-publish-readiness.md).

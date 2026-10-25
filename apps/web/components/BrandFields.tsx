@@ -15,11 +15,12 @@ import { useState } from 'react';
 import { BRAND_FONT_OPTIONS } from '@/lib/brand-font-options';
 import { brandStyle } from '@/lib/brand-style';
 import { brandAssetPathname } from '@/lib/experience-store-client';
+import DensifyPreview from '@/components/DensifyPreview';
 import ar from './ArExperience.module.css';
 import admin from '@/app/admin/admin.module.css';
 import styles from './BrandFields.module.css';
 
-type PreviewStep = 'gate' | 'loading' | 'anchored';
+type PreviewStep = 'gate' | 'loading' | 'anchored' | 'arrive';
 
 type ImageField = 'logoUrl' | 'shareImageUrl';
 
@@ -35,6 +36,8 @@ type Props = {
   inherited?: ArtistBrand;
   disabled?: boolean;
   previewTitle?: string;
+  densifyMs?: number;
+  scatterFactor?: number;
 };
 
 const SHARE_W = 1200;
@@ -73,6 +76,8 @@ export default function BrandFields({
   inherited,
   disabled,
   previewTitle = 'Your experience',
+  densifyMs = 1000,
+  scatterFactor = 0.55,
 }: Props) {
   const overrideMode = inherited !== undefined;
   const effective = resolveBrand({ ...(inherited ?? {}), ...value });
@@ -277,12 +282,27 @@ export default function BrandFields({
           </p>
         )}
       </div>
-      <BrandPreview brand={effective} title={previewTitle} />
+      <BrandPreview
+        brand={effective}
+        title={previewTitle}
+        densifyMs={densifyMs}
+        scatterFactor={scatterFactor}
+      />
     </div>
   );
 }
 
-export function BrandPreview({ brand, title }: { brand: ResolvedBrand; title: string }) {
+export function BrandPreview({
+  brand,
+  title,
+  densifyMs = 1000,
+  scatterFactor = 0.55,
+}: {
+  brand: ResolvedBrand;
+  title: string;
+  densifyMs?: number;
+  scatterFactor?: number;
+}) {
   const [step, setStep] = useState<PreviewStep>('gate');
   return (
     <figure className={styles.previewWrap}>
@@ -293,6 +313,7 @@ export function BrandPreview({ brand, title }: { brand: ResolvedBrand; title: st
             ['gate', 'Gate'],
             ['loading', 'Loading'],
             ['anchored', 'Anchored'],
+            ['arrive', 'Arrive'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -344,6 +365,19 @@ export function BrandPreview({ brand, title }: { brand: ResolvedBrand; title: st
                 Tap a pin for a note, or tap the piece to morph
               </span>
             </div>
+          </div>
+        )}
+        {step === 'arrive' && (
+          <div className={styles.previewAnchored}>
+            <DensifyPreview
+              densifyMs={densifyMs}
+              scatterFactor={scatterFactor}
+              accentFrom={brand.accentFrom}
+              accentTo={brand.accentTo}
+            />
+            <p className={admin.status}>
+              Uses Placement densify knobs and brand accents (approximate).
+            </p>
           </div>
         )}
       </div>

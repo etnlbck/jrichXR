@@ -1,8 +1,8 @@
 # Enhancement implementation plans — index
 
-Plans for the post-Arrive enhancement backlog. GitHub issues may be created later via [`scripts/create-enhancement-issues.sh`](../../../scripts/create-enhancement-issues.sh); titles below are the stable keys. Closing Waves 1–2 (and Wave 3 when ready) uses [`scripts/close-enhancement-waves.sh`](../../../scripts/close-enhancement-waves.sh) so PRs include `Closes #N`.
+Plans for the post-Arrive enhancement backlog. GitHub issues may be created later via [`scripts/create-enhancement-issues.sh`](../../../scripts/create-enhancement-issues.sh); titles below are the stable keys. Closing shipped waves uses [`scripts/close-enhancement-waves.sh`](../../../scripts/close-enhancement-waves.sh) so PRs include `Closes #N`.
 
-**Sequencing:** Wave 1 → Wave 2 → Wave 3 (14–16); 17 parked. Wave 4 lite (gaps): metrics drain, post-reveal fade, unused-field badges, pin image upload, About QR.
+**Sequencing:** Waves 1–4 shipped · **Wave 5 (18–25) shipped** · #17 parked.
 
 | # | Issue title | Wave | Effort | Plan | Status |
 |---|-------------|------|--------|------|--------|
@@ -22,18 +22,31 @@ Plans for the post-Arrive enhancement backlog. GitHub issues may be created late
 | 14 | Honor richer mural node types in WebAR | 3 | L | [14-richer-mural-nodes.md](14-richer-mural-nodes.md) | done |
 | 15 | Nodes authoring (add/remove/type/triggers) | 3 | L | [15-nodes-authoring.md](15-nodes-authoring.md) | done |
 | 16 | Support additional experience kinds | 3 | L | [16-experience-kinds.md](16-experience-kinds.md) | done |
-| 17 | Real 3D Gaussian splat pipeline (parked) | 3 | L | [17-real-3dgs-pipeline.md](17-real-3dgs-pipeline.md) | parked |
+| 17 | Real 3D Gaussian splat pipeline (parked) | — | L | [17-real-3dgs-pipeline.md](17-real-3dgs-pipeline.md) | parked |
+| 18 | Video/audio/loop/proximity + extra glTF | 5 | L | [18-video-audio-proximity-nodes.md](18-video-audio-proximity-nodes.md) | done |
+| 19 | Studio non-image node authoring | 5 | M–L | [19-non-image-node-authoring.md](19-non-image-node-authoring.md) | done |
+| 20 | Densify preview scrubber in Brand | 5 | M | [20-densify-preview-scrubber.md](20-densify-preview-scrubber.md) | done |
+| 21 | Hard publish block / readiness banner | 5 | S–M | [21-hard-publish-readiness.md](21-hard-publish-readiness.md) | done |
+| 22 | Social share targets | 5 | M | [22-social-share-targets.md](22-social-share-targets.md) | done |
+| 23 | Arrive audio sting / haptics | 5 | S–M | [23-arrive-audio-haptics.md](23-arrive-audio-haptics.md) | done |
+| 24 | Post-morph scene CTA overlays | 5 | M–L | [24-post-morph-scene-ctas.md](24-post-morph-scene-ctas.md) | done |
+| 25 | Desculpture experience kind | 5 | L | [25-desculpture-experience-kind.md](25-desculpture-experience-kind.md) | done |
 
-## Suggested build order (Wave 1)
+## Suggested build order (Wave 5) — completed
 
-1. Harden Arrive  
-2. Adaptive densify budget  
-3. Sheet keyboard/focus  
-4. Delete dead CSS  
-5. Publish readiness  
-6. Unsupported badges  
+1. Hard publish readiness banner ([21](21-hard-publish-readiness.md))  
+2. Arrive sting / haptics ([23](23-arrive-audio-haptics.md))  
+3. Densify preview scrubber ([20](20-densify-preview-scrubber.md))  
+4. Social share targets ([22](22-social-share-targets.md))  
+5. Video/audio/proximity + extra glTF runtime ([18](18-video-audio-proximity-nodes.md)) then Studio authoring ([19](19-non-image-node-authoring.md))  
+6. Scene CTAs ([24](24-post-morph-scene-ctas.md))  
+7. Desculpture experience kind ([25](25-desculpture-experience-kind.md))  
+
+Keep [17](17-real-3dgs-pipeline.md) parked until a platform bet is approved.
 
 ## Related
 
 - Enhancement backlog discussion: Cursor plan `enhancement_backlog_*`
+- Gaps review: Cursor plan `enhancement_gaps_review_*`
+- Wave 5 orchestration: Cursor plan `wave_5_implementation_*`
 - Activation densify shipped: Path A in `apps/web/lib/scene.ts` + `reveal.ts`

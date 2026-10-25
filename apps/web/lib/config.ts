@@ -9,19 +9,26 @@ import {
   assetWebPath,
   detectModelNodeId,
   engVecToXr8,
+  extraModelNodes,
   findNode,
   galleryPins,
   getNodeXr8Placement,
+  mediaAudioNodes,
   mediaImageNodes,
+  mediaVideoNodes,
   parseGalleryExperience,
   pinColor,
   pinForm,
   resolveBrand,
+  runtimeTrigger,
   supportsMorph,
   type ExperienceKind,
   type GalleryExperience,
+  type MuralNodeTrigger,
   type PinForm,
+  type PinStyle,
   type ResolvedBrand,
+  type ShareTargetId,
 } from '@jrichforms/experience';
 
 export { DEFAULT_EXPERIENCE_ID } from '@/lib/experience-id';
@@ -36,13 +43,28 @@ export type AppPin = {
   href?: string;
   ctaLabel?: string;
   imageUrl?: string;
+  style: PinStyle;
 };
 
 export type AppMediaNode = {
   id: string;
   url: string;
-  /** WebAR honors onDetect (show on lock) and tap (reveal on tap). */
-  trigger: 'onDetect' | 'tap';
+  /** WebAR honors onDetect / tap / loop / proximity. */
+  trigger: MuralNodeTrigger;
+  placement: ReturnType<typeof getNodeXr8Placement>;
+};
+
+export type AppAudioNode = {
+  id: string;
+  url: string;
+  trigger: MuralNodeTrigger;
+  placement: ReturnType<typeof getNodeXr8Placement>;
+};
+
+export type AppExtraModel = {
+  id: string;
+  url: string;
+  trigger: MuralNodeTrigger;
   placement: ReturnType<typeof getNodeXr8Placement>;
 };
 
@@ -83,6 +105,9 @@ export type AppConfig = {
   overlayPlacement: { x: number; y: number; z: number };
   /** Extra image planes from mural nodes (not the morph overlay). */
   mediaNodes: AppMediaNode[];
+  videoNodes: AppMediaNode[];
+  audioNodes: AppAudioNode[];
+  extraModels: AppExtraModel[];
   morph: {
     durationMs: number;
     overlayFadeMs: number;
@@ -93,7 +118,11 @@ export type AppConfig = {
   reveal: {
     densifyMs: number;
     scatterFactor: number;
+    stingUrl?: string;
+    haptics: boolean;
   };
+  /** Share intents; empty = copy/Web Share only. */
+  shareTargets: ShareTargetId[];
   audio: {
     unlockOnBegin: boolean;
     playOnFirstEnterRaw: boolean;
@@ -168,16 +197,50 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
       .map((node) => {
         const url = assetWebPath(experience, node.assetId);
         if (!url) return null;
-        const trigger =
-          node.trigger === 'tap' ? ('tap' as const) : ('onDetect' as const);
         return {
           id: node.id,
           url,
-          trigger,
+          trigger: runtimeTrigger(node),
           placement: getNodeXr8Placement(experience, node.id),
         };
       })
       .filter((n): n is AppMediaNode => n !== null),
+    videoNodes: mediaVideoNodes(experience)
+      .map((node) => {
+        const url = assetWebPath(experience, node.assetId);
+        if (!url) return null;
+        return {
+          id: node.id,
+          url,
+          trigger: runtimeTrigger(node),
+          placement: getNodeXr8Placement(experience, node.id),
+        };
+      })
+      .filter((n): n is AppMediaNode => n !== null),
+    audioNodes: mediaAudioNodes(experience)
+      .map((node) => {
+        const url = assetWebPath(experience, node.assetId);
+        if (!url) return null;
+        return {
+          id: node.id,
+          url,
+          trigger: runtimeTrigger(node),
+          placement: getNodeXr8Placement(experience, node.id),
+        };
+      })
+      .filter((n): n is AppAudioNode => n !== null),
+    extraModels: extraModelNodes(experience)
+      .map((node) => {
+        const url = assetWebPath(experience, node.assetId);
+        if (!url) return null;
+        return {
+          id: node.id,
+          url,
+          trigger: runtimeTrigger(node),
+          placement: getNodeXr8Placement(experience, node.id),
+        };
+      })
+      .filter((n): n is AppExtraModel => n !== null),
     morph: {
       durationMs: g.morph.durationMs,
       overlayFadeMs: g.morph.overlayFadeMs,
@@ -195,7 +258,13 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
         0.15,
         1.2
       ),
+      stingUrl:
+        typeof g.reveal?.stingUrl === 'string' && g.reveal.stingUrl
+          ? g.reveal.stingUrl
+          : undefined,
+      haptics: g.reveal?.haptics === true,
     },
+    shareTargets: normalizeShareTargets(g.shareTargets),
     audio: {
       unlockOnBegin: g.audio.unlockOnBegin,
       playOnFirstEnterRaw: g.audio.playOnFirstEnterRaw,
@@ -214,10 +283,22 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
       href: typeof pin.href === 'string' ? pin.href : undefined,
       ctaLabel: typeof pin.ctaLabel === 'string' ? pin.ctaLabel : undefined,
       imageUrl: typeof pin.imageUrl === 'string' ? pin.imageUrl : undefined,
+      style: pin.style === 'cta' ? ('cta' as const) : ('dot' as const),
     })),
     pinColor: pinColor(experience),
     brand: resolveBrand(experience.brand),
   };
+}
+
+const DEFAULT_SHARE_TARGETS: ShareTargetId[] = ['whatsapp', 'x', 'email'];
+
+function normalizeShareTargets(
+  raw: GalleryExperience['gallery']['shareTargets']
+): ShareTargetId[] {
+  if (raw === undefined) return [...DEFAULT_SHARE_TARGETS];
+  if (!Array.isArray(raw)) return [...DEFAULT_SHARE_TARGETS];
+  const allowed = new Set<ShareTargetId>(['whatsapp', 'x', 'email']);
+  return raw.filter((t): t is ShareTargetId => allowed.has(t as ShareTargetId));
 }
 
 function clamp(n: number, min: number, max: number): number {

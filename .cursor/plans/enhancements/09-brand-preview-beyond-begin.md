@@ -15,6 +15,10 @@ Brand/Studio preview shows more than the Begin gate—at least pin color, loadin
 3. Pin color swatch in context of a dimmed model silhouette (CSS), not full WebGL unless cheap.
 4. Keep preview client-only; no XR8.
 
+## Deferred
+
+Densify preview scrubber / play → [20](20-densify-preview-scrubber.md).
+
 ## Files
 
 `BrandFields.tsx`, `BrandEditor.tsx`, `ArExperience.module.css` (shared tokens).
