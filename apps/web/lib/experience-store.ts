@@ -236,11 +236,16 @@ export async function republishBrand(id: string): Promise<'updated' | 'unchanged
   return 'updated';
 }
 
-export function cloneSeedForId(id: string, title: string): GalleryExperience {
+export function cloneSeedForId(
+  id: string,
+  title: string,
+  kind: GalleryExperience['kind'] = 'mural'
+): GalleryExperience {
   const seed = getSeedExperience();
   return parseGalleryExperience({
     ...seed,
     id,
+    kind,
     version: '0.1.0',
     gallery: {
       ...seed.gallery,
@@ -258,7 +263,8 @@ export function cloneSeedForId(id: string, title: string): GalleryExperience {
 export async function createDraftFromSeed(
   id: string,
   title: string,
-  ownerUserId: string
+  ownerUserId: string,
+  options: { kind?: GalleryExperience['kind'] } = {}
 ): Promise<GalleryExperience> {
   if (!isBlobConfigured()) {
     throw new Error('BLOB_READ_WRITE_TOKEN is not set');
@@ -277,7 +283,8 @@ export async function createDraftFromSeed(
   if (draft !== null || published !== null) {
     throw new Error('experience_exists');
   }
-  const experience = cloneSeedForId(id, title.trim() || id);
+  const kind = options.kind === 'experience' ? 'experience' : 'mural';
+  const experience = cloneSeedForId(id, title.trim() || id, kind);
   await putDraft(experience, id);
   await putExperienceAccess(id, {
     ownerUserId,

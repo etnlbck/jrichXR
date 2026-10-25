@@ -289,10 +289,12 @@ export default function ArExperience({
 
       pinAudioRef.current?.pause();
       setOpenPinId(null);
+      if (scene.pickMediaNode(ndcX, ndcY)) return;
+      if (!config.supportsMorph) return;
       const next = scene.toggleMorph();
       if (next) setState(next);
     },
-    [config.pins, stage, state, unlockAudio]
+    [config.pins, config.supportsMorph, stage, state, unlockAudio]
   );
 
   const pc = config.piece;
@@ -324,15 +326,21 @@ export default function ArExperience({
   );
   const chromeFade = useFadeMount(showChrome, REVEAL.overlayFadeMs);
 
-  const morphHint = config.usePlaceholderCube
-    ? 'Tap the cube to preview the morph'
-    : config.pins.length > 0
-      ? state === 'RAW'
-        ? 'Tap a pin for a note, or tap the piece to return'
-        : 'Tap a pin for a note, or tap the piece to morph'
-      : state === 'RAW'
-        ? 'Tap the piece to return to the finished form'
-        : 'Tap the piece to reveal the raw form';
+  const morphHint = !config.supportsMorph
+    ? config.pins.length > 0
+      ? 'Tap a pin for a note'
+      : config.mediaNodes.length > 0
+        ? 'Tap the scene to reveal layers'
+        : null
+    : config.usePlaceholderCube
+      ? 'Tap the cube to preview the morph'
+      : config.pins.length > 0
+        ? state === 'RAW'
+          ? 'Tap a pin for a note, or tap the piece to return'
+          : 'Tap a pin for a note, or tap the piece to morph'
+        : state === 'RAW'
+          ? 'Tap the piece to return to the finished form'
+          : 'Tap the piece to reveal the raw form';
 
   const brand = config.brand;
   const logo = brand.logoUrl ? (
@@ -363,7 +371,9 @@ export default function ArExperience({
         role="img"
         aria-label={
           revealComplete
-            ? `${pc.title}. Tap the piece to morph, or tap a pin for a note.`
+            ? config.supportsMorph
+              ? `${pc.title}. Tap the piece to morph, or tap a pin for a note.`
+              : `${pc.title} augmented reality view`
             : `${pc.title} augmented reality view`
         }
       />
@@ -436,9 +446,11 @@ export default function ArExperience({
 
       {chromeFade !== 'gone' && (
         <>
-          <div className={`${styles.prompt} ${fadeClass(chromeFade)}`}>
-            {morphHint}
-          </div>
+          {morphHint ? (
+            <div className={`${styles.prompt} ${fadeClass(chromeFade)}`}>
+              {morphHint}
+            </div>
+          ) : null}
           <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
             <button
               type="button"

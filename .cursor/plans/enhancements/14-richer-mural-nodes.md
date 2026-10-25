@@ -1,20 +1,25 @@
 # Honor richer mural node types in WebAR
 
 **Issue:** Honor richer mural node types in WebAR  
-**Wave:** 3 · **Effort:** L · **Status:** stub — expand before build
+**Wave:** 3 · **Effort:** L · **Status:** done (image vertical slice)
 
 ## Goal
 
-Visitor runtime honors more package node types/triggers (image/video/audio/gltf + onDetect/tap/loop/proximity) beyond finished/raw + overlay + pins.
+Visitor runtime honors image nodes (beyond finished/raw + morph overlay + pins).
 
-## Expand later
+## Shipped
 
-- Inventory package node schema vs `scene.ts` behavior
-- Prioritize 1–2 node types for a vertical slice (e.g. image plane + tap)
-- Studio Nodes authoring is a separate issue (15)
-- Document permanent WebAR gaps
+- `mediaImageNodes()` in `@jrichforms/experience` (image nodes except `overlay`)
+- `AppConfig.mediaNodes` + `createScene` plane load / tap reveal
+- Triggers: `onDetect` (visible on lock), `tap` (opacity 0 until tapped)
+- Studio badges: image supported; video/audio still unsupported
 
-## Acceptance (when expanded)
+## Deferred
 
-- At least one new node type visible/interactive in WebAR from published JSON
-- Unsupported types stay honest in Studio (badges)
+- video / audio / loop / proximity
+- Extra gltf nodes beyond finished/raw morph pair
+
+## Acceptance
+
+- [x] Image node visible/interactive in WebAR from published JSON
+- [x] Unsupported types stay honest in Studio

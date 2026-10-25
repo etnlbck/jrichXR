@@ -65,6 +65,13 @@ export function createScene(
   let raw: THREE.Object3D | null = null;
   let overlay: THREE.Mesh | null = null;
   let placeholder: THREE.Mesh | null = null;
+  /** Extra image planes from package nodes (`mediaNodes` in config). */
+  const mediaMeshes: {
+    id: string;
+    trigger: 'onDetect' | 'tap';
+    mesh: THREE.Mesh;
+    revealed: boolean;
+  }[] = [];
   const pinHits: THREE.Object3D[] = [];
   const pinGroups: { id: string; form: PinForm; group: THREE.Group }[] = [];
   let pins: ScenePin[] = config.pins;
@@ -707,6 +714,8 @@ export function createScene(
         anchor.add(overlay);
       }
 
+      await loadMediaNodes();
+
       modelsReady = true;
       mark('models_ready');
       frameStageCamera();
@@ -722,7 +731,74 @@ export function createScene(
     }
   }
 
+  async function loadMediaNodes() {
+    if (!anchor) return;
+    for (const entry of mediaMeshes) {
+      entry.mesh.parent?.remove(entry.mesh);
+      entry.mesh.geometry.dispose();
+      const mat = entry.mesh.material;
+      if (mat instanceof THREE.Material) mat.dispose();
+    }
+    mediaMeshes.length = 0;
+
+    for (const node of config.mediaNodes) {
+      try {
+        const tex = await new Promise<THREE.Texture>((resolve, reject) => {
+          new THREE.TextureLoader().load(node.url, resolve, undefined, reject);
+        });
+        const img = tex.image as { width?: number; height?: number } | undefined;
+        const aspect =
+          img?.width && img?.height && img.width > 0
+            ? img.height / img.width
+            : 1;
+        const width = Math.max(0.05, node.placement.scale);
+        const height = width * aspect;
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex,
+          transparent: true,
+          opacity: node.trigger === 'tap' ? 0 : 1,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(width, height),
+          mat
+        );
+        const p = node.placement.position;
+        mesh.position.set(p.x, p.y, p.z);
+        const r = node.placement.rotationDeg;
+        mesh.rotation.set(
+          THREE.MathUtils.degToRad(r.x),
+          THREE.MathUtils.degToRad(r.y),
+          THREE.MathUtils.degToRad(r.z)
+        );
+        mesh.userData.mediaNodeId = node.id;
+        // Tap planes stay in the scene at opacity 0 so raycasts can find them.
+        anchor.add(mesh);
+        mediaMeshes.push({
+          id: node.id,
+          trigger: node.trigger,
+          mesh,
+          revealed: node.trigger !== 'tap',
+        });
+      } catch {
+        console.warn(`[jrf] media node failed to load: ${node.id}`);
+      }
+    }
+  }
+
+  function revealMediaNode(id: string): boolean {
+    const entry = mediaMeshes.find((m) => m.id === id);
+    if (!entry || entry.trigger !== 'tap') return false;
+    entry.revealed = true;
+    entry.mesh.visible = true;
+    const mat = entry.mesh.material as THREE.MeshBasicMaterial;
+    mat.opacity = 1;
+    return true;
+  }
+
   function toggleMorph() {
+    if (!config.supportsMorph) return null;
     if (revealState !== 'done') return null;
     if (!modelsReady || (!finished && !placeholder)) return null;
     hasMorphed = true;
@@ -923,6 +999,25 @@ export function createScene(
     return typeof id === 'string' ? id : null;
   }
 
+  /** Tap-trigger image plane under the cursor; reveals it when hit. */
+  function pickMediaNode(ndcX: number, ndcY: number): string | null {
+    const camera = activeCamera();
+    if (revealState !== 'done') return null;
+    if (!camera || !visible || mediaMeshes.length === 0) return null;
+    const pending = mediaMeshes.filter((m) => m.trigger === 'tap' && !m.revealed);
+    if (pending.length === 0) return null;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+    const hit = raycaster.intersectObjects(
+      pending.map((m) => m.mesh),
+      false
+    )[0];
+    const id = hit?.object.userData.mediaNodeId;
+    if (typeof id !== 'string') return null;
+    revealMediaNode(id);
+    return id;
+  }
+
   /** Point on the form currently showing, in the pins' (GLB-root) space. */
   function pickSurface(
     ndcX: number,
@@ -1035,6 +1130,7 @@ export function createScene(
     onImageLost,
     toggleMorph,
     pickPin,
+    pickMediaNode,
     pickSurface,
     pinNdc,
     setPins,

@@ -12,10 +12,13 @@ import {
   findNode,
   galleryPins,
   getNodeXr8Placement,
+  mediaImageNodes,
   parseGalleryExperience,
   pinColor,
   pinForm,
   resolveBrand,
+  supportsMorph,
+  type ExperienceKind,
   type GalleryExperience,
   type PinForm,
   type ResolvedBrand,
@@ -35,9 +38,20 @@ export type AppPin = {
   imageUrl?: string;
 };
 
+export type AppMediaNode = {
+  id: string;
+  url: string;
+  /** WebAR honors onDetect (show on lock) and tap (reveal on tap). */
+  trigger: 'onDetect' | 'tap';
+  placement: ReturnType<typeof getNodeXr8Placement>;
+};
+
 export type AppConfig = {
   experienceId: string;
   experienceVersion: string;
+  kind: ExperienceKind;
+  /** Finished↔raw morph; false for generic `experience` kind. */
+  supportsMorph: boolean;
   physicalWidthM: number;
   piece: {
     title: string;
@@ -67,6 +81,8 @@ export type AppConfig = {
   usePlaceholderCube: boolean;
   placement: ReturnType<typeof getNodeXr8Placement>;
   overlayPlacement: { x: number; y: number; z: number };
+  /** Extra image planes from mural nodes (not the morph overlay). */
+  mediaNodes: AppMediaNode[];
   morph: {
     durationMs: number;
     overlayFadeMs: number;
@@ -111,6 +127,8 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
   return {
     experienceId: experience.id,
     experienceVersion: experience.version,
+    kind: experience.kind,
+    supportsMorph: supportsMorph(experience),
     physicalWidthM: experience.marker.physicalWidthM,
     piece: {
       title: g.provenance.title,
@@ -146,6 +164,20 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
     usePlaceholderCube: g.usePlaceholderCube,
     placement: finishedPlacement,
     overlayPlacement: overlayPos,
+    mediaNodes: mediaImageNodes(experience)
+      .map((node) => {
+        const url = assetWebPath(experience, node.assetId);
+        if (!url) return null;
+        const trigger =
+          node.trigger === 'tap' ? ('tap' as const) : ('onDetect' as const);
+        return {
+          id: node.id,
+          url,
+          trigger,
+          placement: getNodeXr8Placement(experience, node.id),
+        };
+      })
+      .filter((n): n is AppMediaNode => n !== null),
     morph: {
       durationMs: g.morph.durationMs,
       overlayFadeMs: g.morph.overlayFadeMs,

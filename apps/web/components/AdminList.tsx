@@ -30,6 +30,7 @@ export default function AdminList() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [title, setTitle] = useState('');
   const [id, setId] = useState('');
+  const [kind, setKind] = useState<'mural' | 'experience'>('mural');
 
   const refresh = useCallback(async () => {
     const res = await fetch('/api/admin/experiences');
@@ -72,7 +73,7 @@ export default function AdminList() {
       const res = await fetch('/api/admin/experiences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, title }),
+        body: JSON.stringify({ id, title, kind }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -262,7 +263,9 @@ export default function AdminList() {
         <h2 className={styles.sectionTitle}>New experience</h2>
         <p className={styles.status}>
           Clones the Untitled No. 7 package. Visitors open it at{' '}
-          <code>/e/&#123;slug&#125;</code> after you publish.
+          <code>/e/&#123;slug&#125;</code> after you publish. Choose{' '}
+          <strong>mural</strong> for finished↔raw morph, or{' '}
+          <strong>experience</strong> for a marker scene without morph chrome.
         </p>
         <form onSubmit={(e) => void onCreate(e)}>
           <div className={styles.field}>
@@ -284,6 +287,19 @@ export default function AdminList() {
               placeholder="obsidian-altar"
               required
             />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="exp-kind">Kind</label>
+            <select
+              id="exp-kind"
+              value={kind}
+              onChange={(e) =>
+                setKind(e.target.value === 'experience' ? 'experience' : 'mural')
+              }
+            >
+              <option value="mural">mural — sculpture morph</option>
+              <option value="experience">experience — no morph</option>
+            </select>
           </div>
           <div className={styles.actions}>
             <button

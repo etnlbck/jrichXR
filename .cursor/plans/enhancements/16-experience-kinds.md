@@ -1,20 +1,21 @@
 # Support additional experience kinds
 
 **Issue:** Support additional experience kinds  
-**Wave:** 3 · **Effort:** L · **Status:** stub — expand before build
+**Wave:** 3 · **Effort:** L · **Status:** done (`experience` kind)
 
 ## Goal
 
-Data model and UI support at least one experience kind beyond mural/sculpture-shaped assumptions (morph, provenance, shop), matching the generic copy already shipped.
+Data model and UI support a kind beyond mural/sculpture morph assumptions.
 
-## Expand later
+## Shipped
 
-- Widen `kind` union in `@jrichforms/experience`
-- Config/visitor forks: optional morph, optional provenance fields
-- Studio create flow: choose kind
-- Migration for existing mural experiences
+- `ExperienceKind = 'mural' | 'experience'` in `@jrichforms/experience`
+- `parseGalleryExperience` accepts both
+- `supportsMorph()` — morph chrome only for `mural`
+- Studio create flow: kind select → `createDraftFromSeed(..., { kind })`
+- Visitor: skip morph tap / hints when `supportsMorph` is false
 
-## Acceptance (when expanded)
+## Acceptance
 
-- New kind can be created, published, and visited without sculpture-only chrome
-- Existing murals unchanged
+- [x] New kind can be created, published, and visited without morph chrome
+- [x] Existing murals unchanged (`kind: mural`)
