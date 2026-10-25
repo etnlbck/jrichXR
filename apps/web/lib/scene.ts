@@ -16,6 +16,7 @@ import {
   updateLabelOcclusion,
   type PinLabel,
 } from './pin-label';
+import { REVEAL, prefersReducedMotion, type RevealState } from './reveal';
 import type { ImageTargetDetail, UiState } from './types';
 
 export type ScenePin = {
@@ -31,12 +32,26 @@ export type SceneCallbacks = {
   onEnterFinished: () => void;
   onLoadError: (message: string) => void;
   onModelsReady: () => void;
+  /** First-lock densify started (reticle can succeed / chrome waits). */
+  onRevealStart?: () => void;
+  /** Densify finished — safe to show pins chrome and accept taps. */
+  onRevealComplete?: () => void;
 };
 
 /**
  * Three.js content + raw↔finished morph, driven by the 8th Wall camera pipeline.
  */
-export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
+export type SceneOptions = {
+  /** Visitor Arrive densify. Off for studio pin placement. Default true. */
+  activationReveal?: boolean;
+};
+
+export function createScene(
+  config: AppConfig,
+  callbacks: SceneCallbacks,
+  options: SceneOptions = {}
+) {
+  const activationReveal = options.activationReveal !== false;
   let three: ReturnType<NonNullable<Window['XR8']>['Threejs']['xrScene']> | null =
     null;
   let anchor: THREE.Group | null = null;
@@ -70,6 +85,16 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   /** Overlay opacity follows morph, timed by gallery.morph.overlayFadeMs. */
   let overlayT = 0;
   let clock: THREE.Clock | null = null;
+  /** First-lock splat-feel densify. */
+  let revealState: RevealState = 'idle';
+  let revealT = 0;
+  let revealDurationSec = REVEAL.densifyMs / 1000;
+  let revealCloud: THREE.Points | null = null;
+  let revealTargets: Float32Array | null = null;
+  let revealStarts: Float32Array | null = null;
+  let revealReduced = false;
+  let stableLockTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingReveal = false;
   /** Brand font for pin labels, set once it has loaded. */
   let labelFontFamily: string | undefined;
   if (config.brand.font !== 'system' && typeof document !== 'undefined') {
@@ -115,10 +140,273 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   }
 
   function updatePinVisibility() {
+    if (pinRoot) {
+      pinRoot.visible = revealState === 'done';
+    }
+    if (revealState !== 'done') return;
     const showing = morphT > 0.5 ? 'raw' : 'finished';
     for (const g of pinGroups) {
       g.group.visible = pinShowsOn(g, showing);
     }
+  }
+
+  function clearStableLockTimer() {
+    if (stableLockTimer !== null) {
+      clearTimeout(stableLockTimer);
+      stableLockTimer = null;
+    }
+  }
+
+  function disposeRevealCloud() {
+    if (!revealCloud) return;
+    revealCloud.parent?.remove(revealCloud);
+    revealCloud.geometry.dispose();
+    (revealCloud.material as THREE.PointsMaterial).dispose();
+    revealCloud = null;
+  }
+
+  /** Sample finished mesh into a one-shot point cloud parented under `piece`. */
+  function buildRevealCloud(source: THREE.Object3D) {
+    disposeRevealCloud();
+    if (!piece) return;
+
+    const worldPts: THREE.Vector3[] = [];
+    const v = new THREE.Vector3();
+    source.updateMatrixWorld(true);
+    source.traverse((n) => {
+      const mesh = n as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.geometry) return;
+      const pos = mesh.geometry.attributes.position;
+      if (!pos) return;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        mesh.localToWorld(v);
+        worldPts.push(v.clone());
+      }
+    });
+
+    if (worldPts.length === 0) {
+      const box = new THREE.Box3().setFromObject(source);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      for (let i = 0; i < 64; i++) {
+        worldPts.push(
+          new THREE.Vector3(
+            center.x + (Math.random() - 0.5) * size.x,
+            center.y + (Math.random() - 0.5) * size.y,
+            center.z + (Math.random() - 0.5) * size.z
+          )
+        );
+      }
+    }
+
+    const step = Math.max(1, Math.ceil(worldPts.length / REVEAL.pointBudget));
+    const sampled: THREE.Vector3[] = [];
+    for (let i = 0; i < worldPts.length; i += step) {
+      const local = piece.worldToLocal(worldPts[i].clone());
+      sampled.push(local);
+    }
+
+    const box = new THREE.Box3().setFromObject(source);
+    const sphere = new THREE.Sphere();
+    box.getBoundingSphere(sphere);
+    const scatter = Math.max(sphere.radius * REVEAL.scatterFactor, 0.04);
+
+    const n = sampled.length;
+    revealTargets = new Float32Array(n * 3);
+    revealStarts = new Float32Array(n * 3);
+    const positions = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const t = sampled[i];
+      revealTargets[i * 3] = t.x;
+      revealTargets[i * 3 + 1] = t.y;
+      revealTargets[i * 3 + 2] = t.z;
+      const ox = (Math.random() - 0.5) * 2 * scatter;
+      const oy = (Math.random() - 0.5) * 2 * scatter;
+      const oz = (Math.random() - 0.5) * 2 * scatter;
+      revealStarts[i * 3] = t.x + ox;
+      revealStarts[i * 3 + 1] = t.y + oy;
+      revealStarts[i * 3 + 2] = t.z + oz;
+      positions[i * 3] = revealStarts[i * 3];
+      positions[i * 3 + 1] = revealStarts[i * 3 + 1];
+      positions[i * 3 + 2] = revealStarts[i * 3 + 2];
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const color = new THREE.Color(config.brand.accentFrom || '#ffffff');
+    const mat = new THREE.PointsMaterial({
+      color,
+      size: Math.max(sphere.radius * 0.028, 0.006),
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    revealCloud = new THREE.Points(geo, mat);
+    revealCloud.visible = false;
+    piece.add(revealCloud);
+  }
+
+  function resetCloudToScattered() {
+    if (!revealCloud || !revealStarts) return;
+    const attr = revealCloud.geometry.attributes.position as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    arr.set(revealStarts);
+    attr.needsUpdate = true;
+    const mat = revealCloud.material as THREE.PointsMaterial;
+    mat.opacity = 0.92;
+  }
+
+  function applyMorphOpacities() {
+    if (finished && raw) {
+      setOpacity(finished, 1 - morphT);
+      setOpacity(raw, morphT);
+    } else if (finished) {
+      setOpacity(finished, 1);
+    } else if (placeholder) {
+      setOpacity(placeholder, 1);
+    }
+    if (overlay) {
+      const mat = overlay.material as THREE.MeshBasicMaterial;
+      mat.opacity = overlayT;
+    }
+  }
+
+  function hidePieceForReveal() {
+    if (finished) setOpacity(finished, 0);
+    if (raw) setOpacity(raw, 0);
+    if (placeholder) setOpacity(placeholder, 0);
+    if (overlay) {
+      (overlay.material as THREE.MeshBasicMaterial).opacity = 0;
+    }
+    updatePinVisibility();
+  }
+
+  function completeReveal() {
+    clearStableLockTimer();
+    revealState = 'done';
+    revealT = 1;
+    disposeRevealCloud();
+    revealTargets = null;
+    revealStarts = null;
+    applyMorphOpacities();
+    updatePinVisibility();
+    callbacks.onRevealComplete?.();
+  }
+
+  /** Abort mid-reveal so the next lock can retry densify. */
+  function cancelReveal() {
+    clearStableLockTimer();
+    if (revealState === 'done') return;
+    revealState = 'idle';
+    revealT = 0;
+    if (revealCloud) {
+      revealCloud.visible = false;
+      resetCloudToScattered();
+    }
+    hidePieceForReveal();
+    if (anchor) anchor.visible = false;
+    visible = false;
+  }
+
+  function beginReveal() {
+    clearStableLockTimer();
+    if (revealState === 'done' || revealState === 'playing') return;
+    if (!modelsReady) {
+      pendingReveal = true;
+      return;
+    }
+
+    revealReduced = prefersReducedMotion();
+    const useCloud = !revealReduced && revealCloud !== null;
+    revealDurationSec =
+      (useCloud
+        ? stageScene
+          ? Math.min(REVEAL.densifyMs, 700)
+          : REVEAL.densifyMs
+        : REVEAL.shortFadeMs) / 1000;
+    revealT = 0;
+    revealState = 'playing';
+    pendingReveal = false;
+
+    hidePieceForReveal();
+    if (useCloud && revealCloud) {
+      resetCloudToScattered();
+      revealCloud.visible = true;
+    }
+    if (anchor) anchor.visible = true;
+    visible = true;
+
+    callbacks.onRevealStart?.();
+    if (!hasMorphed) callbacks.onState('ANCHORED');
+    else callbacks.onState(morphTarget > 0.5 ? 'RAW' : 'FINISHED');
+  }
+
+  function scheduleReveal() {
+    if (!activationReveal) {
+      if (revealState !== 'done') {
+        revealState = 'done';
+        applyMorphOpacities();
+        updatePinVisibility();
+        if (anchor) anchor.visible = true;
+        visible = true;
+        callbacks.onRevealComplete?.();
+      }
+      return;
+    }
+    if (revealState === 'done' || revealState === 'playing') return;
+    if (!modelsReady) {
+      pendingReveal = true;
+      return;
+    }
+    clearStableLockTimer();
+    revealState = 'waiting';
+    const delay = stageScene ? 0 : REVEAL.stableLockMs;
+    stableLockTimer = setTimeout(() => {
+      stableLockTimer = null;
+      beginReveal();
+    }, delay);
+  }
+
+  function updateReveal(dt: number) {
+    if (revealState !== 'playing') return;
+    revealT = Math.min(1, revealT + dt / Math.max(revealDurationSec, 0.001));
+
+    const ease = revealT * revealT * (3 - 2 * revealT);
+
+    if (revealCloud && revealTargets && revealStarts && !revealReduced) {
+      const attr = revealCloud.geometry.attributes
+        .position as THREE.BufferAttribute;
+      const arr = attr.array as Float32Array;
+      const n = revealTargets.length / 3;
+      for (let i = 0; i < n; i++) {
+        const i3 = i * 3;
+        arr[i3] =
+          revealStarts[i3] + (revealTargets[i3] - revealStarts[i3]) * ease;
+        arr[i3 + 1] =
+          revealStarts[i3 + 1] +
+          (revealTargets[i3 + 1] - revealStarts[i3 + 1]) * ease;
+        arr[i3 + 2] =
+          revealStarts[i3 + 2] +
+          (revealTargets[i3 + 2] - revealStarts[i3 + 2]) * ease;
+      }
+      attr.needsUpdate = true;
+      const mat = revealCloud.material as THREE.PointsMaterial;
+      mat.opacity = 0.92 * (1 - Math.max(0, (ease - 0.55) / 0.45));
+    }
+
+    const solid = Math.max(0, (ease - 0.4) / 0.6);
+    if (finished && raw) {
+      setOpacity(finished, solid * (1 - morphT));
+      setOpacity(raw, solid * morphT);
+    } else if (finished) {
+      setOpacity(finished, solid);
+    } else if (placeholder) {
+      setOpacity(placeholder, solid);
+    }
+
+    if (revealT >= 1) completeReveal();
   }
 
   function rebuildPins() {
@@ -220,10 +508,19 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     placeholder = new THREE.Mesh(geo, mat);
     applyPlacement(placeholder);
     anchor!.add(placeholder);
+    if (activationReveal) {
+      buildRevealCloud(placeholder);
+      hidePieceForReveal();
+    } else {
+      revealState = 'done';
+      applyMorphOpacities();
+      updatePinVisibility();
+    }
     modelsReady = true;
     mark('models_ready_cube');
     frameStageCamera();
     callbacks.onModelsReady();
+    if (activationReveal && (stageScene || pendingReveal)) scheduleReveal();
   }
 
   function frameStageCamera() {
@@ -281,7 +578,6 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
       finished = await loadGltf(config.assets.finishedModel);
       piece.add(finished);
-      setOpacity(finished, 1);
       mark('finished_model_loaded');
       // The camera feed is the backdrop in AR; only the desktop stage needs one.
       if (stageScene) clearStageBackdrop = applyStageBackdrop(stageScene, finished);
@@ -295,7 +591,6 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
           );
         }
         piece.add(raw);
-        setOpacity(raw, 0);
         mark('raw_model_loaded');
       }
 
@@ -306,6 +601,14 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
         Math.max(size.x, size.y, size.z) * 0.018
       );
       addPins(piece, pinRadius);
+      if (activationReveal) {
+        buildRevealCloud(finished);
+        hidePieceForReveal();
+      } else {
+        revealState = 'done';
+        applyMorphOpacities();
+        updatePinVisibility();
+      }
 
       const hasOverlay = await assetExists(config.assets.overlay);
       if (hasOverlay) {
@@ -334,6 +637,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       mark('models_ready');
       frameStageCamera();
       callbacks.onModelsReady();
+      if (activationReveal && (stageScene || pendingReveal)) scheduleReveal();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to load 3D models';
@@ -345,6 +649,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   }
 
   function toggleMorph() {
+    if (revealState !== 'done') return null;
     if (!modelsReady || (!finished && !placeholder)) return null;
     hasMorphed = true;
     // Cube-only mode: still toggle UI/narration path for dry-runs.
@@ -389,6 +694,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
   function updateMorph(dt: number) {
     updatePinVisibility();
+    if (revealState !== 'done') return;
     if (!finished || !raw) return;
     const morphMs = Math.max(1, config.morph.durationMs);
     const overlayMs = Math.max(1, config.morph.overlayFadeMs);
@@ -451,6 +757,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       },
       onUpdate: () => {
         const dt = clock ? clock.getDelta() : 0.016;
+        updateReveal(dt);
         updateMorph(dt);
         updateLabels();
       },
@@ -464,14 +771,28 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   function onImageFound(detail: ImageTargetDetail) {
     if (!isConfiguredTarget(detail)) return;
     positionAnchor(detail);
-    if (anchor) anchor.visible = true;
-    visible = true;
     if (!hasLocked) {
       hasLocked = true;
       mark('first_target_found');
     }
-    if (!hasMorphed) callbacks.onState('ANCHORED');
-    else callbacks.onState(morphTarget > 0.5 ? 'RAW' : 'FINISHED');
+
+    if (revealState === 'done') {
+      if (anchor) anchor.visible = true;
+      visible = true;
+      applyMorphOpacities();
+      updatePinVisibility();
+      if (!hasMorphed) callbacks.onState('ANCHORED');
+      else callbacks.onState(morphTarget > 0.5 ? 'RAW' : 'FINISHED');
+      return;
+    }
+
+    if (revealState === 'playing' || revealState === 'waiting') {
+      if (anchor) anchor.visible = true;
+      visible = true;
+      return;
+    }
+
+    scheduleReveal();
   }
 
   function onImageUpdated(detail: ImageTargetDetail) {
@@ -481,8 +802,12 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
   function onImageLost(detail?: { name?: string }) {
     if (!isConfiguredTarget(detail)) return;
-    if (anchor) anchor.visible = false;
-    visible = false;
+    if (revealState === 'waiting' || revealState === 'playing') {
+      cancelReveal();
+    } else if (revealState === 'done') {
+      if (anchor) anchor.visible = false;
+      visible = false;
+    }
     callbacks.onState('SCANNING');
   }
 
@@ -500,6 +825,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     { includeLabels = true }: { includeLabels?: boolean } = {}
   ): string | null {
     const camera = activeCamera();
+    if (revealState !== 'done') return null;
     if (!camera || !visible || pinHits.length === 0) return null;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
@@ -600,6 +926,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     const loop = () => {
       frame = requestAnimationFrame(loop);
       const dt = clock ? clock.getDelta() : 0.016;
+      updateReveal(dt);
       updateMorph(dt);
       updateLabels();
       renderer.render(scene, camera);
@@ -636,6 +963,9 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     startStage,
     isVisible: () => visible,
     isModelsReady: () => modelsReady,
+    isRevealComplete: () => revealState === 'done',
+    isRevealing: () =>
+      revealState === 'playing' || revealState === 'waiting',
   };
 }
 

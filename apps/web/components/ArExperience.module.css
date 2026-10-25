@@ -27,6 +27,55 @@
   padding: 24px;
 }
 
+.fadeIn {
+  animation: overlayFadeIn var(--reveal-fade-ms, 320ms) ease both;
+}
+
+.fadeOut {
+  animation: overlayFadeOut var(--reveal-fade-ms, 320ms) ease both;
+  pointer-events: none;
+}
+
+.overlay.fadeIn,
+.overlay.fadeOut {
+  animation-duration: var(--gate-fade-ms, 280ms);
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlayFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fadeIn,
+  .fadeOut {
+    animation-duration: 0.01ms !important;
+  }
+
+  .reticle {
+    animation: none !important;
+  }
+
+  .reticleSuccess {
+    animation: none !important;
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
 .gateCard {
   max-width: 340px;
 }
@@ -185,6 +234,12 @@ a.beginBtn {
   animation: pulse 1.8s ease-in-out infinite;
 }
 
+.reticleSuccess {
+  animation: reticleSuccess var(--reticle-success-ms, 380ms) ease forwards;
+  border-style: solid;
+  border-color: var(--ember, #fff);
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -194,6 +249,17 @@ a.beginBtn {
   50% {
     transform: scale(1.04);
     opacity: 0.9;
+  }
+}
+
+@keyframes reticleSuccess {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.72);
+    opacity: 0;
   }
 }
 
@@ -230,6 +296,36 @@ a.beginBtn {
   -webkit-backdrop-filter: blur(8px);
   max-width: calc(100% - 32px);
   text-align: center;
+}
+
+.prompt.fadeIn {
+  animation: promptFadeIn var(--reveal-fade-ms, 320ms) ease both;
+}
+
+.about.fadeIn {
+  animation: aboutFadeIn var(--reveal-fade-ms, 320ms) ease both;
+}
+
+@keyframes promptFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes aboutFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .panel {

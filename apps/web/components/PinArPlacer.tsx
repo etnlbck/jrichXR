@@ -109,31 +109,35 @@ export default function PinArPlacer({
   const anchored = phase === 'ANCHORED' || phase === 'RAW' || phase === 'FINISHED';
 
   useEffect(() => {
-    sceneRef.current = createScene(config, {
-      onState: setPhase,
-      onEnterRaw: () => setShowing('raw'),
-      onEnterFinished: () => setShowing('finished'),
-      onLoadError: (message) => {
-        console.error('[jrf] model load failed:', message);
-        setIssue('generic');
+    sceneRef.current = createScene(
+      config,
+      {
+        onState: setPhase,
+        onEnterRaw: () => setShowing('raw'),
+        onEnterFinished: () => setShowing('finished'),
+        onLoadError: (message) => {
+          console.error('[jrf] model load failed:', message);
+          setIssue('generic');
+        },
+        onModelsReady: () => {
+          setModelsReady(true);
+          setBooting(false);
+          setHasRaw(sceneRef.current?.hasRawModel() ?? false);
+          if (stage) setPhase('ANCHORED');
+          // Restore pins placed earlier on this phone that never reached the server.
+          if (restoredRef.current) return;
+          restoredRef.current = true;
+          const restored = readPending(experienceId);
+          if (!restored) return;
+          setChanges(restored);
+          const n = changeCount(restored);
+          setNotice(
+            `Restored ${n} unsaved change${n === 1 ? '' : 's'} from earlier. Save to keep them.`
+          );
+        },
       },
-      onModelsReady: () => {
-        setModelsReady(true);
-        setBooting(false);
-        setHasRaw(sceneRef.current?.hasRawModel() ?? false);
-        if (stage) setPhase('ANCHORED');
-        // Restore pins placed earlier on this phone that never reached the server.
-        if (restoredRef.current) return;
-        restoredRef.current = true;
-        const restored = readPending(experienceId);
-        if (!restored) return;
-        setChanges(restored);
-        const n = changeCount(restored);
-        setNotice(
-          `Restored ${n} unsaved change${n === 1 ? '' : 's'} from earlier. Save to keep them.`
-        );
-      },
-    });
+      { activationReveal: false }
+    );
   }, [config, stage, experienceId]);
 
   useEffect(() => {
