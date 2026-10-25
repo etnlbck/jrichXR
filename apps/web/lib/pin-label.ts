@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { DEFAULT_PIN_COLOR } from '@jrichforms/experience';
+import { pinColors } from './pin-color';
 
 /** A pin title floating above its dot, facing the camera. */
 export type PinLabel = {
@@ -66,11 +68,12 @@ function drawLabel(text: string, selected: boolean) {
 export function makePinLabel(
   pinId: string,
   title: string,
-  opts: { radius: number; selected?: boolean; opacity?: number }
+  opts: { radius: number; selected?: boolean; opacity?: number; color?: string }
 ): PinLabel | null {
   const text = truncate(title);
   if (!text) return null;
   const selected = opts.selected ?? false;
+  const colors = pinColors(opts.color ?? DEFAULT_PIN_COLOR);
   const canvas = drawLabel(text, selected);
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
@@ -93,7 +96,7 @@ export function makePinLabel(
   const line = new THREE.Line(
     lineGeo,
     new THREE.LineBasicMaterial({
-      color: selected ? 0xffe8b8 : 0xf2ebe3,
+      color: selected ? colors.selected : colors.dot,
       transparent: true,
       depthTest: false,
       depthWrite: false,

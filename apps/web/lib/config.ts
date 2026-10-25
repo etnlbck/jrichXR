@@ -13,6 +13,7 @@ import {
   galleryPins,
   getNodeXr8Placement,
   parseGalleryExperience,
+  pinColor,
   pinForm,
   type GalleryExperience,
   type PinForm,
@@ -74,6 +75,8 @@ export type AppConfig = {
   engine: GalleryExperience['engine']['web'];
   maxGlbBytes: number;
   pins: AppPin[];
+  /** `#rrggbb` for pin dots and leader lines. */
+  pinColor: string;
 };
 
 export function getSeedExperience(): GalleryExperience {
@@ -154,6 +157,7 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
         : undefined,
       form: pinForm(pin),
     })),
+    pinColor: pinColor(experience),
   };
 }
 

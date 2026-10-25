@@ -78,6 +78,8 @@ export interface GalleryExtension {
   dracoDecoderPath: string;
   maxGlbBytes: number;
   pins?: SpatialPin[];
+  /** `#rrggbb` for pin dots and leader lines. Missing means the default amber. */
+  pinColor?: string;
 }
 
 export interface GalleryExperience {

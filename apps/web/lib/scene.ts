@@ -4,6 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { pinShowsOn, type PinForm } from '@jrichforms/experience';
 import type { AppConfig } from './config';
 import { mark } from './metrics';
+import { faceOutlinesToCamera, makePinOutline, pinColors } from './pin-color';
 import { applyStageBackdrop } from './stage-backdrop';
 import {
   disposePinLabel,
@@ -116,14 +117,17 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     pinRoot.clear();
     pinHits.length = 0;
     pinGroups.length = 0;
+    const colors = pinColors(config.pinColor);
     for (const pin of pins) {
       const group = new THREE.Group();
       group.position.set(pin.position.x, pin.position.y, pin.position.z);
       const selected = pin.id === selectedPinId;
+      const dotRadius = pinRadius * (selected ? 1.4 : 1);
       const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(pinRadius * (selected ? 1.4 : 1), 16, 12),
-        new THREE.MeshBasicMaterial({ color: selected ? 0xffe8b8 : 0xffc46a })
+        new THREE.SphereGeometry(dotRadius, 16, 12),
+        new THREE.MeshBasicMaterial({ color: selected ? colors.selected : colors.dot })
       );
+      group.add(makePinOutline(dotRadius, colors.outline));
       const hit = new THREE.Mesh(
         new THREE.SphereGeometry(pinRadius * 3, 8, 8),
         new THREE.MeshBasicMaterial({
@@ -137,7 +141,11 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       hit.userData.pinId = pin.id;
       group.add(dot);
       group.add(hit);
-      const label = makePinLabel(pin.id, pin.title, { radius: pinRadius, selected });
+      const label = makePinLabel(pin.id, pin.title, {
+        radius: pinRadius,
+        selected,
+        color: config.pinColor,
+      });
       if (label) {
         group.add(label.root);
         labels.push(label);
@@ -356,7 +364,9 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
   function updateLabels() {
     const camera = activeCamera();
-    if (!camera || labels.length === 0 || !visible) return;
+    if (!camera || !visible) return;
+    if (pinRoot) faceOutlinesToCamera(pinRoot, camera);
+    if (labels.length === 0) return;
     const height = viewportEl?.clientHeight || window.innerHeight;
     fitPinLabels(labels, camera, height);
     occlusionTick(() => {

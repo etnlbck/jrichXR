@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { pinShowsOn, type SpatialPin } from '@jrichforms/experience';
+import { DEFAULT_PIN_COLOR, pinShowsOn, type SpatialPin } from '@jrichforms/experience';
+import { faceOutlinesToCamera, makePinOutline, pinColors } from '@/lib/pin-color';
 import {
   disposePinLabel,
   fitPinLabels,
@@ -15,7 +16,7 @@ import {
   updateLabelOcclusion,
   type PinLabel,
 } from '@/lib/pin-label';
-import { applyStageBackdrop } from '@/lib/stage-backdrop';
+import { applyStageBackdrop, estimateModelLuminance } from '@/lib/stage-backdrop';
 import styles from '@/app/admin/admin.module.css';
 
 type ShownForm = 'finished' | 'raw';
@@ -30,19 +31,21 @@ type Props = {
   onSelect: (id: string | null) => void;
   onAddPin: (position: SpatialPin['position'], form: ShownForm) => void;
   onMovePin: (id: string, position: SpatialPin['position']) => void;
+  /** `#rrggbb` for pin dots and leader lines. */
+  pinColor?: string;
+  /** Brightness (0–1) of the finished model, reported once it loads. */
+  onModelLuminance?: (value: number) => void;
 };
 
 type PinMarker = {
   id: string;
   group: THREE.Group;
   dot: THREE.Mesh;
+  outline: THREE.Mesh;
   label: PinLabel | null;
-  /** Title + selected state the label was drawn with. */
+  /** Title, selected state and color the label was drawn with. */
   labelKey: string;
 };
-
-const DOT = 0xffc46a;
-const DOT_SELECTED = 0xffe8b8;
 
 const COARSE_QUERY = '(pointer: coarse)';
 
@@ -66,6 +69,8 @@ export default function PinPlacer({
   onSelect,
   onAddPin,
   onMovePin,
+  pinColor = DEFAULT_PIN_COLOR,
+  onModelLuminance,
 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const pinsRef = useRef(pins);
@@ -74,6 +79,8 @@ export default function PinPlacer({
   const onSelectRef = useRef(onSelect);
   const onAddPinRef = useRef(onAddPin);
   const onMovePinRef = useRef(onMovePin);
+  const pinColorRef = useRef(pinColor);
+  const onModelLuminanceRef = useRef(onModelLuminance);
   const syncPinsRef = useRef<(next: SpatialPin[], selected: string | null) => void>(
     () => {}
   );
@@ -91,6 +98,8 @@ export default function PinPlacer({
     onSelectRef.current = onSelect;
     onAddPinRef.current = onAddPin;
     onMovePinRef.current = onMovePin;
+    pinColorRef.current = pinColor;
+    onModelLuminanceRef.current = onModelLuminance;
   });
 
   useEffect(() => {
@@ -152,16 +161,18 @@ export default function PinPlacer({
       renderer.setSize(w, h, false);
     }
 
-    function makePinMesh(id: string, selected: boolean) {
+    function makePinMesh(id: string) {
       const group = new THREE.Group();
       group.userData.pinId = id;
       const dot = new THREE.Mesh(
         new THREE.SphereGeometry(pinRadius, 16, 12),
-        new THREE.MeshBasicMaterial({
-          color: selected ? DOT_SELECTED : DOT,
-          transparent: true,
-        })
+        new THREE.MeshBasicMaterial({ transparent: true })
       );
+      // Child of the dot so it grows with the selected dot.
+      const outline = makePinOutline(pinRadius, 0x000000);
+      (outline.material as THREE.MeshBasicMaterial).transparent = true;
+      outline.userData.pinId = id;
+      dot.add(outline);
       const hit = new THREE.Mesh(
         new THREE.SphereGeometry(pinRadius * hitScale, 8, 8),
         new THREE.MeshBasicMaterial({
@@ -175,14 +186,14 @@ export default function PinPlacer({
       dot.userData.pinId = id;
       group.add(dot);
       group.add(hit);
-      return { id, group, dot, label: null, labelKey: '' };
+      return { id, group, dot, outline, label: null, labelKey: '' };
     }
 
-    function syncLabel(marker: PinMarker, title: string, selected: boolean) {
-      const key = `${selected ? 1 : 0}:${title}`;
+    function syncLabel(marker: PinMarker, title: string, selected: boolean, color: string) {
+      const key = `${selected ? 1 : 0}:${color}:${title}`;
       if (marker.labelKey === key) return;
       if (marker.label) disposePinLabel(marker.label);
-      marker.label = makePinLabel(marker.id, title, { radius: pinRadius, selected });
+      marker.label = makePinLabel(marker.id, title, { radius: pinRadius, selected, color });
       marker.labelKey = key;
       if (marker.label) marker.group.add(marker.label.root);
     }
@@ -195,6 +206,8 @@ export default function PinPlacer({
     function syncPins(next: SpatialPin[], selected: string | null) {
       if (!model) return;
       const ids = new Set(next.map((p) => p.id));
+      const color = pinColorRef.current;
+      const colors = pinColors(color);
       for (let i = markers.length - 1; i >= 0; i--) {
         if (!ids.has(markers[i].id)) {
           removeMarker(markers[i]);
@@ -204,16 +217,21 @@ export default function PinPlacer({
       for (const pin of next) {
         let marker = markers.find((m) => m.id === pin.id);
         if (!marker) {
-          marker = makePinMesh(pin.id, pin.id === selected);
+          marker = makePinMesh(pin.id);
           markers.push(marker);
           pinRoot.add(marker.group);
         }
+        const isSelected = pin.id === selected;
         marker.group.position.set(pin.position.x, pin.position.y, pin.position.z);
+        marker.dot.scale.setScalar(isSelected ? 1.4 : 1);
         const opacity = pinShowsOn(pin, showingRef.current) ? 1 : 0.3;
         const mat = marker.dot.material as THREE.MeshBasicMaterial;
-        mat.color.setHex(pin.id === selected ? DOT_SELECTED : DOT);
+        mat.color.setHex(isSelected ? colors.selected : colors.dot);
         mat.opacity = opacity;
-        syncLabel(marker, pin.title, pin.id === selected);
+        const outlineMat = marker.outline.material as THREE.MeshBasicMaterial;
+        outlineMat.color.setHex(colors.outline);
+        outlineMat.opacity = opacity;
+        syncLabel(marker, pin.title, isSelected, color);
         if (marker.label) setLabelBaseOpacity(marker.label, opacity);
       }
     }
@@ -334,6 +352,7 @@ export default function PinPlacer({
         finishedModel = gltf.scene;
         modelRoot.add(finishedModel);
         clearBackdrop = applyStageBackdrop(scene, finishedModel);
+        onModelLuminanceRef.current?.(estimateModelLuminance(finishedModel));
         const box = new THREE.Box3().setFromObject(finishedModel);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -375,9 +394,10 @@ export default function PinPlacer({
     const tick = () => {
       raf = requestAnimationFrame(tick);
       controls.update();
+      camera.updateMatrixWorld();
+      faceOutlinesToCamera(pinRoot, camera);
       const labels = currentLabels();
       if (labels.length > 0) {
-        camera.updateMatrixWorld();
         fitPinLabels(labels, camera, host.clientHeight);
         occlusionTick(() => updateLabelOcclusion(labels, camera, model ? [model] : []));
       }
@@ -408,7 +428,7 @@ export default function PinPlacer({
 
   useEffect(() => {
     syncPinsRef.current(pins, selectedId);
-  }, [pins, selectedId]);
+  }, [pins, selectedId, pinColor]);
 
   useEffect(() => {
     showFormRef.current(showing);
