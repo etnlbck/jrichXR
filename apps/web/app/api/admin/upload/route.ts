@@ -204,6 +204,18 @@ export async function POST(request: Request): Promise<NextResponse> {
               },
             };
           }
+          if (assetId === 'arrive-sting') {
+            next = {
+              ...next,
+              gallery: {
+                ...next.gallery,
+                reveal: {
+                  ...next.gallery.reveal,
+                  stingUrl: blob.url,
+                },
+              },
+            };
+          }
           try {
             await putDraftWithRevision(next, experienceId, current.revision);
             return;

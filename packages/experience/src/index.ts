@@ -12,6 +12,8 @@ export type {
   MuralPlacement,
   MuralVec3,
   PinForm,
+  PinStyle,
+  ShareTargetId,
   SpatialPin,
 } from './types';
 
@@ -27,13 +29,17 @@ export {
   findNode,
   galleryPins,
   getNodeXr8Placement,
+  extraModelNodes,
   isExperienceKind,
+  mediaAudioNodes,
   mediaImageNodes,
+  mediaVideoNodes,
   nodesForTrigger,
   parseGalleryExperience,
   pinColor,
   pinForm,
   pinShowsOn,
+  runtimeTrigger,
   supportsMorph,
 } from './helpers';
 

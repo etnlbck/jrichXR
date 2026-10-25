@@ -13,8 +13,9 @@ import {
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
 import { setMetricsContext } from '@/lib/metrics';
-import { REVEAL } from '@/lib/reveal';
+import { prefersReducedMotion, REVEAL } from '@/lib/reveal';
 import { createScene } from '@/lib/scene';
+import { buildShareTargets } from '@/lib/share-targets';
 import { useCoarsePointer } from '@/lib/use-coarse-pointer';
 import { useDialogFocus } from '@/lib/use-dialog-focus';
 import {
@@ -88,8 +89,14 @@ export default function ArExperience({
   const [reticleSuccess, setReticleSuccess] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [aboutQr, setAboutQr] = useState<string | null>(null);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [ctaScreen, setCtaScreen] = useState<
+    Record<string, { x: number; y: number; visible: boolean }>
+  >({});
   const narratedOnce = useRef(false);
+  const stingPlayed = useRef(false);
   const pinAudioRef = useRef<HTMLAudioElement>(null);
+  const stingAudioRef = useRef<HTMLAudioElement>(null);
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
 
@@ -113,6 +120,51 @@ export default function ArExperience({
   useEffect(() => {
     setMetricsContext({ experienceId: config.experienceId });
   }, [config.experienceId]);
+
+  useEffect(() => {
+    if (!revealComplete) {
+      setCtaScreen({});
+      return;
+    }
+    let frame = 0;
+    const tick = () => {
+      frame = requestAnimationFrame(tick);
+      const scene = sceneRef.current;
+      if (!scene?.isVisible()) return;
+      const form: 'finished' | 'raw' =
+        state === 'RAW' ? 'raw' : 'finished';
+      const updated: Record<string, { x: number; y: number; visible: boolean }> =
+        {};
+      for (const pin of config.pins) {
+        if (pin.style !== 'cta') continue;
+        const shows =
+          pin.form === 'both' || pin.form === form || pin.form === undefined;
+        if (!shows) {
+          updated[pin.id] = { x: 0, y: 0, visible: false };
+          continue;
+        }
+        const screen = scene.projectLocal(pin.position);
+        if (
+          !screen ||
+          screen.x < -1.1 ||
+          screen.x > 1.1 ||
+          screen.y < -1.1 ||
+          screen.y > 1.1
+        ) {
+          updated[pin.id] = { x: 0, y: 0, visible: false };
+          continue;
+        }
+        updated[pin.id] = {
+          x: (screen.x * 0.5 + 0.5) * 100,
+          y: (-screen.y * 0.5 + 0.5) * 100,
+          visible: true,
+        };
+      }
+      setCtaScreen(updated);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [revealComplete, state, config.pins]);
 
   useEffect(() => {
     if (!showProvenance) {
@@ -183,6 +235,35 @@ export default function ArExperience({
         setRevealing(false);
         setRevealComplete(true);
         setReticleSuccess(false);
+        if (!stingPlayed.current) {
+          stingPlayed.current = true;
+          const reduced = prefersReducedMotion();
+          if (
+            config.reveal.haptics &&
+            !reduced &&
+            typeof navigator !== 'undefined' &&
+            typeof navigator.vibrate === 'function'
+          ) {
+            try {
+              navigator.vibrate([12, 40, 12]);
+            } catch {
+              /* ignore */
+            }
+          }
+          const sting = stingAudioRef.current;
+          const narration = audioRef.current;
+          if (
+            sting &&
+            config.reveal.stingUrl &&
+            !(narration && !narration.paused)
+          ) {
+            sting.src = config.reveal.stingUrl;
+            sting.currentTime = 0;
+            void sting.play().catch(() => {
+              /* unlock may be required */
+            });
+          }
+        }
       },
     });
   }, [config, openProvenance, stage]);
@@ -215,6 +296,7 @@ export default function ArExperience({
           audio.currentTime = 0;
           audio.muted = false;
           setAudioUnlocked(true);
+          sceneRef.current?.setAudioUnlocked(true);
         })
         .catch(() => {
           /* retry on morph tap */
@@ -472,14 +554,57 @@ export default function ArExperience({
             </div>
           ) : null}
           <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
-            <button
-              type="button"
-              className={styles.shareBtn}
-              onClick={() => void handleShare()}
-              disabled={chromeFade === 'out'}
-            >
-              {shareStatus ?? 'Share'}
-            </button>
+            <div className={styles.shareWrap}>
+              <button
+                type="button"
+                className={styles.shareBtn}
+                onClick={() => {
+                  if (config.shareTargets.length > 0) {
+                    setShareMenuOpen((o) => !o);
+                    return;
+                  }
+                  void handleShare();
+                }}
+                disabled={chromeFade === 'out'}
+                aria-expanded={shareMenuOpen}
+              >
+                {shareStatus ?? 'Share'}
+              </button>
+              {shareMenuOpen && config.shareTargets.length > 0 ? (
+                <div className={styles.shareMenu} role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={styles.shareMenuItem}
+                    onClick={() => {
+                      setShareMenuOpen(false);
+                      void handleShare();
+                    }}
+                  >
+                    System share / copy
+                  </button>
+                  {buildShareTargets(
+                    typeof window !== 'undefined' ? window.location.href : '',
+                    config.brand.displayName
+                      ? `${config.piece.gateTitle || config.piece.title} by ${config.brand.displayName}`
+                      : config.piece.gateTitle || config.piece.title,
+                    config.shareTargets
+                  ).map((t) => (
+                    <a
+                      key={t.id}
+                      role="menuitem"
+                      className={styles.shareMenuItem}
+                      href={t.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShareMenuOpen(false)}
+                    >
+                      {t.label}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               ref={aboutBtnRef}
@@ -491,13 +616,33 @@ export default function ArExperience({
               }}
               disabled={chromeFade === 'out'}
             >
-              About this piece
+              {config.kind === 'experience' ? 'About' : 'About this piece'}
             </button>
           </div>
         </>
       )}
 
       {issue && <XrIssueSheet issue={issue} />}
+
+      {revealComplete &&
+        config.pins
+          .filter((p) => p.style === 'cta' && p.href)
+          .map((pin) => {
+            const screen = ctaScreen[pin.id];
+            if (!screen?.visible) return null;
+            return (
+              <a
+                key={pin.id}
+                className={styles.sceneCta}
+                href={pin.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ left: `${screen.x}%`, top: `${screen.y}%` }}
+              >
+                {pin.ctaLabel || pin.title || 'Learn more'}
+              </a>
+            );
+          })}
 
       {openPin && (
         <div
@@ -569,31 +714,53 @@ export default function ArExperience({
             {brand.displayName && (
               <p className={styles.brandName}>{brand.displayName}</p>
             )}
-            <dl>
-              <dt>Material</dt>
-              <dd>{pc.material}</dd>
-              <dt>Dimensions</dt>
-              <dd>{pc.dimensions}</dd>
-              <dt>Year</dt>
-              <dd>{pc.year}</dd>
-              <dt>Exhibition</dt>
-              <dd>{pc.exhibition}</dd>
-            </dl>
-            <div className={styles.ctaRow}>
-              <Link className={styles.cta} href={pc.shopPath}>
-                Shop this piece
-              </Link>
-              {pc.acquireUrl && (
-                <a
-                  className={styles.ctaSecondary}
-                  href={pc.acquireUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Inquire to acquire
-                </a>
-              )}
-            </div>
+            {(pc.material || pc.dimensions || pc.year || pc.exhibition) && (
+              <dl>
+                {pc.material ? (
+                  <>
+                    <dt>Material</dt>
+                    <dd>{pc.material}</dd>
+                  </>
+                ) : null}
+                {pc.dimensions ? (
+                  <>
+                    <dt>Dimensions</dt>
+                    <dd>{pc.dimensions}</dd>
+                  </>
+                ) : null}
+                {pc.year ? (
+                  <>
+                    <dt>Year</dt>
+                    <dd>{pc.year}</dd>
+                  </>
+                ) : null}
+                {pc.exhibition ? (
+                  <>
+                    <dt>Exhibition</dt>
+                    <dd>{pc.exhibition}</dd>
+                  </>
+                ) : null}
+              </dl>
+            )}
+            {(pc.shopPath || pc.acquireUrl) && (
+              <div className={styles.ctaRow}>
+                {pc.shopPath ? (
+                  <Link className={styles.cta} href={pc.shopPath}>
+                    {config.kind === 'experience' ? 'Visit shop' : 'Shop this piece'}
+                  </Link>
+                ) : null}
+                {pc.acquireUrl ? (
+                  <a
+                    className={styles.ctaSecondary}
+                    href={pc.acquireUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Inquire to acquire
+                  </a>
+                ) : null}
+              </div>
+            )}
             <div className={styles.aboutQr}>
               <p className={styles.aboutQrLabel}>Open on another phone</p>
               {aboutQr ? (
@@ -618,6 +785,7 @@ export default function ArExperience({
 
       <audio ref={audioRef} preload="auto" playsInline />
       <audio ref={pinAudioRef} preload="auto" playsInline />
+      <audio ref={stingAudioRef} preload="auto" playsInline />
 
       {!stage && (
         <p className={styles.attrib}>
