@@ -175,16 +175,32 @@ export async function POST(request: Request): Promise<NextResponse> {
         for (let attempt = 0; ; attempt++) {
           const current = await getDraftWithRevision(experienceId);
           if (current === null) return;
-          const next = applyAssetUrl(current.experience, assetId, blob.url, {
+          let next = applyAssetUrl(current.experience, assetId, blob.url, {
             status: 'ready',
             ...clearInterim,
           });
           if (assetId === 'marker-display') {
-            next.marker = {
-              ...next.marker,
-              web: {
-                ...next.marker.web,
-                printImage: blob.url,
+            next = {
+              ...next,
+              marker: {
+                ...next.marker,
+                web: {
+                  ...next.marker.web,
+                  printImage: blob.url,
+                },
+              },
+            };
+          }
+          const pinImg = /^pin-img-(.+)$/.exec(assetId);
+          if (pinImg) {
+            const pinId = pinImg[1];
+            next = {
+              ...next,
+              gallery: {
+                ...next.gallery,
+                pins: (next.gallery.pins ?? []).map((p) =>
+                  p.id === pinId ? { ...p, imageUrl: blob.url } : p
+                ),
               },
             };
           }

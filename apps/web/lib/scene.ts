@@ -115,6 +115,15 @@ export function createScene(
   let stableLockTimer: ReturnType<typeof setTimeout> | null = null;
   let trackingGraceTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingReveal = false;
+  /** Soft fade after Arrive when tracking drops (not mid-densify). */
+  let postRevealFading = false;
+  let postRevealFadeT = 0;
+  type FadeMat = THREE.Material & {
+    opacity: number;
+    transparent: boolean;
+    needsUpdate: boolean;
+    userData: { jrfBaseOpacity?: number };
+  };
 
   function softDiscTexture(): THREE.Texture {
     if (revealDiscTex) return revealDiscTex;
@@ -202,6 +211,71 @@ export function createScene(
       clearTimeout(trackingGraceTimer);
       trackingGraceTimer = null;
     }
+  }
+
+  function eachFadeMaterial(root: THREE.Object3D | null, fn: (mat: FadeMat) => void) {
+    if (!root) return;
+    root.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.material) return;
+      const mats = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material];
+      for (const m of mats) {
+        if (!m || !('opacity' in m)) continue;
+        fn(m as FadeMat);
+      }
+    });
+  }
+
+  function applyAnchorFade(multiplier: number) {
+    eachFadeMaterial(anchor, (mat) => {
+      if (mat.userData.jrfBaseOpacity === undefined) {
+        mat.userData.jrfBaseOpacity = mat.opacity;
+      }
+      mat.transparent = true;
+      mat.opacity = mat.userData.jrfBaseOpacity * multiplier;
+      mat.needsUpdate = true;
+    });
+  }
+
+  function restoreAnchorFade() {
+    eachFadeMaterial(anchor, (mat) => {
+      if (mat.userData.jrfBaseOpacity === undefined) return;
+      mat.opacity = mat.userData.jrfBaseOpacity;
+      mat.needsUpdate = true;
+    });
+  }
+
+  function cancelPostRevealFade() {
+    if (!postRevealFading) return;
+    postRevealFading = false;
+    postRevealFadeT = 0;
+    restoreAnchorFade();
+    if (anchor) anchor.visible = true;
+    visible = true;
+  }
+
+  function beginPostRevealFade() {
+    if (postRevealFading) return;
+    postRevealFading = true;
+    postRevealFadeT = 0;
+    mark('tracking_lost_post_reveal');
+  }
+
+  function updatePostRevealFade(dt: number) {
+    if (!postRevealFading) return;
+    const dur = REVEAL.postRevealFadeMs / 1000;
+    postRevealFadeT += dt / Math.max(dur, 0.05);
+    const t = Math.min(1, postRevealFadeT);
+    applyAnchorFade(1 - t);
+    if (t < 1) return;
+    postRevealFading = false;
+    postRevealFadeT = 0;
+    restoreAnchorFade();
+    if (anchor) anchor.visible = false;
+    visible = false;
+    callbacks.onState('SCANNING');
   }
 
   function disposeRevealCloud() {
@@ -908,6 +982,7 @@ export function createScene(
       onUpdate: () => {
         const dt = clock ? clock.getDelta() : 0.016;
         updateReveal(dt);
+        updatePostRevealFade(dt);
         updateMorph(dt);
         updateLabels();
       },
@@ -922,6 +997,7 @@ export function createScene(
     if (!isConfiguredTarget(detail)) return;
     positionAnchor(detail);
     clearTrackingGraceTimer();
+    cancelPostRevealFade();
     if (!hasLocked) {
       hasLocked = true;
       mark('first_target_found');
@@ -965,8 +1041,9 @@ export function createScene(
       return;
     }
     if (revealState === 'done') {
-      if (anchor) anchor.visible = false;
-      visible = false;
+      // Soft fade instead of an instant cut once Arrive chrome is up.
+      beginPostRevealFade();
+      return;
     }
     callbacks.onState('SCANNING');
   }
@@ -1106,6 +1183,7 @@ export function createScene(
       frame = requestAnimationFrame(loop);
       const dt = clock ? clock.getDelta() : 0.016;
       updateReveal(dt);
+      updatePostRevealFade(dt);
       updateMorph(dt);
       updateLabels();
       renderer.render(scene, camera);

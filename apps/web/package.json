@@ -17,6 +17,7 @@
     "@8thwall/engine-binary": "^1.0.0",
     "@clerk/nextjs": "^7.9.11",
     "@jrichforms/experience": "*",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.0",
     "next": "16.3.0",
     "qrcode": "^1.5.4",

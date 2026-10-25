@@ -6,12 +6,15 @@ const ALLOWED = new Set([
   'reveal_start',
   'reveal_complete',
   'reveal_cancel',
+  'tracking_lost_post_reveal',
 ]);
+
+const DEVICE_CLASSES = new Set(['mobile', 'tablet', 'desktop', 'unknown']);
 
 /**
  * Field-test sink for visitor activation marks.
  * Enabled client-side only when NEXT_PUBLIC_METRICS=1.
- * Logs structured JSON — wire to a drain/analytics later if needed.
+ * Emits structured JSON for Vercel log drains / Observability queries.
  */
 export async function POST(request: Request) {
   if (process.env.NEXT_PUBLIC_METRICS !== '1') {
@@ -34,12 +37,18 @@ export async function POST(request: Request) {
   const ms = typeof r.ms === 'number' && Number.isFinite(r.ms) ? r.ms : null;
   const experienceId =
     typeof r.experienceId === 'string' ? r.experienceId.slice(0, 80) : null;
+  const deviceClass =
+    typeof r.deviceClass === 'string' && DEVICE_CLASSES.has(r.deviceClass)
+      ? r.deviceClass
+      : 'unknown';
+  // Structured line for log drains: filter type:"jrf_metric" in Vercel Observability.
   console.info(
     JSON.stringify({
       type: 'jrf_metric',
       name,
       ms,
       experienceId,
+      deviceClass,
       t: typeof r.t === 'number' ? r.t : Date.now(),
     })
   );

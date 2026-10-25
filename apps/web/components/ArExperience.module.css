@@ -402,6 +402,24 @@ a.beginBtn {
   font-size: 0.95rem;
 }
 
+.aboutQr {
+  margin: 1.25rem 0 0;
+  text-align: center;
+}
+
+.aboutQrLabel {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  color: #6a6a6a;
+}
+
+.aboutQr img {
+  display: block;
+  margin: 0 auto;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .credit {
   margin: 18px 0 0;
   font-size: 0.72rem;
