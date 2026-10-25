@@ -15,6 +15,7 @@ import {
   updateLabelOcclusion,
   type PinLabel,
 } from '@/lib/pin-label';
+import { applyStageBackdrop } from '@/lib/stage-backdrop';
 import styles from '@/app/admin/admin.module.css';
 
 type ShownForm = 'finished' | 'raw';
@@ -131,6 +132,7 @@ export default function PinPlacer({
     let rawModel: THREE.Object3D | null = null;
     let model: THREE.Object3D | null = null;
     let pinRadius = 0.012;
+    let clearBackdrop: (() => void) | null = null;
 
     function showForm(form: ShownForm) {
       model = form === 'raw' && rawModel ? rawModel : finishedModel;
@@ -331,6 +333,7 @@ export default function PinPlacer({
         if (disposed) return;
         finishedModel = gltf.scene;
         modelRoot.add(finishedModel);
+        clearBackdrop = applyStageBackdrop(scene, finishedModel);
         const box = new THREE.Box3().setFromObject(finishedModel);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -387,6 +390,7 @@ export default function PinPlacer({
       cancelAnimationFrame(raf);
       for (const m of markers) removeMarker(m);
       markers.length = 0;
+      clearBackdrop?.();
       ro.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
