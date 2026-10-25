@@ -16,6 +16,7 @@ type ExperienceIndexItem = {
   publishedVersion: string | null;
   archived: boolean;
   archivedAt: string | null;
+  brandChanged: boolean;
 };
 
 export default function AdminList() {
@@ -205,6 +206,9 @@ export default function AdminList() {
                   Draft {item.hasDraft ? item.draftVersion : '—'} · Published{' '}
                   {item.hasPublished ? item.publishedVersion : '—'}
                 </span>
+                {item.brandChanged && (
+                  <span className={styles.badge}>Brand changed — republish to apply</span>
+                )}
               </Link>
               <div className={styles.listRowActions}>
                 {item.hasPublished && (

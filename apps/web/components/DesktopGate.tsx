@@ -1,17 +1,19 @@
 'use client';
 
 import QRCode from 'qrcode';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import styles from './ArExperience.module.css';
 
 type Props = {
   title: string;
+  logo?: ReactNode;
+  artistName?: string | null;
   /** Fall through to the phone flow, for tablets that report a fine pointer. */
   onUseCamera: () => void;
 };
 
 /** Desktop visitors: scan to open on a phone, or look around the piece in 3D. */
-export default function DesktopGate({ title, onUseCamera }: Props) {
+export default function DesktopGate({ title, logo, artistName, onUseCamera }: Props) {
   const [qr, setQr] = useState<string | null>(null);
   const [stageHref, setStageHref] = useState('?stage=1');
 
@@ -34,6 +36,8 @@ export default function DesktopGate({ title, onUseCamera }: Props) {
   return (
     <div className={styles.overlay}>
       <div className={styles.gateCard}>
+        {logo}
+        {artistName && <p className={styles.brandName}>{artistName}</p>}
         <h1>{title}</h1>
         <p>Scan with your phone to see it in AR, beside the sculpture.</p>
         <div className={styles.desktopQr}>

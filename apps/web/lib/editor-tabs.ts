@@ -5,6 +5,7 @@ export const EDITOR_TABS = [
   ['assets', 'Assets'],
   ['nodes', 'Nodes'],
   ['pins', 'Pins'],
+  ['brand', 'Brand'],
 ] as const;
 
 export type EditorTab = (typeof EDITOR_TABS)[number][0];

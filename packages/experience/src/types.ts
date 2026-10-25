@@ -78,8 +78,34 @@ export interface GalleryExtension {
   dracoDecoderPath: string;
   maxGlbBytes: number;
   pins?: SpatialPin[];
-  /** `#rrggbb` for pin dots and leader lines. Missing means the default amber. */
+  /** `#rrggbb` for pin dots and leader lines. Missing means the brand accent, then amber. */
   pinColor?: string;
+  /** Per-sculpture values that replace the owner's brand profile. */
+  brandOverrides?: ArtistBrand;
+}
+
+export type BrandFontId =
+  | 'system'
+  | 'inter'
+  | 'space-grotesk'
+  | 'archivo'
+  | 'dm-serif-display'
+  | 'playfair-display'
+  | 'cormorant-garamond';
+
+/** Artist brand profile. Every field is optional; missing fields use platform defaults. */
+export interface ArtistBrand {
+  displayName?: string;
+  logoUrl?: string;
+  /** `#rrggbb` gradient start. */
+  accentFrom?: string;
+  /** `#rrggbb` gradient end. */
+  accentTo?: string;
+  font?: BrandFontId;
+  beginText?: string;
+  beginLabel?: string;
+  loadingText?: string;
+  shareImageUrl?: string;
 }
 
 export interface GalleryExperience {
@@ -102,6 +128,8 @@ export interface GalleryExperience {
   nodes: MuralNode[];
   assets: Record<string, ExperienceAssetRef>;
   gallery: GalleryExtension;
+  /** Owner profile merged with overrides, frozen when the sculpture is published. */
+  brand?: ArtistBrand;
   engine: {
     web: {
       preloadChunks: 'slam';

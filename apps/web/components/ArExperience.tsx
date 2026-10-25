@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
 import { createScene } from '@/lib/scene';
 import { useCoarsePointer } from '@/lib/use-coarse-pointer';
@@ -217,8 +218,14 @@ export default function ArExperience({
         ? 'Tap the piece to return to the finished form'
         : 'Tap the piece to reveal the raw stone';
 
+  const brand = config.brand;
+  const logo = brand.logoUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element -- artist upload on Blob, any size
+    <img className={styles.brandLogo} src={brand.logoUrl} alt={brand.displayName ?? ''} />
+  ) : null;
+
   return (
-    <div className={styles.root}>
+    <div className={styles.root} style={brandStyle(brand)}>
       <canvas
         id="camerafeed"
         ref={canvasRef}
@@ -227,16 +234,23 @@ export default function ArExperience({
       />
 
       {showDesktopGate && (
-        <DesktopGate title={pc.gateTitle} onUseCamera={() => setUseCameraAnyway(true)} />
+        <DesktopGate
+          title={pc.gateTitle}
+          logo={logo}
+          artistName={brand.displayName}
+          onUseCamera={() => setUseCameraAnyway(true)}
+        />
       )}
 
       {showBeginGate && (
         <div className={styles.overlay}>
           <div className={styles.gateCard}>
+            {logo}
+            {brand.displayName && <p className={styles.brandName}>{brand.displayName}</p>}
             <h1>{pc.gateTitle}</h1>
-            <p>Point your phone at the marker beside the sculpture.</p>
+            <p>{brand.beginText}</p>
             <button type="button" className={styles.beginBtn} onClick={handleBegin}>
-              Begin
+              {brand.beginLabel}
             </button>
             <small>Camera access is required. Nothing is recorded.</small>
           </div>
@@ -245,11 +259,12 @@ export default function ArExperience({
 
       {showLoading && (
         <div className={styles.loading} role="status" aria-live="polite">
+          {logo}
           <div className={styles.loadingPulse} />
           <p>
             {askingCamera
               ? 'Allow camera access when your browser asks'
-              : 'Loading experience…'}
+              : brand.loadingText}
           </p>
         </div>
       )}
@@ -311,6 +326,7 @@ export default function ArExperience({
           </button>
           <div className={styles.panelScroll}>
             <h2>{pc.title}</h2>
+            {brand.displayName && <p className={styles.brandName}>{brand.displayName}</p>}
             <dl>
               <dt>Material</dt>
               <dd>{pc.material}</dd>

@@ -1,4 +1,6 @@
 export type {
+  ArtistBrand,
+  BrandFontId,
   ExperienceAssetRef,
   GalleryExperience,
   GalleryExtension,
@@ -13,6 +15,7 @@ export type {
 } from './types';
 
 export type { NodeXr8Placement } from './helpers';
+export type { ResolvedBrand } from './brand';
 
 export {
   DEFAULT_PIN_COLOR,
@@ -29,3 +32,17 @@ export {
   pinForm,
   pinShowsOn,
 } from './helpers';
+
+export {
+  BRAND_DEFAULTS,
+  BRAND_FONT_IDS,
+  BRAND_TEXT_LIMITS,
+  brandHash,
+  buttonContrast,
+  buttonInk,
+  contrastRatio,
+  isBrandImageUrl,
+  mergeBrand,
+  resolveBrand,
+  sanitizeBrand,
+} from './brand';

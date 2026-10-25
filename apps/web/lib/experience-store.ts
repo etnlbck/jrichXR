@@ -8,9 +8,13 @@ import {
   put,
 } from '@vercel/blob';
 import {
+  brandHash,
+  mergeBrand,
   parseGalleryExperience,
+  type ArtistBrand,
   type GalleryExperience,
 } from '@jrichforms/experience';
+import { getArtistBrand } from '@/lib/brand-store';
 import { DEFAULT_EXPERIENCE_ID, getSeedExperience } from '@/lib/config';
 import { isValidExperienceId, visitorShopPath } from '@/lib/experience-id';
 
@@ -172,15 +176,54 @@ export async function publishDraft(
   if (current === null) throw new Error('No draft to publish');
   if (ifRevision && current.revision !== ifRevision) throw new DraftConflictError();
   const parsed = parseGalleryExperience(current.experience);
+  delete parsed.brand;
   const nextVersion = bumpPatchVersion(parsed.version);
-  const published: GalleryExperience = { ...parsed, version: nextVersion };
+  const access = await getExperienceAccess(id);
+  const profile = access ? await getArtistBrand(access.ownerUserId) : {};
+  const brand = mergeBrand(profile, parsed.gallery.brandOverrides);
+  const draft: GalleryExperience = { ...parsed, version: nextVersion };
+  const published: GalleryExperience = {
+    ...draft,
+    ...(Object.keys(brand).length > 0 ? { brand } : {}),
+  };
   await put(publishedPath(id), JSON.stringify(published, null, 2), {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
     allowOverwrite: true,
   });
-  return putDraftWithRevision(published, id, current.revision);
+  return putDraftWithRevision(draft, id, current.revision);
+}
+
+/** Brand that publishing `pkg` now would freeze: owner profile plus its overrides. */
+export function pendingBrand(
+  pkg: GalleryExperience | null,
+  ownerProfile: ArtistBrand
+): ArtistBrand {
+  return mergeBrand(ownerProfile, pkg?.gallery.brandOverrides);
+}
+
+/**
+ * Re-snapshot the owner's current profile into the published package only.
+ * Unpublished draft edits stay unpublished.
+ */
+export async function republishBrand(id: string): Promise<'updated' | 'unchanged'> {
+  const published = await getPublished(id);
+  if (published === null) throw new Error('not_published');
+  const access = await getExperienceAccess(id);
+  const profile = access ? await getArtistBrand(access.ownerUserId) : {};
+  const brand = pendingBrand(published, profile);
+  if (brandHash(brand) === brandHash(published.brand)) return 'unchanged';
+  const next: GalleryExperience = { ...published };
+  delete next.brand;
+  if (Object.keys(brand).length > 0) next.brand = brand;
+  await put(publishedPath(id), JSON.stringify(next, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  return 'updated';
 }
 
 export function cloneSeedForId(id: string, title: string): GalleryExperience {
@@ -324,6 +367,18 @@ async function putExperienceAccess(
   return access;
 }
 
+export async function setExperienceOwner(
+  id: string,
+  ownerUserId: string
+): Promise<ExperienceAccess> {
+  assertMutableExperience(id);
+  const current = await getExperienceAccess(id);
+  return putExperienceAccess(id, {
+    ownerUserId,
+    createdAt: current?.createdAt ?? new Date().toISOString(),
+  });
+}
+
 export async function canEditExperience(
   id: string,
   editor: ExperienceEditor
@@ -441,6 +496,8 @@ export type ExperienceIndexItem = {
   archived: boolean;
   archivedAt: string | null;
   ownerUserId: string | null;
+  /** Published, and republishing would change its brand. */
+  brandChanged: boolean;
 };
 
 async function listBlobExperienceIds(): Promise<string[]> {
@@ -467,6 +524,15 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
   const blobConfigured = isBlobConfigured();
   const seed = getSeedExperience();
   const ids = new Set<string>([DEFAULT_EXPERIENCE_ID, ...(await listBlobExperienceIds())]);
+  const profiles = new Map<string, Promise<ArtistBrand>>();
+  const profileFor = (userId: string) => {
+    let p = profiles.get(userId);
+    if (!p) {
+      p = getArtistBrand(userId).catch(() => ({}));
+      profiles.set(userId, p);
+    }
+    return p;
+  };
 
   const experiences = (
     await Promise.all(
@@ -488,6 +554,11 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
               : id === DEFAULT_EXPERIENCE_ID
                 ? seed
                 : null;
+        const brandChanged =
+          published !== null && access !== null
+            ? brandHash(pendingBrand(published, await profileFor(access.ownerUserId))) !==
+              brandHash(published.brand)
+            : false;
         return {
           id,
           title: pkg?.gallery.provenance.title ?? id,
@@ -501,6 +572,7 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
           archived: meta.archived === true,
           archivedAt: meta.archivedAt,
           ownerUserId: access?.ownerUserId ?? null,
+          brandChanged,
         };
       })
     )
