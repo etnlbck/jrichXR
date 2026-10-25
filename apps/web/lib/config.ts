@@ -30,6 +30,9 @@ export type AppPin = {
   position: { x: number; y: number; z: number };
   audioUrl?: string;
   form: PinForm;
+  href?: string;
+  ctaLabel?: string;
+  imageUrl?: string;
 };
 
 export type AppConfig = {
@@ -69,6 +72,11 @@ export type AppConfig = {
     overlayFadeMs: number;
     webCrossfade: boolean;
     nativeMode: 'hard-cut' | 'crossfade';
+  };
+  /** Arrive densify (clamped product defaults when gallery.reveal omitted). */
+  reveal: {
+    densifyMs: number;
+    scatterFactor: number;
   };
   audio: {
     unlockOnBegin: boolean;
@@ -144,6 +152,18 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
       webCrossfade: g.morph.webCrossfade,
       nativeMode: g.morph.nativeMode,
     },
+    reveal: {
+      densifyMs: clamp(
+        g.reveal?.densifyMs ?? 1000,
+        400,
+        3000
+      ),
+      scatterFactor: clamp(
+        g.reveal?.scatterFactor ?? 0.55,
+        0.15,
+        1.2
+      ),
+    },
     audio: {
       unlockOnBegin: g.audio.unlockOnBegin,
       playOnFirstEnterRaw: g.audio.playOnFirstEnterRaw,
@@ -159,10 +179,18 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
         ? assetWebPath(experience, pin.audioAssetId)
         : undefined,
       form: pinForm(pin),
+      href: typeof pin.href === 'string' ? pin.href : undefined,
+      ctaLabel: typeof pin.ctaLabel === 'string' ? pin.ctaLabel : undefined,
+      imageUrl: typeof pin.imageUrl === 'string' ? pin.imageUrl : undefined,
     })),
     pinColor: pinColor(experience),
     brand: resolveBrand(experience.brand),
   };
+}
+
+function clamp(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, n));
 }
 
 /** Sync seed config — layout metadata / offline fallback. Prefer loadExperience(). */

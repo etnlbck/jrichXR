@@ -885,6 +885,50 @@ export default function AdminEditor({
               />
             </div>
           </div>
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label htmlFor="reveal-densify">Arrive densify (ms)</label>
+              <input
+                id="reveal-densify"
+                type="number"
+                min={400}
+                max={3000}
+                step={50}
+                value={experience.gallery.reveal?.densifyMs ?? 1000}
+                onChange={(e) =>
+                  updateGallery({
+                    reveal: {
+                      ...experience.gallery.reveal,
+                      densifyMs: Number(e.target.value),
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="reveal-scatter">Arrive scatter (0.15–1.2)</label>
+              <input
+                id="reveal-scatter"
+                type="number"
+                min={0.15}
+                max={1.2}
+                step={0.05}
+                value={experience.gallery.reveal?.scatterFactor ?? 0.55}
+                onChange={(e) =>
+                  updateGallery({
+                    reveal: {
+                      ...experience.gallery.reveal,
+                      scatterFactor: Number(e.target.value),
+                    },
+                  })
+                }
+              />
+            </div>
+          </div>
+          <p className={styles.status}>
+            Longer densify / higher scatter can feel richer but may jank on
+            mid-range phones.
+          </p>
           <div className={styles.field}>
             <label>
               <input
@@ -1206,6 +1250,47 @@ export default function AdminEditor({
                       value={selectedPin.body}
                       onChange={(e) =>
                         updatePin(selectedPin.id, { body: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-href">Link URL (optional)</label>
+                    <input
+                      id="pin-href"
+                      type="url"
+                      placeholder="https://"
+                      value={selectedPin.href ?? ''}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          href: e.target.value || undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-cta">Link button label</label>
+                    <input
+                      id="pin-cta"
+                      value={selectedPin.ctaLabel ?? ''}
+                      placeholder="Learn more"
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          ctaLabel: e.target.value || undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-image">Image URL (optional)</label>
+                    <input
+                      id="pin-image"
+                      type="url"
+                      placeholder="https://…blob.vercel-storage.com/…"
+                      value={selectedPin.imageUrl ?? ''}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          imageUrl: e.target.value || undefined,
+                        })
                       }
                     />
                   </div>

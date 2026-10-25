@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
+import { setMetricsContext } from '@/lib/metrics';
 import { REVEAL } from '@/lib/reveal';
 import { createScene } from '@/lib/scene';
 import { useCoarsePointer } from '@/lib/use-coarse-pointer';
@@ -84,6 +85,7 @@ export default function ArExperience({
   const [revealComplete, setRevealComplete] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [reticleSuccess, setReticleSuccess] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const narratedOnce = useRef(false);
   const pinAudioRef = useRef<HTMLAudioElement>(null);
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
@@ -105,6 +107,10 @@ export default function ArExperience({
     closeSheet,
     aboutBtnRef
   );
+
+  useEffect(() => {
+    setMetricsContext({ experienceId: config.experienceId });
+  }, [config.experienceId]);
 
   useEffect(() => {
     sceneRef.current = createScene(config, {
@@ -219,6 +225,25 @@ export default function ArExperience({
       },
     });
   }, [config, onRequestStart, unlockAudio]);
+
+  const handleShare = useCallback(async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const title = config.piece.gateTitle || config.piece.title;
+    const name = config.brand.displayName;
+    const text = name ? `${title} by ${name}` : title;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        setShareStatus(null);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setShareStatus('Link copied');
+      window.setTimeout(() => setShareStatus(null), 2000);
+    } catch {
+      setShareStatus(null);
+    }
+  }, [config.brand.displayName, config.piece.gateTitle, config.piece.title]);
 
   useEffect(() => {
     if (!stage || !canvasRef.current || !sceneRef.current) return;
@@ -335,6 +360,12 @@ export default function ArExperience({
         ref={canvasRef}
         className={styles.canvas}
         onClick={handleCanvasTap}
+        role="img"
+        aria-label={
+          revealComplete
+            ? `${pc.title}. Tap the piece to morph, or tap a pin for a note.`
+            : `${pc.title} augmented reality view`
+        }
       />
 
       {showDesktopGate && (
@@ -373,6 +404,7 @@ export default function ArExperience({
           className={`${styles.loading} ${fadeClass(loadingFade)}`}
           role="status"
           aria-live="polite"
+          aria-busy="true"
         >
           {logo}
           <div className={styles.loadingPulse} />
@@ -385,11 +417,16 @@ export default function ArExperience({
       )}
 
       {scanFade !== 'gone' && (
-        <div className={`${styles.hint} ${fadeClass(scanFade)}`}>
+        <div
+          className={`${styles.hint} ${fadeClass(scanFade)}`}
+          role="status"
+          aria-live="polite"
+        >
           <div
             className={`${styles.reticle} ${
               reticleSuccess ? styles.reticleSuccess : ''
             }`}
+            aria-hidden
           />
           <p>
             {reticleSuccess ? brand.scanFoundText : brand.scanText}
@@ -402,19 +439,29 @@ export default function ArExperience({
           <div className={`${styles.prompt} ${fadeClass(chromeFade)}`}>
             {morphHint}
           </div>
-          <button
-            type="button"
-            ref={aboutBtnRef}
-            className={`${styles.about} ${fadeClass(chromeFade)}`}
-            onClick={() => {
-              pinAudioRef.current?.pause();
-              setOpenPinId(null);
-              setShowProvenance(true);
-            }}
-            disabled={chromeFade === 'out'}
-          >
-            About this piece
-          </button>
+          <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
+            <button
+              type="button"
+              className={styles.shareBtn}
+              onClick={() => void handleShare()}
+              disabled={chromeFade === 'out'}
+            >
+              {shareStatus ?? 'Share'}
+            </button>
+            <button
+              type="button"
+              ref={aboutBtnRef}
+              className={styles.about}
+              onClick={() => {
+                pinAudioRef.current?.pause();
+                setOpenPinId(null);
+                setShowProvenance(true);
+              }}
+              disabled={chromeFade === 'out'}
+            >
+              About this piece
+            </button>
+          </div>
         </>
       )}
 
@@ -440,8 +487,28 @@ export default function ArExperience({
           </button>
           <div className={styles.panelScroll}>
             <h2 id="pin-sheet-title">{openPin.title}</h2>
+            {openPin.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- artist pin media
+              <img
+                className={styles.pinImage}
+                src={openPin.imageUrl}
+                alt=""
+              />
+            ) : null}
             {openPin.body ? (
               <p className={styles.pinBody}>{openPin.body}</p>
+            ) : null}
+            {openPin.href ? (
+              <div className={styles.ctaRow}>
+                <a
+                  className={styles.cta}
+                  href={openPin.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {openPin.ctaLabel || 'Learn more'}
+                </a>
+              </div>
             ) : null}
           </div>
         </div>

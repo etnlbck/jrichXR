@@ -19,6 +19,8 @@ import ar from './ArExperience.module.css';
 import admin from '@/app/admin/admin.module.css';
 import styles from './BrandFields.module.css';
 
+type PreviewStep = 'gate' | 'loading' | 'anchored';
+
 type ImageField = 'logoUrl' | 'shareImageUrl';
 
 type Props = {
@@ -281,21 +283,69 @@ export default function BrandFields({
 }
 
 export function BrandPreview({ brand, title }: { brand: ResolvedBrand; title: string }) {
+  const [step, setStep] = useState<PreviewStep>('gate');
   return (
     <figure className={styles.previewWrap}>
       <figcaption className={admin.status}>Preview (draft + current profile)</figcaption>
+      <div className={styles.previewTabs} role="tablist" aria-label="Preview step">
+        {(
+          [
+            ['gate', 'Gate'],
+            ['loading', 'Loading'],
+            ['anchored', 'Anchored'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={step === id}
+            className={styles.previewTab}
+            data-active={step === id}
+            onClick={() => setStep(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className={styles.preview} style={brandStyle(brand)}>
-        <div className={ar.gateCard}>
-          {brand.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- Blob upload preview
-            <img className={ar.brandLogo} src={brand.logoUrl} alt="" />
-          )}
-          {brand.displayName && <p className={ar.brandName}>{brand.displayName}</p>}
-          <h1>{title}</h1>
-          <p>{brand.beginText}</p>
-          <span className={ar.beginBtn}>{brand.beginLabel}</span>
-          <small>Camera access is required. Nothing is recorded.</small>
-        </div>
+        {step === 'gate' && (
+          <div className={ar.gateCard}>
+            {brand.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- Blob upload preview
+              <img className={ar.brandLogo} src={brand.logoUrl} alt="" />
+            )}
+            {brand.displayName && (
+              <p className={ar.brandName}>{brand.displayName}</p>
+            )}
+            <h1>{title}</h1>
+            <p>{brand.beginText}</p>
+            <span className={ar.beginBtn}>{brand.beginLabel}</span>
+            <small>Camera access is required. Nothing is recorded.</small>
+          </div>
+        )}
+        {step === 'loading' && (
+          <div className={styles.previewLoading}>
+            {brand.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- Blob upload preview
+              <img className={ar.brandLogo} src={brand.logoUrl} alt="" />
+            )}
+            <div className={ar.loadingPulse} />
+            <p>{brand.loadingText}</p>
+          </div>
+        )}
+        {step === 'anchored' && (
+          <div className={styles.previewAnchored}>
+            <div className={styles.previewSilhouette} aria-hidden />
+            <p className={styles.previewScan}>{brand.scanText}</p>
+            <div className={styles.previewChrome}>
+              <span className={styles.previewAbout}>About this piece</span>
+              <span className={styles.previewPrompt}>
+                Tap a pin for a note, or tap the piece to morph
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </figure>
   );

@@ -53,6 +53,12 @@ export interface SpatialPin {
   audioAssetId?: string;
   /** Which morph form shows the pin. Missing means both. */
   form?: PinForm;
+  /** Optional outbound link (CTA). */
+  href?: string;
+  /** Label for the CTA button when href is set. */
+  ctaLabel?: string;
+  /** Optional image shown in the pin sheet (https Blob URL). */
+  imageUrl?: string;
 }
 
 export interface GalleryExtension {
@@ -66,6 +72,11 @@ export interface GalleryExtension {
   audio: {
     unlockOnBegin: boolean;
     playOnFirstEnterRaw: boolean;
+  };
+  /** Arrive densify overrides; missing fields use product defaults. */
+  reveal?: {
+    densifyMs?: number;
+    scatterFactor?: number;
   };
   provenance: GalleryProvenance;
   shop: {

@@ -12,13 +12,13 @@ Plans for the post-Arrive enhancement backlog. GitHub issues may be created late
 | 4 | Delete unused ArExperience visitor CSS | 1 | S | [04-delete-dead-css.md](04-delete-dead-css.md) | done |
 | 5 | Publish readiness warnings (placeholder/interim) | 1 | S | [05-publish-readiness.md](05-publish-readiness.md) | done |
 | 6 | Studio badges for unsupported AR features | 1 | S | [06-unsupported-badges.md](06-unsupported-badges.md) | done |
-| 7 | Polish densify look (splat-feel) | 2 | M–L | [07-polish-densify-look.md](07-polish-densify-look.md) | outlined |
-| 8 | Studio knobs for Arrive densify | 2 | M | [08-studio-arrive-knobs.md](08-studio-arrive-knobs.md) | outlined |
-| 9 | Brand preview beyond Begin gate | 2 | M | [09-brand-preview-beyond-begin.md](09-brand-preview-beyond-begin.md) | outlined |
-| 10 | Persist visitor metrics beyond console | 2 | M | [10-persist-visitor-metrics.md](10-persist-visitor-metrics.md) | outlined |
-| 11 | Visitor AR accessibility pass | 2 | M | [11-visitor-a11y-pass.md](11-visitor-a11y-pass.md) | outlined |
-| 12 | In-experience share sheet / QR handoff | 2 | M | [12-in-experience-share.md](12-in-experience-share.md) | outlined |
-| 13 | Richer pins (links, media, CTAs) | 2 | M | [13-richer-pins.md](13-richer-pins.md) | outlined |
+| 7 | Polish densify look (splat-feel) | 2 | M–L | [07-polish-densify-look.md](07-polish-densify-look.md) | done |
+| 8 | Studio knobs for Arrive densify | 2 | M | [08-studio-arrive-knobs.md](08-studio-arrive-knobs.md) | done |
+| 9 | Brand preview beyond Begin gate | 2 | M | [09-brand-preview-beyond-begin.md](09-brand-preview-beyond-begin.md) | done |
+| 10 | Persist visitor metrics beyond console | 2 | M | [10-persist-visitor-metrics.md](10-persist-visitor-metrics.md) | done |
+| 11 | Visitor AR accessibility pass | 2 | M | [11-visitor-a11y-pass.md](11-visitor-a11y-pass.md) | done |
+| 12 | In-experience share sheet / QR handoff | 2 | M | [12-in-experience-share.md](12-in-experience-share.md) | done |
+| 13 | Richer pins (links, media, CTAs) | 2 | M | [13-richer-pins.md](13-richer-pins.md) | done |
 | 14 | Honor richer mural node types in WebAR | 3 | L | [14-richer-mural-nodes.md](14-richer-mural-nodes.md) | stub |
 | 15 | Nodes authoring (add/remove/type/triggers) | 3 | L | [15-nodes-authoring.md](15-nodes-authoring.md) | stub |
 | 16 | Support additional experience kinds | 3 | L | [16-experience-kinds.md](16-experience-kinds.md) | stub |
