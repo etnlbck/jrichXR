@@ -16,6 +16,7 @@ import PinPlacer from '@/components/PinPlacer';
 import PinPreview from '@/components/PinPreview';
 import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
+import { formatPublishedAt } from '@/lib/format';
 import styles from '@/app/admin/admin.module.css';
 import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
 import { colorLuminance, PIN_COLOR_PRESETS } from '@/lib/pin-color';
@@ -30,6 +31,7 @@ type StoreStatus = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
 };
@@ -253,7 +255,12 @@ export default function AdminEditor({
       if (!res.ok) throw new Error(data.message || data.error || 'Publish failed');
       applyServerExperience(data.experience, data.revision);
       setStatus(data.status);
-      setMessage(`Published v${data.experience.version}`);
+      const when = formatPublishedAt(data.status?.publishedAt);
+      setMessage(
+        when
+          ? `Published v${data.experience.version} on ${when}`
+          : `Published v${data.experience.version}`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Publish failed');
     } finally {
@@ -467,7 +474,23 @@ export default function AdminEditor({
           <p className={styles.sub}>
             {experience.id} · Draft{' '}
             {status?.hasDraft ? `v${status.draftVersion}` : `v${experience.version}`}{' '}
-            · Published {status?.hasPublished ? `v${status.publishedVersion}` : '—'}
+            · Published{' '}
+            {status?.hasPublished ? (
+              <>
+                v{status.publishedVersion}
+                {status.publishedAt && formatPublishedAt(status.publishedAt) ? (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <time dateTime={status.publishedAt}>
+                      {formatPublishedAt(status.publishedAt)}
+                    </time>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              '—'
+            )}
             {status && !status.blobConfigured ? ' · Blob missing' : ''}
           </p>
         </div>
