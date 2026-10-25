@@ -52,7 +52,12 @@ function readPending(experienceId: string): PinChanges | null {
 }
 
 function toScenePins(pins: SpatialPin[]): ScenePin[] {
-  return pins.map((p) => ({ id: p.id, position: p.position, form: pinForm(p) }));
+  return pins.map((p) => ({
+    id: p.id,
+    title: p.title,
+    position: p.position,
+    form: pinForm(p),
+  }));
 }
 
 function changeCount(changes: PinChanges) {
@@ -231,7 +236,7 @@ export default function PinArPlacer({
       return;
     }
 
-    const pinId = scene.pickPin(ndc.x, ndc.y);
+    const pinId = scene.pickPin(ndc.x, ndc.y, { includeLabels: false });
     if (pinId) {
       select(pinId);
       return;

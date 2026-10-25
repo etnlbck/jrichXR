@@ -6,6 +6,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { pinShowsOn, type SpatialPin } from '@jrichforms/experience';
+import {
+  disposePinLabel,
+  fitPinLabels,
+  makePinLabel,
+  setLabelBaseOpacity,
+  throttleMs,
+  updateLabelOcclusion,
+  type PinLabel,
+} from '@/lib/pin-label';
 import styles from '@/app/admin/admin.module.css';
 
 type ShownForm = 'finished' | 'raw';
@@ -26,6 +35,9 @@ type PinMarker = {
   id: string;
   group: THREE.Group;
   dot: THREE.Mesh;
+  label: PinLabel | null;
+  /** Title + selected state the label was drawn with. */
+  labelKey: string;
 };
 
 const DOT = 0xffc46a;
@@ -161,7 +173,21 @@ export default function PinPlacer({
       dot.userData.pinId = id;
       group.add(dot);
       group.add(hit);
-      return { id, group, dot };
+      return { id, group, dot, label: null, labelKey: '' };
+    }
+
+    function syncLabel(marker: PinMarker, title: string, selected: boolean) {
+      const key = `${selected ? 1 : 0}:${title}`;
+      if (marker.labelKey === key) return;
+      if (marker.label) disposePinLabel(marker.label);
+      marker.label = makePinLabel(marker.id, title, { radius: pinRadius, selected });
+      marker.labelKey = key;
+      if (marker.label) marker.group.add(marker.label.root);
+    }
+
+    function removeMarker(marker: PinMarker) {
+      if (marker.label) disposePinLabel(marker.label);
+      pinRoot.remove(marker.group);
     }
 
     function syncPins(next: SpatialPin[], selected: string | null) {
@@ -169,7 +195,7 @@ export default function PinPlacer({
       const ids = new Set(next.map((p) => p.id));
       for (let i = markers.length - 1; i >= 0; i--) {
         if (!ids.has(markers[i].id)) {
-          pinRoot.remove(markers[i].group);
+          removeMarker(markers[i]);
           markers.splice(i, 1);
         }
       }
@@ -181,11 +207,21 @@ export default function PinPlacer({
           pinRoot.add(marker.group);
         }
         marker.group.position.set(pin.position.x, pin.position.y, pin.position.z);
+        const opacity = pinShowsOn(pin, showingRef.current) ? 1 : 0.3;
         const mat = marker.dot.material as THREE.MeshBasicMaterial;
         mat.color.setHex(pin.id === selected ? DOT_SELECTED : DOT);
-        mat.opacity = pinShowsOn(pin, showingRef.current) ? 1 : 0.3;
+        mat.opacity = opacity;
+        syncLabel(marker, pin.title, pin.id === selected);
+        if (marker.label) setLabelBaseOpacity(marker.label, opacity);
       }
     }
+
+    function currentLabels() {
+      const out: PinLabel[] = [];
+      for (const m of markers) if (m.label) out.push(m.label);
+      return out;
+    }
+    const occlusionTick = throttleMs(200);
 
     syncPinsRef.current = syncPins;
     showFormRef.current = showForm;
@@ -196,9 +232,12 @@ export default function PinPlacer({
       pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
     }
 
+    /** Dots and hit spheres only; clicks pass through floating titles. */
     function hitPins() {
       const objs = markers.map((m) => m.group);
-      return raycaster.intersectObjects(objs, true);
+      return raycaster
+        .intersectObjects(objs, true)
+        .filter((hit) => !hit.object.userData.isPinLabel);
     }
 
     function hitModel() {
@@ -333,6 +372,12 @@ export default function PinPlacer({
     const tick = () => {
       raf = requestAnimationFrame(tick);
       controls.update();
+      const labels = currentLabels();
+      if (labels.length > 0) {
+        camera.updateMatrixWorld();
+        fitPinLabels(labels, camera, host.clientHeight);
+        occlusionTick(() => updateLabelOcclusion(labels, camera, model ? [model] : []));
+      }
       renderer.render(scene, camera);
     };
     tick();
@@ -340,6 +385,8 @@ export default function PinPlacer({
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      for (const m of markers) removeMarker(m);
+      markers.length = 0;
       ro.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
