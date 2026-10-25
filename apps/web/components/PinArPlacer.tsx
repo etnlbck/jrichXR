@@ -2,6 +2,7 @@
 
 import { pinForm, type PinForm, type SpatialPin } from '@jrichforms/experience';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
 import { formatPublishedAt } from '@/lib/format';
 import {
@@ -401,7 +402,7 @@ export default function PinArPlacer({
   const hint = `Tap the ${showing} sculpture to add a pin, or tap a pin to edit it`;
 
   return (
-    <div className={ar.root}>
+    <div className={ar.root} style={brandStyle(config.brand)}>
       <canvas id="camerafeed" ref={canvasRef} className={ar.canvas} onClick={handleTap} />
 
       {!stage && phase === 'START' && (

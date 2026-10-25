@@ -6,6 +6,7 @@ import type {
   PinForm,
   SpatialPin,
 } from './types';
+import { sanitizeBrand } from './brand';
 
 export function galleryPins(experience: GalleryExperience): SpatialPin[] {
   return experience.gallery.pins ?? [];
@@ -86,14 +87,19 @@ export function parseGalleryExperience(raw: unknown): GalleryExperience {
   if (e.kind !== 'mural' || !e.id || !e.gallery || !e.marker?.web) {
     throw new Error('experience: invalid gallery mural package');
   }
-  const { pinColor: rawPinColor, ...gallery } = e.gallery;
+  const { pinColor: rawPinColor, brandOverrides: rawOverrides, ...gallery } = e.gallery;
+  const { brand: rawBrand, ...rest } = e;
+  const overrides = sanitizeBrand(rawOverrides);
+  const brand = sanitizeBrand(rawBrand);
   return {
-    ...e,
+    ...rest,
     gallery: {
       ...gallery,
       pins: Array.isArray(e.gallery.pins) ? e.gallery.pins : [],
       ...(isHexColor(rawPinColor) ? { pinColor: rawPinColor.toLowerCase() } : {}),
+      ...(Object.keys(overrides).length > 0 ? { brandOverrides: overrides } : {}),
     },
+    ...(Object.keys(brand).length > 0 ? { brand } : {}),
   };
 }
 
@@ -105,9 +111,12 @@ function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && HEX_COLOR.test(value);
 }
 
+/** Sculpture pin color, then the published brand accent, then amber. */
 export function pinColor(experience: GalleryExperience): string {
   const c = experience.gallery.pinColor;
-  return isHexColor(c) ? c.toLowerCase() : DEFAULT_PIN_COLOR;
+  if (isHexColor(c)) return c.toLowerCase();
+  const accent = experience.brand?.accentFrom;
+  return isHexColor(accent) ? accent.toLowerCase() : DEFAULT_PIN_COLOR;
 }
 
 export interface NodeXr8Placement {

@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { config } from '@/lib/config';
+import { brandFontVariables } from '@/lib/brand-fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: `JRichForms XR — ${config.piece.title}`,
-  description: `${config.piece.gateTitle}: scan the marker, see the finished piece, tap to morph to the raw stone.`,
+  title: 'AR experience',
+  description: 'Scan the marker beside the sculpture to see it in augmented reality.',
+  // Declared here (not app/favicon.ico) so artist pages can replace it.
+  icons: { icon: '/favicon.ico' },
   other: {
     // Binary engine attribution (also surfaced in the AR UI).
     'xr-engine':
@@ -27,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={brandFontVariables}>
       <head>
         <link
           rel="stylesheet"

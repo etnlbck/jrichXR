@@ -1,7 +1,9 @@
 'use client';
 
+import type { ResolvedBrand } from '@jrichforms/experience';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { brandStyle } from '@/lib/brand-style';
 import styles from './shop.module.css';
 
 export type ShopPiece = {
@@ -162,10 +164,12 @@ function ProductCard({ product }: { product: Product }) {
 
 export default function ShopClient({
   piece,
+  brand,
   experienceId,
   arHref = '/',
 }: {
   piece: ShopPiece;
+  brand: ResolvedBrand;
   experienceId?: string;
   arHref?: string;
 }) {
@@ -210,11 +214,20 @@ export default function ShopClient({
   }, [experienceId]);
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} style={brandStyle(brand)}>
       <header className={styles.header}>
         <Link href={arHref} className={styles.backLink}>
           ← Back to AR
         </Link>
+        {(brand.logoUrl || brand.displayName) && (
+          <div className={styles.brandRow}>
+            {brand.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- artist upload on Blob
+              <img className={styles.logo} src={brand.logoUrl} alt={brand.displayName ?? ''} />
+            )}
+            {brand.displayName && <p className={styles.artist}>{brand.displayName}</p>}
+          </div>
+        )}
         <h1 className={styles.title}>Shop {piece.title}</h1>
         <p className={styles.subtitle}>
           Pieces and prints related to this sculpture.

@@ -45,11 +45,29 @@ function pillPath(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.closePath();
 }
 
-function drawLabel(text: string, selected: boolean) {
+const SYSTEM_LABEL_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+
+export function labelFont(fontFamily?: string) {
+  return `600 ${FONT_PX}px ${fontFamily ?? SYSTEM_LABEL_FONT}`;
+}
+
+/**
+ * Canvas text silently falls back if a web font isn't loaded yet, and never
+ * redraws. Resolve before drawing labels in `fontFamily`.
+ */
+export async function loadLabelFont(fontFamily: string): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  try {
+    await document.fonts.load(labelFont(fontFamily));
+  } catch {
+    /* fall back to whatever the browser has */
+  }
+}
+
+function drawLabel(text: string, selected: boolean, fontFamily?: string) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  // System fonts only: a web font may not be loaded when the canvas is drawn.
-  const font = `600 ${FONT_PX}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  const font = labelFont(fontFamily);
   ctx.font = font;
   const width = Math.ceil(ctx.measureText(text).width) + PAD_X * 2;
   canvas.width = Math.max(width, HEIGHT_PX);
@@ -68,13 +86,20 @@ function drawLabel(text: string, selected: boolean) {
 export function makePinLabel(
   pinId: string,
   title: string,
-  opts: { radius: number; selected?: boolean; opacity?: number; color?: string }
+  opts: {
+    radius: number;
+    selected?: boolean;
+    opacity?: number;
+    color?: string;
+    /** Must already be loaded; see loadLabelFont. */
+    fontFamily?: string;
+  }
 ): PinLabel | null {
   const text = truncate(title);
   if (!text) return null;
   const selected = opts.selected ?? false;
   const colors = pinColors(opts.color ?? DEFAULT_PIN_COLOR);
-  const canvas = drawLabel(text, selected);
+  const canvas = drawLabel(text, selected, opts.fontFamily);
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;

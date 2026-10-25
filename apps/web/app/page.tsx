@@ -1,7 +1,19 @@
+import type { Metadata, Viewport } from 'next';
 import ArExperience from '@/components/ArExperience';
-import { loadExperience } from '@/lib/load-experience';
+import { experienceMetadata, experienceViewport } from '@/lib/brand-metadata';
+import { loadConfigOrNull, loadExperience } from '@/lib/load-experience';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await loadConfigOrNull();
+  return config ? experienceMetadata(config) : {};
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  const config = await loadConfigOrNull();
+  return config ? experienceViewport(config) : {};
+}
 
 export default async function HomePage({
   searchParams,

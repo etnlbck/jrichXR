@@ -1,34 +1,40 @@
+import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 import ShopClient from '@/app/shop/ShopClient';
+import { experienceMetadata, experienceViewport } from '@/lib/brand-metadata';
 import { parseExperienceId, visitorArPath } from '@/lib/experience-id';
-import {
-  ExperienceNotFoundError,
-  loadExperience,
-} from '@/lib/load-experience';
+import { loadConfigOrNull } from '@/lib/load-experience';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ExperienceShopPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id: raw } = await params;
-  const id = parseExperienceId(raw);
-  if (!id) notFound();
+type Params = { params: Promise<{ id: string }> };
 
-  let config;
-  try {
-    ({ config } = await loadExperience(id));
-  } catch (err) {
-    if (err instanceof ExperienceNotFoundError) notFound();
-    throw err;
-  }
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const config = await loadConfigOrNull((await params).id);
+  return config
+    ? experienceMetadata(config, {
+        prefix: 'Shop',
+        description: `Pieces and prints related to ${config.piece.title}.`,
+      })
+    : {};
+}
+
+export async function generateViewport({ params }: Params): Promise<Viewport> {
+  const config = await loadConfigOrNull((await params).id);
+  return config ? experienceViewport(config) : {};
+}
+
+export default async function ExperienceShopPage({ params }: Params) {
+  const id = parseExperienceId((await params).id);
+  if (!id) notFound();
+  const config = await loadConfigOrNull(id);
+  if (!config) notFound();
 
   return (
     <ShopClient
       experienceId={id}
       arHref={visitorArPath(id)}
+      brand={config.brand}
       piece={{
         title: config.piece.title,
         acquireUrl: config.piece.acquireUrl,

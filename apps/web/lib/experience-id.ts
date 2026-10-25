@@ -31,6 +31,10 @@ export function visitorArPath(id: string): string {
   return id === DEFAULT_EXPERIENCE_ID ? '/' : `/e/${id}`;
 }
 
+export function visitorMarkerPath(id: string): string {
+  return id === DEFAULT_EXPERIENCE_ID ? '/marker' : `/e/${id}/marker`;
+}
+
 export function visitorShopPath(id: string): string {
   return id === DEFAULT_EXPERIENCE_ID ? '/shop' : `/e/${id}/shop`;
 }

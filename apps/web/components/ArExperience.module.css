@@ -31,6 +31,24 @@
   max-width: 340px;
 }
 
+.brandLogo {
+  display: block;
+  max-width: 180px;
+  max-height: 64px;
+  width: auto;
+  height: auto;
+  margin: 0 auto 1.2em;
+  object-fit: contain;
+}
+
+.brandName {
+  margin: 0 0 0.4em;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
 .gateCard h1 {
   font-size: 1.7rem;
   font-weight: 600;
@@ -59,7 +77,8 @@
   padding: 14px 34px;
   font-size: 1rem;
   font-weight: 600;
-  color: #fff;
+  font-family: inherit;
+  color: var(--brand-ink, #fff);
   background: linear-gradient(120deg, var(--ember), var(--violet));
 }
 
@@ -116,6 +135,12 @@ a.beginBtn {
   margin: 0;
   font-size: 0.95rem;
   opacity: 0.85;
+}
+
+.loading .brandLogo {
+  margin: 0;
+  max-height: 48px;
+  opacity: 0.9;
 }
 
 .loadingPulse {

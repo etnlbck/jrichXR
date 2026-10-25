@@ -8,7 +8,8 @@ import styles from '@/app/admin/admin.module.css';
 export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const onUsers = pathname.startsWith('/admin/users');
-  const onExperiences = !onUsers;
+  const onBrand = pathname.startsWith('/admin/brand');
+  const onExperiences = !onUsers && !onBrand;
 
   return (
     <header className={styles.topBar}>
@@ -22,6 +23,13 @@ export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
           aria-current={onExperiences ? 'page' : undefined}
         >
           Experiences
+        </Link>
+        <Link
+          href="/admin/brand"
+          className={styles.topLink}
+          aria-current={onBrand ? 'page' : undefined}
+        >
+          Brand
         </Link>
         {isAdmin && (
           <Link

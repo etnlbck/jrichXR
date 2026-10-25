@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { pinShowsOn, type PinForm } from '@jrichforms/experience';
+import { resolvedBrandFontFamily } from './brand-font-options';
 import type { AppConfig } from './config';
 import { mark } from './metrics';
 import { faceOutlinesToCamera, makePinOutline, pinColors } from './pin-color';
@@ -9,6 +10,7 @@ import { applyStageBackdrop } from './stage-backdrop';
 import {
   disposePinLabel,
   fitPinLabels,
+  loadLabelFont,
   makePinLabel,
   throttleMs,
   updateLabelOcclusion,
@@ -68,6 +70,15 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   /** Overlay opacity follows morph, timed by gallery.morph.overlayFadeMs. */
   let overlayT = 0;
   let clock: THREE.Clock | null = null;
+  /** Brand font for pin labels, set once it has loaded. */
+  let labelFontFamily: string | undefined;
+  if (config.brand.font !== 'system' && typeof document !== 'undefined') {
+    const family = resolvedBrandFontFamily(config.brand.font);
+    void loadLabelFont(family).then(() => {
+      labelFontFamily = family;
+      rebuildPins();
+    });
+  }
 
   function setOpacity(obj: THREE.Object3D, o: number) {
     obj.traverse((n) => {
@@ -145,6 +156,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
         radius: pinRadius,
         selected,
         color: config.pinColor,
+        fontFamily: labelFontFamily,
       });
       if (label) {
         group.add(label.root);

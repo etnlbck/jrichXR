@@ -4,7 +4,9 @@ import {
   isArtistSession,
   jsonFromNotFound,
   loadArtist,
+  type ArtistSession,
 } from '@/lib/artist-access';
+import { brandAssetPrefix, isValidUserId, patchArtistBrand } from '@/lib/brand-store';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
   applyAssetUrl,
@@ -28,6 +30,52 @@ const ALLOWED = [
   'audio/wav',
 ];
 
+const BRAND_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+type BrandUpload = {
+  userId: string;
+  assetId: 'logo' | 'share';
+  /** 'profile' saves the URL into the brand profile; 'none' leaves it to the caller (overrides). */
+  apply: 'profile' | 'none';
+};
+
+function brandFields(raw: unknown): BrandUpload | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.scope !== 'brand') return null;
+  if (r.assetId !== 'logo' && r.assetId !== 'share') return null;
+  if (!isValidUserId(r.userId)) return null;
+  return { userId: r.userId, assetId: r.assetId, apply: r.apply === 'none' ? 'none' : 'profile' };
+}
+
+/** Artists upload into their own brand folder; admins may upload for any artist. */
+function parseBrandPayload(
+  clientPayload: string | null,
+  artist: ArtistSession
+): BrandUpload | null {
+  if (!clientPayload) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(clientPayload);
+  } catch {
+    return null;
+  }
+  if ((raw as { scope?: unknown } | null)?.scope !== 'brand') return null;
+  const fields = brandFields(raw);
+  if (!fields) throw new Error('Invalid brand upload');
+  if (fields.userId !== artist.userId && !artist.isAdmin) throw new Error('not_found');
+  return fields;
+}
+
+function parseBrandToken(tokenPayload: string | null | undefined): BrandUpload | null {
+  if (!tokenPayload) return null;
+  try {
+    return brandFields(JSON.parse(tokenPayload));
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   const artist = await loadArtist();
   if (!isArtistSession(artist)) return artist;
@@ -45,6 +93,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
+        const brandUpload = parseBrandPayload(clientPayload, artist);
+        if (brandUpload) {
+          const prefix = brandAssetPrefix(brandUpload.userId, brandUpload.assetId);
+          if (!pathname.startsWith(prefix)) {
+            throw new Error(`Invalid upload pathname for brand ${brandUpload.assetId}`);
+          }
+          return {
+            allowedContentTypes: BRAND_IMAGE_TYPES,
+            maximumSizeInBytes: 2 * 1024 * 1024,
+            addRandomSuffix: true,
+            allowOverwrite: false,
+            tokenPayload: JSON.stringify({ scope: 'brand', ...brandUpload }),
+          };
+        }
         let assetId = 'asset';
         let experienceId: string | null = null;
         try {
@@ -77,6 +139,15 @@ export async function POST(request: Request): Promise<NextResponse> {
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
+        const brandUpload = parseBrandToken(tokenPayload);
+        if (brandUpload) {
+          if (brandUpload.apply === 'profile') {
+            await patchArtistBrand(brandUpload.userId, {
+              [brandUpload.assetId === 'logo' ? 'logoUrl' : 'shareImageUrl']: blob.url,
+            });
+          }
+          return;
+        }
         let assetId = 'asset';
         let experienceId: string | null = null;
         try {
