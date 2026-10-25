@@ -279,8 +279,10 @@ export default function ArExperience({
           >
             ×
           </button>
-          <h2>{openPin.title}</h2>
-          {openPin.body ? <p className={styles.pinBody}>{openPin.body}</p> : null}
+          <div className={styles.panelScroll}>
+            <h2>{openPin.title}</h2>
+            {openPin.body ? <p className={styles.pinBody}>{openPin.body}</p> : null}
+          </div>
         </div>
       )}
 
@@ -294,31 +296,33 @@ export default function ArExperience({
           >
             ×
           </button>
-          <h2>{pc.title}</h2>
-          <dl>
-            <dt>Material</dt>
-            <dd>{pc.material}</dd>
-            <dt>Dimensions</dt>
-            <dd>{pc.dimensions}</dd>
-            <dt>Year</dt>
-            <dd>{pc.year}</dd>
-            <dt>Exhibition</dt>
-            <dd>{pc.exhibition}</dd>
-          </dl>
-          <div className={styles.ctaRow}>
-            <Link className={styles.cta} href={pc.shopPath}>
-              Shop this piece
-            </Link>
-            {pc.acquireUrl && (
-              <a
-                className={styles.ctaSecondary}
-                href={pc.acquireUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Inquire to acquire
-              </a>
-            )}
+          <div className={styles.panelScroll}>
+            <h2>{pc.title}</h2>
+            <dl>
+              <dt>Material</dt>
+              <dd>{pc.material}</dd>
+              <dt>Dimensions</dt>
+              <dd>{pc.dimensions}</dd>
+              <dt>Year</dt>
+              <dd>{pc.year}</dd>
+              <dt>Exhibition</dt>
+              <dd>{pc.exhibition}</dd>
+            </dl>
+            <div className={styles.ctaRow}>
+              <Link className={styles.cta} href={pc.shopPath}>
+                Shop this piece
+              </Link>
+              {pc.acquireUrl && (
+                <a
+                  className={styles.ctaSecondary}
+                  href={pc.acquireUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Inquire to acquire
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}

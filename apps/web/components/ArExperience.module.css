@@ -218,6 +218,17 @@
   padding: 26px 24px max(34px, env(safe-area-inset-bottom));
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
   animation: slideup 0.35s ease;
+  max-height: 70vh;
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrolls inside the capped sheet; the close button stays pinned to .panel. */
+.panelScroll {
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 @keyframes slideup {
@@ -258,6 +269,7 @@
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.5;
+  white-space: pre-line;
 }
 
 .panelClose {

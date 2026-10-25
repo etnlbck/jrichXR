@@ -13,12 +13,16 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PhoneHandoff from '@/components/PhoneHandoff';
 import PinPlacer from '@/components/PinPlacer';
+import PinPreview from '@/components/PinPreview';
 import { assetPathname } from '@/lib/experience-store-client';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import styles from '@/app/admin/admin.module.css';
 import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
 import { colorLuminance, PIN_COLOR_PRESETS } from '@/lib/pin-color';
 import { newPinId, PIN_FORM_LABEL } from '@/lib/pins';
+
+/** Matches the `.pinLayout` two-column breakpoint in admin.module.css. */
+const SINGLE_COLUMN_QUERY = '(max-width: 899px)';
 
 type StoreStatus = {
   blobConfigured: boolean;
@@ -66,6 +70,7 @@ export default function AdminEditor({
   const [selectedPinId, setSelectedPinId] = useState<string | null>(initialPinId);
   const [pinView, setPinView] = useState<'finished' | 'raw'>('finished');
   const [modelLuminance, setModelLuminance] = useState<number | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const isSeedExperience = experienceId === DEFAULT_EXPERIENCE_ID;
   const qs = `?id=${encodeURIComponent(experienceId)}`;
   const setExperience = setExperienceState;
@@ -394,6 +399,15 @@ export default function AdminEditor({
     setSelectedPinId(id);
     const pin = (experience?.gallery.pins ?? []).find((p) => p.id === id);
     if (pin && pinForm(pin) !== 'both') setPinView(pinForm(pin) as 'finished' | 'raw');
+  }
+
+  /** Below the two-column breakpoint the preview sits under the 3D view. */
+  function selectPinFromViewport(id: string | null) {
+    selectPin(id);
+    if (!id || !window.matchMedia(SINGLE_COLUMN_QUERY).matches) return;
+    requestAnimationFrame(() =>
+      previewRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    );
   }
 
   async function uploadPinAudio(pin: SpatialPin, file: File) {
@@ -988,7 +1002,7 @@ export default function AdminEditor({
               pins={pins}
               selectedId={selectedPinId}
               showing={pinView}
-              onSelect={selectPin}
+              onSelect={selectPinFromViewport}
               onAddPin={addPinAt}
               onMovePin={(id, position) => updatePin(id, { position })}
             />
@@ -1018,6 +1032,17 @@ export default function AdminEditor({
               )}
               {selectedPin && (
                 <>
+                  <PinPreview
+                    ref={previewRef}
+                    pinId={selectedPin.id}
+                    title={selectedPin.title}
+                    body={selectedPin.body}
+                    audioUrl={
+                      selectedPin.audioAssetId
+                        ? assetWebPath(experience, selectedPin.audioAssetId) || null
+                        : null
+                    }
+                  />
                   <div className={styles.field}>
                     <label>Title</label>
                     <input
