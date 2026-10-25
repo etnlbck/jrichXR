@@ -1,9 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from 'react';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
+import { REVEAL } from '@/lib/reveal';
 import { createScene } from '@/lib/scene';
 import { useCoarsePointer } from '@/lib/use-coarse-pointer';
 import {
@@ -23,6 +31,33 @@ type Props = {
   /** Desktop stand-in: model, pins, and sheets without the camera. */
   stage?: boolean;
 };
+
+type FadePhase = 'in' | 'out' | 'gone';
+
+function useFadeMount(active: boolean, durationMs: number) {
+  const [phase, setPhase] = useState<FadePhase>(active ? 'in' : 'gone');
+  const wasActive = useRef(active);
+
+  useEffect(() => {
+    if (active) {
+      wasActive.current = true;
+      setPhase('in');
+      return;
+    }
+    if (!wasActive.current || phase === 'gone') {
+      setPhase('gone');
+      return;
+    }
+    setPhase('out');
+    const t = window.setTimeout(() => {
+      wasActive.current = false;
+      setPhase('gone');
+    }, durationMs);
+    return () => window.clearTimeout(t);
+  }, [active, durationMs]); // eslint-disable-line react-hooks/exhaustive-deps -- phase intentionally omitted
+
+  return phase;
+}
 
 export default function ArExperience({
   appConfig,
@@ -45,6 +80,9 @@ export default function ArExperience({
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [showProvenance, setShowProvenance] = useState(false);
   const [openPinId, setOpenPinId] = useState<string | null>(null);
+  const [revealComplete, setRevealComplete] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const [reticleSuccess, setReticleSuccess] = useState(false);
   const narratedOnce = useRef(false);
   const pinAudioRef = useRef<HTMLAudioElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
@@ -90,6 +128,21 @@ export default function ArExperience({
         setBooting(false);
         if (stage) setState('ANCHORED');
       },
+      onRevealStart: () => {
+        setRevealing(true);
+        if (!stage) {
+          setReticleSuccess(true);
+          window.setTimeout(
+            () => setReticleSuccess(false),
+            REVEAL.reticleSuccessMs
+          );
+        }
+      },
+      onRevealComplete: () => {
+        setRevealing(false);
+        setRevealComplete(true);
+        setReticleSuccess(false);
+      },
     });
   }, [config, openProvenance, stage]);
 
@@ -97,8 +150,15 @@ export default function ArExperience({
     if (state === 'SCANNING' || state === 'START' || state === 'ERROR') {
       setOpenPinId(null);
       pinAudioRef.current?.pause();
+      if (state === 'SCANNING' && !stage) {
+        setRevealing(false);
+        // Allow densify retry after tracking loss mid-reveal; keep done if finished.
+        if (!sceneRef.current?.isRevealComplete()) {
+          setRevealComplete(false);
+        }
+      }
     }
-  }, [state]);
+  }, [state, stage]);
 
   const unlockAudio = useCallback(() => {
     if (!config.audio.unlockOnBegin) return;
@@ -159,6 +219,7 @@ export default function ArExperience({
       const scene = sceneRef.current;
       const canvas = canvasRef.current;
       if (!scene?.isVisible() || !scene.isModelsReady() || !canvas) return;
+      if (!scene.isRevealComplete()) return;
       if (stage) unlockAudio();
 
       const rect = canvas.getBoundingClientRect();
@@ -198,8 +259,14 @@ export default function ArExperience({
   const anchored =
     state === 'ANCHORED' || state === 'RAW' || state === 'FINISHED';
   const sheetOpen = Boolean(openPin) || showProvenance;
-  const showScan = !stage && state === 'SCANNING' && modelsReady && !booting;
-  const askingCamera = !stage && state === 'SCANNING' && cameraStatus === 'requesting';
+  const showScan =
+    !stage &&
+    state === 'SCANNING' &&
+    modelsReady &&
+    !booting &&
+    !revealing;
+  const askingCamera =
+    !stage && state === 'SCANNING' && cameraStatus === 'requesting';
   const showLoading =
     (askingCamera || booting || (state === 'SCANNING' && !modelsReady)) &&
     state !== 'ERROR';
@@ -207,7 +274,17 @@ export default function ArExperience({
     !stage && state === 'START' && coarsePointer === false && !useCameraAnyway;
   const showBeginGate =
     !stage && state === 'START' && coarsePointer !== null && !showDesktopGate;
-  const showTap = anchored && modelsReady && !sheetOpen;
+  const showChrome = anchored && modelsReady && revealComplete && !sheetOpen;
+  const showTap = showChrome;
+
+  const gateFade = useFadeMount(showBeginGate, REVEAL.gateFadeMs);
+  const loadingFade = useFadeMount(showLoading, REVEAL.overlayFadeMs);
+  const scanFade = useFadeMount(
+    showScan || reticleSuccess,
+    REVEAL.overlayFadeMs
+  );
+  const chromeFade = useFadeMount(showChrome, REVEAL.overlayFadeMs);
+
   const morphHint = config.usePlaceholderCube
     ? 'Tap the cube to preview the morph'
     : config.pins.length > 0
@@ -224,8 +301,21 @@ export default function ArExperience({
     <img className={styles.brandLogo} src={brand.logoUrl} alt={brand.displayName ?? ''} />
   ) : null;
 
+  const fadeClass = (phase: FadePhase) =>
+    phase === 'out' ? styles.fadeOut : styles.fadeIn;
+
   return (
-    <div className={styles.root} style={brandStyle(brand)}>
+    <div
+      className={styles.root}
+      style={
+        {
+          ...brandStyle(brand),
+          ['--reveal-fade-ms' as string]: `${REVEAL.overlayFadeMs}ms`,
+          ['--gate-fade-ms' as string]: `${REVEAL.gateFadeMs}ms`,
+          ['--reticle-success-ms' as string]: `${REVEAL.reticleSuccessMs}ms`,
+        } as CSSProperties
+      }
+    >
       <canvas
         id="camerafeed"
         ref={canvasRef}
@@ -242,14 +332,21 @@ export default function ArExperience({
         />
       )}
 
-      {showBeginGate && (
-        <div className={styles.overlay}>
+      {gateFade !== 'gone' && (
+        <div className={`${styles.overlay} ${fadeClass(gateFade)}`}>
           <div className={styles.gateCard}>
             {logo}
-            {brand.displayName && <p className={styles.brandName}>{brand.displayName}</p>}
+            {brand.displayName && (
+              <p className={styles.brandName}>{brand.displayName}</p>
+            )}
             <h1>{pc.gateTitle}</h1>
             <p>{brand.beginText}</p>
-            <button type="button" className={styles.beginBtn} onClick={handleBegin}>
+            <button
+              type="button"
+              className={styles.beginBtn}
+              onClick={handleBegin}
+              disabled={gateFade === 'out'}
+            >
               {brand.beginLabel}
             </button>
             <small>Camera access is required. Nothing is recorded.</small>
@@ -257,8 +354,12 @@ export default function ArExperience({
         </div>
       )}
 
-      {showLoading && (
-        <div className={styles.loading} role="status" aria-live="polite">
+      {loadingFade !== 'gone' && (
+        <div
+          className={`${styles.loading} ${fadeClass(loadingFade)}`}
+          role="status"
+          aria-live="polite"
+        >
           {logo}
           <div className={styles.loadingPulse} />
           <p>
@@ -269,27 +370,35 @@ export default function ArExperience({
         </div>
       )}
 
-      {showScan && (
-        <div className={styles.hint}>
-          <div className={styles.reticle} />
-          <p>Aim at the marker…</p>
+      {scanFade !== 'gone' && (
+        <div className={`${styles.hint} ${fadeClass(scanFade)}`}>
+          <div
+            className={`${styles.reticle} ${
+              reticleSuccess ? styles.reticleSuccess : ''
+            }`}
+          />
+          <p>{reticleSuccess ? 'Found' : 'Aim at the marker…'}</p>
         </div>
       )}
 
-      {showTap && <div className={styles.prompt}>{morphHint}</div>}
-
-      {anchored && modelsReady && !sheetOpen && (
-        <button
-          type="button"
-          className={styles.about}
-          onClick={() => {
-            pinAudioRef.current?.pause();
-            setOpenPinId(null);
-            setShowProvenance(true);
-          }}
-        >
-          About this piece
-        </button>
+      {chromeFade !== 'gone' && (
+        <>
+          <div className={`${styles.prompt} ${fadeClass(chromeFade)}`}>
+            {morphHint}
+          </div>
+          <button
+            type="button"
+            className={`${styles.about} ${fadeClass(chromeFade)}`}
+            onClick={() => {
+              pinAudioRef.current?.pause();
+              setOpenPinId(null);
+              setShowProvenance(true);
+            }}
+            disabled={chromeFade === 'out'}
+          >
+            About this piece
+          </button>
+        </>
       )}
 
       {issue && <XrIssueSheet issue={issue} />}
@@ -309,7 +418,9 @@ export default function ArExperience({
           </button>
           <div className={styles.panelScroll}>
             <h2>{openPin.title}</h2>
-            {openPin.body ? <p className={styles.pinBody}>{openPin.body}</p> : null}
+            {openPin.body ? (
+              <p className={styles.pinBody}>{openPin.body}</p>
+            ) : null}
           </div>
         </div>
       )}
@@ -326,7 +437,9 @@ export default function ArExperience({
           </button>
           <div className={styles.panelScroll}>
             <h2>{pc.title}</h2>
-            {brand.displayName && <p className={styles.brandName}>{brand.displayName}</p>}
+            {brand.displayName && (
+              <p className={styles.brandName}>{brand.displayName}</p>
+            )}
             <dl>
               <dt>Material</dt>
               <dd>{pc.material}</dd>
@@ -353,7 +466,8 @@ export default function ArExperience({
               )}
             </div>
             <p className={styles.credit}>
-              AR engine by Niantic Spatial · <Link href="/licenses">Licenses</Link>
+              AR engine by Niantic Spatial ·{' '}
+              <Link href="/licenses">Licenses</Link>
             </p>
           </div>
         </div>
