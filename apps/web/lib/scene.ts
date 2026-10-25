@@ -4,10 +4,19 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { pinShowsOn, type PinForm } from '@jrichforms/experience';
 import type { AppConfig } from './config';
 import { mark } from './metrics';
+import {
+  disposePinLabel,
+  fitPinLabels,
+  makePinLabel,
+  throttleMs,
+  updateLabelOcclusion,
+  type PinLabel,
+} from './pin-label';
 import type { ImageTargetDetail, UiState } from './types';
 
 export type ScenePin = {
   id: string;
+  title: string;
   position: { x: number; y: number; z: number };
   form: PinForm;
 };
@@ -37,6 +46,10 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
   let pins: ScenePin[] = config.pins;
   let pinRoot: THREE.Group | null = null;
   let pinRadius = 0.012;
+  const labels: PinLabel[] = [];
+  const occlusionTick = throttleMs(200);
+  /** Canvas the scene renders into; its height sizes the pin labels. */
+  let viewportEl: HTMLCanvasElement | null = null;
   let selectedPinId: string | null = null;
   /** While placing a pin, ignore tracking updates so the model holds still. */
   let poseHeld = false;
@@ -95,6 +108,8 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
 
   function rebuildPins() {
     if (!pinRoot) return;
+    for (const label of labels) disposePinLabel(label);
+    labels.length = 0;
     pinRoot.clear();
     pinHits.length = 0;
     pinGroups.length = 0;
@@ -119,6 +134,11 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       hit.userData.pinId = pin.id;
       group.add(dot);
       group.add(hit);
+      const label = makePinLabel(pin.id, pin.title, { radius: pinRadius, selected });
+      if (label) {
+        group.add(label.root);
+        labels.push(label);
+      }
       pinRoot.add(group);
       pinHits.push(dot, hit);
       pinGroups.push({ id: pin.id, form: pin.form, group });
@@ -329,6 +349,17 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     return morphTarget === 1 ? ('RAW' as const) : ('FINISHED' as const);
   }
 
+  function updateLabels() {
+    const camera = activeCamera();
+    if (!camera || labels.length === 0 || !visible) return;
+    const height = viewportEl?.clientHeight || window.innerHeight;
+    fitPinLabels(labels, camera, height);
+    occlusionTick(() => {
+      const shown = morphT > 0.5 && raw ? raw : (finished ?? placeholder);
+      updateLabelOcclusion(labels, camera, shown ? [shown] : []);
+    });
+  }
+
   function updateMorph(dt: number) {
     updatePinVisibility();
     if (!finished || !raw) return;
@@ -372,6 +403,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       onStart: () => {
         if (!window.XR8) return;
         three = window.XR8.Threejs.xrScene();
+        viewportEl = three.renderer.domElement;
         clock = new THREE.Clock();
 
         three.scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.1));
@@ -393,6 +425,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       onUpdate: () => {
         const dt = clock ? clock.getDelta() : 0.016;
         updateMorph(dt);
+        updateLabels();
       },
     };
   }
@@ -430,13 +463,25 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     return stageCamera ?? three?.camera ?? null;
   }
 
-  function pickPin(ndcX: number, ndcY: number): string | null {
+  /**
+   * Pin under the tap. Editing views pass `includeLabels: false` so taps on a
+   * floating title fall through to the sculpture.
+   */
+  function pickPin(
+    ndcX: number,
+    ndcY: number,
+    { includeLabels = true }: { includeLabels?: boolean } = {}
+  ): string | null {
     const camera = activeCamera();
     if (!camera || !visible || pinHits.length === 0) return null;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-    const shown = pinHits.filter((o) => o.parent?.visible !== false);
-    const hit = raycaster.intersectObjects(shown, true)[0];
+    const shownIds = new Set(pinGroups.filter((g) => g.group.visible).map((g) => g.id));
+    const targets: THREE.Object3D[] = [
+      ...pinHits,
+      ...(includeLabels ? labels.map((l) => l.sprite) : []),
+    ].filter((o) => shownIds.has(o.userData.pinId));
+    const hit = raycaster.intersectObjects(targets, false)[0];
     const id = hit?.object.userData.pinId;
     return typeof id === 'string' ? id : null;
   }
@@ -494,6 +539,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
     stageCamera = camera;
+    viewportEl = canvas;
     camera.position.set(0, 0.2, 2);
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 1.35));
@@ -527,6 +573,7 @@ export function createScene(config: AppConfig, callbacks: SceneCallbacks) {
       frame = requestAnimationFrame(loop);
       const dt = clock ? clock.getDelta() : 0.016;
       updateMorph(dt);
+      updateLabels();
       renderer.render(scene, camera);
     };
     loop();
