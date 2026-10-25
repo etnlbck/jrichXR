@@ -70,14 +70,19 @@ export function assetPathname(
   return `experiences/${id}/assets/${assetId}/${safe}`;
 }
 
-async function readJsonBlob(pathname: string): Promise<GalleryExperience | null> {
+type TimedExperience = { experience: GalleryExperience; uploadedAt: string };
+
+async function readJsonBlob(pathname: string): Promise<TimedExperience | null> {
   if (!isBlobConfigured()) return null;
   try {
     const meta = await head(pathname);
     const res = await fetch(meta.url, { cache: 'no-store' });
     if (!res.ok) return null;
     const json = await res.json();
-    return parseGalleryExperience(json);
+    return {
+      experience: parseGalleryExperience(json),
+      uploadedAt: new Date(meta.uploadedAt).toISOString(),
+    };
   } catch {
     return null;
   }
@@ -158,6 +163,11 @@ export async function putDraftWithRevision(
 export async function getPublished(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<GalleryExperience | null> {
+  return (await readJsonBlob(publishedPath(id)))?.experience ?? null;
+}
+
+/** The published package plus when it was last published (the blob is overwritten on publish). */
+async function getPublishedWithTime(id: string): Promise<TimedExperience | null> {
   return readJsonBlob(publishedPath(id));
 }
 
@@ -456,6 +466,7 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
 }> {
@@ -469,17 +480,19 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
       hasPublished: false,
       draftVersion: null,
       publishedVersion: id === DEFAULT_EXPERIENCE_ID ? seed.version : null,
+      publishedAt: null,
       archived: false,
       archivedAt: null,
     };
   }
-  const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
+  const [draft, published] = await Promise.all([getDraft(id), getPublishedWithTime(id)]);
   return {
     blobConfigured: true,
     hasDraft: draft !== null,
     hasPublished: published !== null,
     draftVersion: draft?.version ?? null,
-    publishedVersion: published?.version ?? null,
+    publishedVersion: published?.experience.version ?? null,
+    publishedAt: published?.uploadedAt ?? null,
     archived: meta.archived === true,
     archivedAt: meta.archivedAt,
   };
@@ -493,6 +506,7 @@ export type ExperienceIndexItem = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
   ownerUserId: string | null;
@@ -539,7 +553,7 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
       [...ids].sort().map(async (id) => {
         const [draft, published, meta, access] = await Promise.all([
           getDraft(id),
-          getPublished(id),
+          getPublishedWithTime(id),
           getMeta(id),
           getExperienceAccess(id),
         ]);
@@ -550,14 +564,15 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
           draft !== null
             ? draft
             : published !== null
-              ? published
+              ? published.experience
               : id === DEFAULT_EXPERIENCE_ID
                 ? seed
                 : null;
         const brandChanged =
           published !== null && access !== null
-            ? brandHash(pendingBrand(published, await profileFor(access.ownerUserId))) !==
-              brandHash(published.brand)
+            ? brandHash(
+                pendingBrand(published.experience, await profileFor(access.ownerUserId))
+              ) !== brandHash(published.experience.brand)
             : false;
         return {
           id,
@@ -567,8 +582,9 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
           hasPublished: published !== null,
           draftVersion: draft?.version ?? null,
           publishedVersion:
-            published?.version ??
+            published?.experience.version ??
             (id === DEFAULT_EXPERIENCE_ID && !blobConfigured ? seed.version : null),
+          publishedAt: published?.uploadedAt ?? null,
           archived: meta.archived === true,
           archivedAt: meta.archivedAt,
           ownerUserId: access?.ownerUserId ?? null,

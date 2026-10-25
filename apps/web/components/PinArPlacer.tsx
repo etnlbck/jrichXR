@@ -4,6 +4,7 @@ import { pinForm, type PinForm, type SpatialPin } from '@jrichforms/experience';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
+import { formatPublishedAt } from '@/lib/format';
 import {
   applyPinChanges,
   emptyPinChanges,
@@ -371,7 +372,12 @@ export default function PinArPlacer({
       }
       if (!res.ok) throw new Error(data.message || data.error || 'Publish failed');
       revisionRef.current = data.revision;
-      setNotice(`Published v${data.experience.version}. Visitors see your pins now.`);
+      const when = formatPublishedAt(data.status?.publishedAt);
+      setNotice(
+        when
+          ? `Published v${data.experience.version} on ${when}. Visitors see your pins now.`
+          : `Published v${data.experience.version}. Visitors see your pins now.`
+      );
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Publish failed');
     } finally {

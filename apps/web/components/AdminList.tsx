@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import styles from '@/app/admin/admin.module.css';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
+import { formatPublishedAt } from '@/lib/format';
 
 type ExperienceIndexItem = {
   id: string;
@@ -14,6 +15,7 @@ type ExperienceIndexItem = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
   brandChanged: boolean;
@@ -204,7 +206,22 @@ export default function AdminList() {
                 <code>{item.id}</code>
                 <span>
                   Draft {item.hasDraft ? item.draftVersion : '—'} · Published{' '}
-                  {item.hasPublished ? item.publishedVersion : '—'}
+                  {item.hasPublished ? (
+                    <>
+                      {item.publishedVersion}
+                      {item.publishedAt && formatPublishedAt(item.publishedAt) ? (
+                        <>
+                          {' '}
+                          ·{' '}
+                          <time dateTime={item.publishedAt}>
+                            {formatPublishedAt(item.publishedAt)}
+                          </time>
+                        </>
+                      ) : null}
+                    </>
+                  ) : (
+                    '—'
+                  )}
                 </span>
                 {item.brandChanged && (
                   <span className={styles.badge}>Brand changed — republish to apply</span>
