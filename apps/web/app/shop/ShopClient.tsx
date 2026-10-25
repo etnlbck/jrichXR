@@ -230,7 +230,7 @@ export default function ShopClient({
         )}
         <h1 className={styles.title}>Shop {piece.title}</h1>
         <p className={styles.subtitle}>
-          Pieces and prints related to this sculpture.
+          Pieces and prints related to this piece.
         </p>
       </header>
 

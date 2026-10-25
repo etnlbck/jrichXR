@@ -50,11 +50,11 @@ export default function XrIssueSheet({ issue }: { issue: XrIssue }) {
   switch (issue) {
     case 'camera':
       title = 'Camera access is blocked';
-      body = `The sculpture appears through your camera. ${cameraSteps(platform, host)} Nothing is recorded.`;
+      body = `The experience appears through your camera. ${cameraSteps(platform, host)} Nothing is recorded.`;
       break;
     case 'motion':
       title = 'Motion access is needed';
-      body = `Motion sensors keep the sculpture in place as you move. ${motionSteps(platform)}`;
+      body = `Motion sensors keep the experience in place as you move. ${motionSteps(platform)}`;
       break;
     case 'unsupported':
       title = 'Open this page in your browser';

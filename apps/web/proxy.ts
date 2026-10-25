@@ -1,6 +1,7 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { resolveArtistSession } from '@/lib/artist-access';
+import { isClerkBypass } from '@/lib/clerk-bypass';
 
 function isPublicAdminAuth(pathname: string): boolean {
   return (
@@ -19,6 +20,10 @@ export default clerkMiddleware(async (auth, request) => {
   const isAdminApi = pathname.startsWith('/api/admin');
 
   if (!isAdminPage && !isAdminApi && !isPending) {
+    return NextResponse.next();
+  }
+
+  if (isClerkBypass()) {
     return NextResponse.next();
   }
 

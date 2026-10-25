@@ -3,7 +3,7 @@ import type { AppConfig } from '@/lib/config';
 import styles from './marker.module.css';
 
 /**
- * Print this page (matte paper, full color) and mount beside the sculpture.
+ * Print this page (matte paper, full color) and mount beside the piece.
  * Use the cropped target art — not a phone screenshot of the AR view.
  */
 export default function MarkerSheet({ config }: { config: AppConfig }) {
@@ -22,7 +22,7 @@ export default function MarkerSheet({ config }: { config: AppConfig }) {
       <h1>{config.piece.title} — image target</h1>
       <p>
         Print on <strong>matte</strong> paper. Avoid glossy laminate. Place
-        beside the sculpture, then open the AR experience and aim here.
+        beside the piece, then open the AR experience and aim here.
       </p>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -40,7 +40,7 @@ export default function MarkerSheet({ config }: { config: AppConfig }) {
       <p className={styles.scaleHint}>
         Scale check: after printing, measure edge-to-edge of this image, set
         physicalWidthM = cm÷100, then compare the AR model to a ruler beside the
-        sculpture.
+        piece.
       </p>
     </main>
   );

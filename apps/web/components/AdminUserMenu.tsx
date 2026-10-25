@@ -2,7 +2,12 @@
 
 import { UserButton } from '@clerk/nextjs';
 
-export default function AdminUserMenu() {
+export default function AdminUserMenu({ bypass = false }: { bypass?: boolean }) {
+  if (bypass) {
+    return (
+      <span title="CLERK_BYPASS=1 — local admin, no sign-in">Dev bypass</span>
+    );
+  }
   return (
     <UserButton
       appearance={{

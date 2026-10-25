@@ -166,7 +166,7 @@ export default function AdminList() {
           <p className={styles.sub}>
             {isAdmin
               ? 'Studio admin — all experiences'
-              : 'Your pieces — draft, publish, and create XR packages'}
+              : 'Your experiences — draft, publish, and create XR packages'}
           </p>
         </div>
         <button

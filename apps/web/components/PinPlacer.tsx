@@ -437,7 +437,7 @@ export default function PinPlacer({
   if (!modelUrl) {
     return (
       <p className={styles.status}>
-        Upload a finished GLB before placing pins on the sculpture.
+        Upload a finished GLB before placing pins on the model.
       </p>
     );
   }
@@ -447,8 +447,8 @@ export default function PinPlacer({
       <div ref={mountRef} className={styles.pinViewport} />
       <p className={styles.status}>
         {coarse
-          ? 'Tap the sculpture to drop a pin. Tap a pin to select it, then drag it to slide along the surface. Drag elsewhere to orbit; pinch to zoom.'
-          : 'Click the sculpture to drop a pin. Click a pin to select it, then drag to slide it along the surface.'}{' '}
+          ? 'Tap the model to drop a pin. Tap a pin to select it, then drag it to slide along the surface. Drag elsewhere to orbit; pinch to zoom.'
+          : 'Click the model to drop a pin. Click a pin to select it, then drag to slide it along the surface.'}{' '}
         Pins that belong to the other form are dimmed.
       </p>
     </div>

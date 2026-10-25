@@ -16,8 +16,8 @@ export function experienceMetadata(
   const description =
     opts.description ??
     (brand.displayName
-      ? `${config.piece.title} by ${brand.displayName}. Scan the marker beside the sculpture to see it in AR.`
-      : `${config.piece.title}. Scan the marker beside the sculpture to see it in AR.`);
+      ? `${config.piece.title} by ${brand.displayName}. Scan the marker to see it in AR.`
+      : `${config.piece.title}. Scan the marker to see it in AR.`);
   const image = brand.shareImageUrl ?? brand.logoUrl ?? config.printImage;
   return {
     title,

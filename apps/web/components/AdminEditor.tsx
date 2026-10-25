@@ -1015,7 +1015,7 @@ export default function AdminEditor({
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Spatial pins</h2>
           <p className={styles.status}>
-            Pins stick to the sculpture in WebAR. Tap a pin to open its note.
+            Pins stick to the model in WebAR. Tap a pin to open its note.
             Save the draft from the bar below when you are done placing.
           </p>
           <div className={styles.actions}>
@@ -1078,7 +1078,7 @@ export default function AdminEditor({
             </div>
             {pinColorLowContrast && (
               <p className={styles.status}>
-                This color may be hard to see on the sculpture. The outline
+                This color may be hard to see on the model. The outline
                 helps, but a lighter or darker color will stand out more.
               </p>
             )}
@@ -1236,9 +1236,9 @@ export default function AdminEditor({
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Brand overrides</h2>
           <p className={styles.status}>
-            This sculpture uses the owner’s{' '}
+            This experience uses the owner’s{' '}
             <Link href="/admin/brand">brand profile</Link>. Anything set here
-            replaces the profile for this sculpture only. Changes reach visitors
+            replaces the profile for this experience only. Changes reach visitors
             when you publish.
           </p>
           {owner?.isAdmin && !isSeedExperience && artists.length > 0 && (
