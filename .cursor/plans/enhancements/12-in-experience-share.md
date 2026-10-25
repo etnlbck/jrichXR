@@ -13,7 +13,11 @@ Visitors can share or hand off the experience in-AR (and improve desktop→phone
 1. After Arrive complete, optional Share control (Web Share API when available; copy link fallback).
 2. Use brand `shareImageUrl` / title for share payload when set.
 3. DesktopGate already has QR—ensure experience deep link is correct; optional “Show QR” from About sheet.
-4. No new social network integrations in v1.
+4. No new social network integrations in v1 (deferred).
+
+## Deferred
+
+Explicit social intent targets → [22](22-social-share-targets.md). About QR shipped in Wave 4.
 
 ## Files
 

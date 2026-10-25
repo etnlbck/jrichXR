@@ -14,10 +14,10 @@ Visitor runtime honors image nodes (beyond finished/raw + morph overlay + pins).
 - Triggers: `onDetect` (visible on lock), `tap` (opacity 0 until tapped)
 - Studio badges: image supported; video/audio still unsupported
 
-## Deferred
+## Deferred → Wave 5 plans
 
-- video / audio / loop / proximity
-- Extra gltf nodes beyond finished/raw morph pair
+- video / audio / loop / proximity + extra glTF → [18](18-video-audio-proximity-nodes.md)
+- Studio authoring for those types → [19](19-non-image-node-authoring.md)
 
 ## Acceptance
 
