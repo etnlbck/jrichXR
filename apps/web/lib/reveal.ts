@@ -11,6 +11,11 @@ export const REVEAL = {
    * Brief flicker mid-densify should not reset Arrive.
    */
   trackingGraceMs: 320,
+  /**
+   * After Arrive is done, fade the piece out over this duration when tracking
+   * drops, instead of an instant cut to scanning.
+   */
+  postRevealFadeMs: 480,
   densifyMs: 1000,
   /** Stage / reduced-motion opacity-only fade. */
   shortFadeMs: 180,

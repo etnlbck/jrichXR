@@ -570,6 +570,21 @@ export default function AdminEditor({
     await onUpload(audioAssetId, file);
   }
 
+  async function uploadPinImage(pin: SpatialPin, file: File) {
+    if (!experience) return;
+    const assetId = `pin-img-${pin.id}`;
+    const next: GalleryExperience = {
+      ...experience,
+      assets: {
+        ...experience.assets,
+        [assetId]: { role: 'pin-image', status: 'pending' },
+      },
+    };
+    setExperience(next);
+    if (!(await save(next))) return;
+    await onUpload(assetId, file);
+  }
+
   if (!experience) {
     return (
       <div className={styles.shell}>
@@ -701,6 +716,31 @@ export default function AdminEditor({
             Publish copies the draft to the visitor WebAR package (Blob). Aura
             Lenses still uses prepare-lenses / external API.
           </p>
+          {experience.placement ? (
+            <p className={styles.status} role="note">
+              placement: <code>{experience.placement}</code> — WebAR: not
+              supported yet (marker image target only).
+            </p>
+          ) : null}
+          {experience.personOcclusion ? (
+            <p className={styles.status} role="note">
+              personOcclusion — WebAR: not supported yet.
+            </p>
+          ) : null}
+          {experience.marker.trackingAssetId || experience.marker.mindAssetId ? (
+            <p className={styles.status} role="note">
+              marker trackingAssetId / mindAssetId — WebAR: not used (8th Wall
+              image target JSON drives tracking).
+            </p>
+          ) : null}
+          {experience.nodes.some(
+            (n) => n.platforms != null || n.androidAssetId != null
+          ) ? (
+            <p className={styles.status} role="note">
+              Node platforms / androidAssetId — WebAR: ignored (web paths
+              only).
+            </p>
+          ) : null}
           <div className={styles.actions}>
             {isSeedExperience && (
               <button
@@ -899,6 +939,12 @@ export default function AdminEditor({
       {tab === 'placement' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Placement & morph</h2>
+          {experience.placement ? (
+            <p className={styles.status} role="note">
+              Package placement <code>{experience.placement}</code> is stored
+              for Lenses — WebAR always uses the image marker.
+            </p>
+          ) : null}
           <div className={styles.field}>
             <label>physicalWidthM (meters)</label>
             <input
@@ -1448,6 +1494,33 @@ export default function AdminEditor({
                         })
                       }
                     />
+                  </div>
+                  <div className={styles.assetRow}>
+                    <strong>Pin image</strong>
+                    <label className={styles.btn}>
+                      Upload image
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                        hidden
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void uploadPinImage(selectedPin, file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {selectedPin.imageUrl ? (
+                      <button
+                        type="button"
+                        className={styles.btn}
+                        onClick={() =>
+                          updatePin(selectedPin.id, { imageUrl: undefined })
+                        }
+                      >
+                        Clear
+                      </button>
+                    ) : null}
                   </div>
                   <div className={styles.row}>
                     {(['x', 'y', 'z'] as const).map((axis) => (

@@ -2,7 +2,7 @@
 
 Plans for the post-Arrive enhancement backlog. GitHub issues may be created later via [`scripts/create-enhancement-issues.sh`](../../../scripts/create-enhancement-issues.sh); titles below are the stable keys. Closing Waves 1–2 (and Wave 3 when ready) uses [`scripts/close-enhancement-waves.sh`](../../../scripts/close-enhancement-waves.sh) so PRs include `Closes #N`.
 
-**Sequencing:** Wave 1 → Wave 2 → Wave 3 (14–16); 17 parked.
+**Sequencing:** Wave 1 → Wave 2 → Wave 3 (14–16); 17 parked. Wave 4 lite (gaps): metrics drain, post-reveal fade, unused-field badges, pin image upload, About QR.
 
 | # | Issue title | Wave | Effort | Plan | Status |
 |---|-------------|------|--------|------|--------|

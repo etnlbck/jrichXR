@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import QRCode from 'qrcode';
 import {
   useCallback,
   useEffect,
@@ -86,6 +87,7 @@ export default function ArExperience({
   const [revealing, setRevealing] = useState(false);
   const [reticleSuccess, setReticleSuccess] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [aboutQr, setAboutQr] = useState<string | null>(null);
   const narratedOnce = useRef(false);
   const pinAudioRef = useRef<HTMLAudioElement>(null);
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
@@ -111,6 +113,24 @@ export default function ArExperience({
   useEffect(() => {
     setMetricsContext({ experienceId: config.experienceId });
   }, [config.experienceId]);
+
+  useEffect(() => {
+    if (!showProvenance) {
+      setAboutQr(null);
+      return;
+    }
+    let cancelled = false;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('stage');
+    void QRCode.toDataURL(url.toString(), { margin: 1, width: 180 }).then(
+      (data) => {
+        if (!cancelled) setAboutQr(data);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [showProvenance]);
 
   useEffect(() => {
     sceneRef.current = createScene(config, {
@@ -572,6 +592,20 @@ export default function ArExperience({
                 >
                   Inquire to acquire
                 </a>
+              )}
+            </div>
+            <div className={styles.aboutQr}>
+              <p className={styles.aboutQrLabel}>Open on another phone</p>
+              {aboutQr ? (
+                // eslint-disable-next-line @next/next/no-img-element -- data URL
+                <img
+                  src={aboutQr}
+                  alt="QR code to open this experience on a phone"
+                  width={180}
+                  height={180}
+                />
+              ) : (
+                <p className={styles.aboutQrLabel}>Preparing QR…</p>
               )}
             </div>
             <p className={styles.credit}>
