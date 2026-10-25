@@ -16,7 +16,12 @@ import {
   updateLabelOcclusion,
   type PinLabel,
 } from './pin-label';
-import { REVEAL, prefersReducedMotion, type RevealState } from './reveal';
+import {
+  REVEAL,
+  prefersReducedMotion,
+  revealPointBudget,
+  type RevealState,
+} from './reveal';
 import type { ImageTargetDetail, UiState } from './types';
 
 export type ScenePin = {
@@ -93,7 +98,10 @@ export function createScene(
   let revealTargets: Float32Array | null = null;
   let revealStarts: Float32Array | null = null;
   let revealReduced = false;
+  /** Mesh used to sample densify points; cloud built lazily at beginReveal. */
+  let revealSource: THREE.Object3D | null = null;
   let stableLockTimer: ReturnType<typeof setTimeout> | null = null;
+  let trackingGraceTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingReveal = false;
   /** Brand font for pin labels, set once it has loaded. */
   let labelFontFamily: string | undefined;
@@ -157,6 +165,13 @@ export function createScene(
     }
   }
 
+  function clearTrackingGraceTimer() {
+    if (trackingGraceTimer !== null) {
+      clearTimeout(trackingGraceTimer);
+      trackingGraceTimer = null;
+    }
+  }
+
   function disposeRevealCloud() {
     if (!revealCloud) return;
     revealCloud.parent?.remove(revealCloud);
@@ -200,7 +215,9 @@ export function createScene(
       }
     }
 
-    const step = Math.max(1, Math.ceil(worldPts.length / REVEAL.pointBudget));
+    const budget = revealPointBudget();
+    console.info(`[jrf] reveal point budget: ${budget}`);
+    const step = Math.max(1, Math.ceil(worldPts.length / budget));
     const sampled: THREE.Vector3[] = [];
     for (let i = 0; i < worldPts.length; i += step) {
       const local = piece.worldToLocal(worldPts[i].clone());
@@ -285,6 +302,7 @@ export function createScene(
 
   function completeReveal() {
     clearStableLockTimer();
+    clearTrackingGraceTimer();
     revealState = 'done';
     revealT = 1;
     disposeRevealCloud();
@@ -292,13 +310,17 @@ export function createScene(
     revealStarts = null;
     applyMorphOpacities();
     updatePinVisibility();
+    mark('reveal_complete');
     callbacks.onRevealComplete?.();
   }
 
   /** Abort mid-reveal so the next lock can retry densify. */
   function cancelReveal() {
     clearStableLockTimer();
+    clearTrackingGraceTimer();
     if (revealState === 'done') return;
+    const wasActive =
+      revealState === 'playing' || revealState === 'waiting';
     revealState = 'idle';
     revealT = 0;
     if (revealCloud) {
@@ -308,10 +330,12 @@ export function createScene(
     hidePieceForReveal();
     if (anchor) anchor.visible = false;
     visible = false;
+    if (wasActive) mark('reveal_cancel');
   }
 
   function beginReveal() {
     clearStableLockTimer();
+    clearTrackingGraceTimer();
     if (revealState === 'done' || revealState === 'playing') return;
     if (!modelsReady) {
       pendingReveal = true;
@@ -319,6 +343,9 @@ export function createScene(
     }
 
     revealReduced = prefersReducedMotion();
+    if (!revealReduced && revealSource && !revealCloud) {
+      buildRevealCloud(revealSource);
+    }
     const useCloud = !revealReduced && revealCloud !== null;
     revealDurationSec =
       (useCloud
@@ -338,6 +365,7 @@ export function createScene(
     if (anchor) anchor.visible = true;
     visible = true;
 
+    mark('reveal_start');
     callbacks.onRevealStart?.();
     if (!hasMorphed) callbacks.onState('ANCHORED');
     else callbacks.onState(morphTarget > 0.5 ? 'RAW' : 'FINISHED');
@@ -509,7 +537,7 @@ export function createScene(
     applyPlacement(placeholder);
     anchor!.add(placeholder);
     if (activationReveal) {
-      buildRevealCloud(placeholder);
+      revealSource = placeholder;
       hidePieceForReveal();
     } else {
       revealState = 'done';
@@ -602,7 +630,7 @@ export function createScene(
       );
       addPins(piece, pinRadius);
       if (activationReveal) {
-        buildRevealCloud(finished);
+        revealSource = finished;
         hidePieceForReveal();
       } else {
         revealState = 'done';
@@ -771,6 +799,7 @@ export function createScene(
   function onImageFound(detail: ImageTargetDetail) {
     if (!isConfiguredTarget(detail)) return;
     positionAnchor(detail);
+    clearTrackingGraceTimer();
     if (!hasLocked) {
       hasLocked = true;
       mark('first_target_found');
@@ -803,8 +832,17 @@ export function createScene(
   function onImageLost(detail?: { name?: string }) {
     if (!isConfiguredTarget(detail)) return;
     if (revealState === 'waiting' || revealState === 'playing') {
-      cancelReveal();
-    } else if (revealState === 'done') {
+      // Brief flicker: wait before canceling densify.
+      if (trackingGraceTimer !== null) return;
+      trackingGraceTimer = setTimeout(() => {
+        trackingGraceTimer = null;
+        if (revealState !== 'waiting' && revealState !== 'playing') return;
+        cancelReveal();
+        callbacks.onState('SCANNING');
+      }, REVEAL.trackingGraceMs);
+      return;
+    }
+    if (revealState === 'done') {
       if (anchor) anchor.visible = false;
       visible = false;
     }

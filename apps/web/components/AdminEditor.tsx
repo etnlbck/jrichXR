@@ -294,7 +294,21 @@ export default function AdminEditor({
   }
 
   async function publish() {
+    if (!experience) return;
     if (dirty && !(await save())) return;
+    const readiness: string[] = [];
+    if (experience.gallery.usePlaceholderCube) {
+      readiness.push('placeholder cube is on');
+    }
+    if (experience.assets['raw-glb']?.interim === true) {
+      readiness.push('raw GLB is marked interim');
+    }
+    if (readiness.length > 0) {
+      const ok = confirm(
+        `Publishing with ${readiness.join(' and ')}. Continue?`
+      );
+      if (!ok) return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -882,7 +896,18 @@ export default function AdminEditor({
               />{' '}
               Use placeholder cube
             </label>
+            {experience.gallery.usePlaceholderCube && (
+              <p className={styles.status}>
+                Draft not publish-ready — visitors will see a cube stand-in.
+              </p>
+            )}
           </div>
+          {experience.personOcclusion ? (
+            <p className={styles.status} role="note">
+              personOcclusion is set on this experience — WebAR: not supported
+              yet.
+            </p>
+          ) : null}
           <div className={styles.field}>
             <label>
               <input
@@ -966,11 +991,26 @@ export default function AdminEditor({
       {tab === 'nodes' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Nodes</h2>
+          <p className={styles.status}>
+            WebAR currently drives finished/raw GLB, marker overlay, and pins.
+            Other node types and triggers are inspect-only until runtime support
+            lands.
+          </p>
+          {experience.personOcclusion ? (
+            <p className={styles.status} role="note">
+              personOcclusion — WebAR: not supported yet.
+            </p>
+          ) : null}
           {experience.nodes.map((node) => (
             <div key={node.id} className={styles.panel}>
               <strong>
                 {node.id} · {node.type} · {node.trigger}
               </strong>
+              {node.type !== 'gltf' ? (
+                <p className={styles.status}>
+                  {node.type} — WebAR: not supported yet (inspect only).
+                </p>
+              ) : null}
               <div className={styles.row}>
                 {(['x', 'y', 'z'] as const).map((axis) => (
                   <div key={axis} className={styles.field}>

@@ -6,12 +6,12 @@ Plans for the post-Arrive enhancement backlog. GitHub issues may be created late
 
 | # | Issue title | Wave | Effort | Plan | Status |
 |---|-------------|------|--------|------|--------|
-| 1 | Harden and instrument Arrive reveal | 1 | M | [01-harden-arrive.md](01-harden-arrive.md) | planned |
-| 2 | Device-adaptive densify point budget | 1 | M | [02-adaptive-densify-budget.md](02-adaptive-densify-budget.md) | planned |
-| 3 | Pin/provenance sheet keyboard and focus | 1 | S | [03-sheet-keyboard-focus.md](03-sheet-keyboard-focus.md) | planned |
-| 4 | Delete unused ArExperience visitor CSS | 1 | S | [04-delete-dead-css.md](04-delete-dead-css.md) | planned |
-| 5 | Publish readiness warnings (placeholder/interim) | 1 | S | [05-publish-readiness.md](05-publish-readiness.md) | planned |
-| 6 | Studio badges for unsupported AR features | 1 | S | [06-unsupported-badges.md](06-unsupported-badges.md) | planned |
+| 1 | Harden and instrument Arrive reveal | 1 | M | [01-harden-arrive.md](01-harden-arrive.md) | done |
+| 2 | Device-adaptive densify point budget | 1 | M | [02-adaptive-densify-budget.md](02-adaptive-densify-budget.md) | done |
+| 3 | Pin/provenance sheet keyboard and focus | 1 | S | [03-sheet-keyboard-focus.md](03-sheet-keyboard-focus.md) | done |
+| 4 | Delete unused ArExperience visitor CSS | 1 | S | [04-delete-dead-css.md](04-delete-dead-css.md) | done |
+| 5 | Publish readiness warnings (placeholder/interim) | 1 | S | [05-publish-readiness.md](05-publish-readiness.md) | done |
+| 6 | Studio badges for unsupported AR features | 1 | S | [06-unsupported-badges.md](06-unsupported-badges.md) | done |
 | 7 | Polish densify look (splat-feel) | 2 | M–L | [07-polish-densify-look.md](07-polish-densify-look.md) | outlined |
 | 8 | Studio knobs for Arrive densify | 2 | M | [08-studio-arrive-knobs.md](08-studio-arrive-knobs.md) | outlined |
 | 9 | Brand preview beyond Begin gate | 2 | M | [09-brand-preview-beyond-begin.md](09-brand-preview-beyond-begin.md) | outlined |

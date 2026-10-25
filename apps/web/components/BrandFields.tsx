@@ -120,7 +120,13 @@ export default function BrandFields({
   }
 
   function textField(
-    key: 'displayName' | 'beginText' | 'beginLabel' | 'loadingText',
+    key:
+      | 'displayName'
+      | 'beginText'
+      | 'beginLabel'
+      | 'loadingText'
+      | 'scanText'
+      | 'scanFoundText',
     label: string,
     fallback: string,
     multiline = false
@@ -256,6 +262,10 @@ export default function BrandFields({
         <div className={admin.row}>
           {textField('beginLabel', 'Begin button', base.beginLabel)}
           {textField('loadingText', 'Loading text', base.loadingText)}
+        </div>
+        <div className={admin.row}>
+          {textField('scanText', 'Scan hint', base.scanText)}
+          {textField('scanFoundText', 'Marker found', base.scanFoundText)}
         </div>
         {imageField('shareImageUrl', 'Share image', `Link preview image, ${SHARE_W}×${SHARE_H}. Falls back to the logo.`)}
         {shareWarning && <p className={admin.status}>{shareWarning}</p>}

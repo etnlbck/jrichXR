@@ -14,6 +14,7 @@ import type { AppConfig } from '@/lib/config';
 import { REVEAL } from '@/lib/reveal';
 import { createScene } from '@/lib/scene';
 import { useCoarsePointer } from '@/lib/use-coarse-pointer';
+import { useDialogFocus } from '@/lib/use-dialog-focus';
 import {
   bootXr,
   requestMotionPermission,
@@ -85,11 +86,25 @@ export default function ArExperience({
   const [reticleSuccess, setReticleSuccess] = useState(false);
   const narratedOnce = useRef(false);
   const pinAudioRef = useRef<HTMLAudioElement>(null);
+  const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
 
   const openProvenance = useCallback(() => {
     setShowProvenance(true);
   }, []);
+
+  const closeSheet = useCallback(() => {
+    pinAudioRef.current?.pause();
+    setOpenPinId(null);
+    setShowProvenance(false);
+  }, []);
+
+  const sheetOpen = Boolean(openPin) || showProvenance;
+  const { panelRef: sheetPanelRef, closeRef: sheetCloseRef } = useDialogFocus(
+    sheetOpen,
+    closeSheet,
+    aboutBtnRef
+  );
 
   useEffect(() => {
     sceneRef.current = createScene(config, {
@@ -258,7 +273,6 @@ export default function ArExperience({
   const pc = config.piece;
   const anchored =
     state === 'ANCHORED' || state === 'RAW' || state === 'FINISHED';
-  const sheetOpen = Boolean(openPin) || showProvenance;
   const showScan =
     !stage &&
     state === 'SCANNING' &&
@@ -377,7 +391,9 @@ export default function ArExperience({
               reticleSuccess ? styles.reticleSuccess : ''
             }`}
           />
-          <p>{reticleSuccess ? 'Found' : 'Aim at the marker…'}</p>
+          <p>
+            {reticleSuccess ? brand.scanFoundText : brand.scanText}
+          </p>
         </div>
       )}
 
@@ -388,6 +404,7 @@ export default function ArExperience({
           </div>
           <button
             type="button"
+            ref={aboutBtnRef}
             className={`${styles.about} ${fadeClass(chromeFade)}`}
             onClick={() => {
               pinAudioRef.current?.pause();
@@ -404,20 +421,25 @@ export default function ArExperience({
       {issue && <XrIssueSheet issue={issue} />}
 
       {openPin && (
-        <div className={styles.panel}>
+        <div
+          className={styles.panel}
+          ref={sheetPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pin-sheet-title"
+          tabIndex={-1}
+        >
           <button
             type="button"
+            ref={sheetCloseRef}
             className={styles.panelClose}
-            onClick={() => {
-              pinAudioRef.current?.pause();
-              setOpenPinId(null);
-            }}
+            onClick={closeSheet}
             aria-label="Close"
           >
             ×
           </button>
           <div className={styles.panelScroll}>
-            <h2>{openPin.title}</h2>
+            <h2 id="pin-sheet-title">{openPin.title}</h2>
             {openPin.body ? (
               <p className={styles.pinBody}>{openPin.body}</p>
             ) : null}
@@ -426,17 +448,25 @@ export default function ArExperience({
       )}
 
       {showProvenance && (
-        <div className={styles.panel}>
+        <div
+          className={styles.panel}
+          ref={sheetPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="provenance-sheet-title"
+          tabIndex={-1}
+        >
           <button
             type="button"
+            ref={sheetCloseRef}
             className={styles.panelClose}
-            onClick={() => setShowProvenance(false)}
+            onClick={closeSheet}
             aria-label="Close"
           >
             ×
           </button>
           <div className={styles.panelScroll}>
-            <h2>{pc.title}</h2>
+            <h2 id="provenance-sheet-title">{pc.title}</h2>
             {brand.displayName && (
               <p className={styles.brandName}>{brand.displayName}</p>
             )}

@@ -105,6 +105,10 @@ export interface ArtistBrand {
   beginText?: string;
   beginLabel?: string;
   loadingText?: string;
+  /** Scan reticle hint while aiming at the marker. */
+  scanText?: string;
+  /** Brief copy when the marker is found (Arrive). */
+  scanFoundText?: string;
   shareImageUrl?: string;
 }
 
