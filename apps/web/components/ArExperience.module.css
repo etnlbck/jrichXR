@@ -632,3 +632,18 @@ a.beginBtn {
   border-color: rgba(255, 255, 255, 0.35);
   color: #fff;
 }
+
+/* Type pairing: sheet titles in Space Grotesk, CTA labels bold Inter. */
+.panel h2 {
+  font-family: var(--font-space-grotesk), 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-weight: 500;
+}
+
+.sceneCta,
+.cta,
+.ctaSecondary,
+.about,
+.shareBtn {
+  font-family: var(--font-inter), 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-weight: 600;
+}
