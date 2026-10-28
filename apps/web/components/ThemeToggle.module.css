@@ -29,11 +29,11 @@
   width: 2.25rem;
   height: 2.25rem;
   border: 0;
-  background: var(--ember, #1732a4);
+  background: var(--ember, #03396c);
   color: #fff;
 }
 
 .solid:hover {
-  background: var(--ember, #1732a4);
+  background: var(--ember, #03396c);
   filter: brightness(1.15);
 }

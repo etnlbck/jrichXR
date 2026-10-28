@@ -386,7 +386,7 @@ export function createScene(
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     revealColorFrom.set(config.brand.accentTo || '#24d8da');
-    revealColorTo.set(config.brand.accentFrom || '#1732a4');
+    revealColorTo.set(config.brand.accentFrom || '#03396c');
     revealBaseSize = Math.max(sphere.radius * 0.045, 0.01);
     const mat = new THREE.PointsMaterial({
       color: revealColorFrom.clone(),

@@ -111,7 +111,7 @@
   border: 1px solid var(--stone);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(23, 50, 164, 0.08);
+  box-shadow: 0 8px 24px rgba(3, 57, 108, 0.08);
 }
 
 @media (min-width: 520px) {
