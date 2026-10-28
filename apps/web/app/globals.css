@@ -2,10 +2,10 @@
   --ink: #101014;
   --stone: #eff1f9;
   --ember: #1732a4;
-  --violet: #21d3d5;
+  --violet: #24d8da;
   --paper: #ffffff;
   --vein: #1732a4;
-  --vein-light: #21d3d5;
+  --vein-light: #24d8da;
   --ash: #59595e;
 }
 
@@ -20,6 +20,7 @@ body {
   min-height: 100%;
   background: #000;
   font-family:
+    var(--font-space-grotesk),
     'Avenir Next',
     'Segoe UI',
     'Helvetica Neue',
@@ -27,6 +28,14 @@ body {
     Arial,
     sans-serif;
   color: var(--paper);
+}
+
+/* Form controls don't inherit the page font by default (buttons were Arial). */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 a {

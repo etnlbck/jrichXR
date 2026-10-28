@@ -553,3 +553,82 @@ a.beginBtn {
   color: rgba(255, 255, 255, 0.35);
   pointer-events: none;
 }
+
+/* ---- JRichForms UI kit overrides (Figma: AR Display / Overlay Display) ---- */
+
+/* Pill CTAs: teal fill, black ink, per the Figma AR Display frame. */
+.sceneCta {
+  background: var(--violet);
+  color: #000;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.about,
+.shareBtn {
+  background: var(--ember);
+  color: #fff;
+  font-weight: 600;
+  padding: 9px 16px;
+}
+
+/* Sheet: Figma overlay look. Blue header band, white round close, dark body. */
+.panel {
+  background: #101014;
+  color: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 0 0 max(24px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+.panel h2 {
+  margin: 0;
+  padding: 18px 64px 18px 20px;
+  background: var(--ember);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.panelScroll > :not(h2) {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.panelScroll > h2 + * {
+  margin-top: 18px;
+}
+
+.panelClose {
+  top: 14px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ember);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel dt {
+  color: var(--violet);
+}
+
+.panel dd,
+.pinBody {
+  color: #e6e6ea;
+}
+
+.cta {
+  background: var(--violet);
+  color: #000;
+}
+
+.ctaSecondary {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
