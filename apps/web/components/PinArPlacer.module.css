@@ -28,7 +28,7 @@
 }
 
 .toolBtnPrimary {
-  background: linear-gradient(120deg, var(--ember), var(--violet));
+  background: var(--ember);
   color: #fff;
 }
 

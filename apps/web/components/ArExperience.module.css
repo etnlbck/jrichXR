@@ -128,7 +128,7 @@
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: linear-gradient(120deg, var(--ember), var(--violet));
+  background: var(--ember);
 }
 
 .beginBtn:active {
@@ -558,7 +558,7 @@ a.beginBtn {
 
 /* Pill CTAs: teal fill, black ink, per the Figma AR Display frame. */
 .sceneCta {
-  background: var(--violet);
+  background: var(--ember);
   color: #fff;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -624,7 +624,7 @@ a.beginBtn {
 }
 
 .cta {
-  background: var(--violet);
+  background: var(--ember);
   color: #fff;
 }
 

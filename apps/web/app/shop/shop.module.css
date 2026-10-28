@@ -197,7 +197,7 @@
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: linear-gradient(120deg, var(--ember), var(--violet));
+  background: var(--ember);
 }
 
 .buyBtn:disabled {
