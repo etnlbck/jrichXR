@@ -19,7 +19,7 @@ import { DEFAULT_EXPERIENCE_ID, getSeedExperience } from '@/lib/config';
 import { isValidExperienceId, visitorShopPath } from '@/lib/experience-id';
 
 export function isBlobConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 export function draftPath(id = DEFAULT_EXPERIENCE_ID): string {
