@@ -189,7 +189,7 @@
 .buyBtn {
   appearance: none;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 20px);
   cursor: pointer;
   width: 100%;
   padding: 14px 24px;

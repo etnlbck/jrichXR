@@ -27,7 +27,7 @@
 .primary {
   appearance: none;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 20px);
   background: var(--ember);
   color: #fff;
   padding: 0.8rem 1.6rem;
