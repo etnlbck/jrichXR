@@ -2,6 +2,7 @@
 
 import QRCode from 'qrcode';
 import { useEffect, useState, type ReactNode } from 'react';
+import ThemeToggle from './ThemeToggle';
 import styles from './ArExperience.module.css';
 
 type Props = {
@@ -35,6 +36,9 @@ export default function DesktopGate({ title, logo, artistName, onUseCamera }: Pr
 
   return (
     <div className={styles.overlay}>
+      <span className={styles.gateTheme}>
+        <ThemeToggle variant="solid" />
+      </span>
       <div className={styles.gateCard}>
         {logo}
         {artistName && <p className={styles.brandName}>{artistName}</p>}
