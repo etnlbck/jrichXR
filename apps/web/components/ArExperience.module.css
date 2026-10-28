@@ -128,7 +128,7 @@
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: var(--ember);
+  background: var(--violet);
 }
 
 .beginBtn:active {
@@ -556,9 +556,9 @@ a.beginBtn {
 
 /* ---- JRichForms UI kit overrides (Figma: AR Display / Overlay Display) ---- */
 
-/* Scene CTAs: solid brand blue, white text. */
+/* Scene CTAs: solid teal, white text. */
 .sceneCta {
-  background: var(--ember);
+  background: var(--violet);
   color: #fff;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -624,7 +624,7 @@ a.beginBtn {
 }
 
 .cta {
-  background: var(--ember);
+  background: var(--violet);
   color: #fff;
 }
 
