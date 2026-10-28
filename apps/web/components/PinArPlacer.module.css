@@ -29,7 +29,7 @@
 
 .toolBtnPrimary {
   background: linear-gradient(120deg, var(--ember), var(--violet));
-  color: var(--brand-ink, #fff);
+  color: #fff;
 }
 
 .toolBtn:disabled,
@@ -155,6 +155,16 @@
 
 .field textarea {
   resize: vertical;
+}
+
+.field select {
+  color-scheme: light;
+}
+
+.field select option,
+.field select optgroup {
+  background-color: #fff;
+  color: #14141a;
 }
 
 .nudge {

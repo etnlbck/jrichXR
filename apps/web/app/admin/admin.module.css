@@ -166,6 +166,16 @@
   color: #eff1f9;
   padding: 0.55rem 0.7rem;
   font-size: 0.95rem;
+}
+
+.field select {
+  color-scheme: dark;
+}
+
+.field select option,
+.field select optgroup {
+  background-color: #101014;
+  color: #eff1f9;
 }.field textarea {
   min-height: 4rem;
   resize: vertical;
@@ -193,7 +203,7 @@
   appearance: none;
   border: 1px solid #24d8da;
   background: #24d8da;
-  color: #000;
+  color: #fff;
   padding: 0.55rem 1rem;
   border-radius: 4px;
   cursor: pointer;
