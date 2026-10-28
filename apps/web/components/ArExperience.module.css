@@ -647,3 +647,58 @@ a.beginBtn {
   font-family: var(--font-inter), 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif;
   font-weight: 600;
 }
+
+.gateTheme {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 31;
+}
+
+/* ---- Light theme (toggle sets data-theme="light" on <html>) ---- */
+:global(html[data-theme='light']) .overlay {
+  background: radial-gradient(120% 120% at 50% 20%, #ffffff 0%, #eff1f9 75%);
+  color: #101014;
+}
+
+:global(html[data-theme='light']) .panel {
+  background: #ffffff;
+  color: #101014;
+  box-shadow: 0 -12px 40px rgba(16, 16, 20, 0.18);
+}
+
+:global(html[data-theme='light']) .panel dd,
+:global(html[data-theme='light']) .pinBody {
+  color: #2a2a30;
+}
+
+:global(html[data-theme='light']) .panel dt {
+  color: #0b8a8d;
+}
+
+:global(html[data-theme='light']) .panelClose {
+  background: var(--ember);
+  color: #fff;
+}
+
+:global(html[data-theme='light']) .ctaSecondary {
+  border-color: rgba(16, 16, 20, 0.3);
+  color: #101014;
+}
+
+:global(html[data-theme='light']) .shareMenu {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: rgba(16, 16, 20, 0.12);
+  color: #101014;
+}
+
+:global(html[data-theme='light']) .shareMenuItem:hover,
+:global(html[data-theme='light']) .shareMenuItem:focus-visible {
+  background: rgba(16, 16, 20, 0.06);
+}
+
+:global(html[data-theme='light']) .prompt,
+:global(html[data-theme='light']) .count {
+  background: rgba(255, 255, 255, 0.85);
+  color: #101014;
+}

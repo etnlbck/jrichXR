@@ -1,0 +1,39 @@
+.toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--a-fg-rgb, 239 241 249) / 0.25);
+  background: transparent;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: rgb(var(--a-fg-rgb, 239 241 249) / 0.1);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--violet, #24d8da);
+  outline-offset: 2px;
+}
+
+/* Viewer: blue pill-matched button with white icon. */
+.solid {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  background: var(--ember, #1732a4);
+  color: #fff;
+}
+
+.solid:hover {
+  background: var(--ember, #1732a4);
+  filter: brightness(1.15);
+}

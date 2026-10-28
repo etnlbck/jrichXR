@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type MouseEvent,
 } from 'react';
+import ThemeToggle from '@/components/ThemeToggle';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
 import { setMetricsContext } from '@/lib/metrics';
@@ -491,6 +492,9 @@ export default function ArExperience({
 
       {gateFade !== 'gone' && (
         <div className={`${styles.overlay} ${fadeClass(gateFade)}`}>
+          <span className={styles.gateTheme}>
+            <ThemeToggle variant="solid" />
+          </span>
           <div className={styles.gateCard}>
             {logo}
             {brand.displayName && (
@@ -554,6 +558,7 @@ export default function ArExperience({
             </div>
           ) : null}
           <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
+            <ThemeToggle variant="solid" />
             <div className={styles.shareWrap}>
               <button
                 type="button"
