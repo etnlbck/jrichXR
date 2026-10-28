@@ -121,14 +121,14 @@
 .beginBtn {
   appearance: none;
   border: 0;
-  border-radius: var(--btn-radius, 20px);
+  border-radius: var(--btn-radius, 12px);
   cursor: pointer;
   padding: 14px 34px;
   font-size: 1rem;
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: var(--violet);
+  background: linear-gradient(120deg, var(--ember), var(--violet));
 }
 
 .beginBtn:active {
@@ -289,7 +289,7 @@ a.beginBtn {
   font-size: 0.78rem;
   letter-spacing: 0.02em;
   padding: 8px 12px;
-  border-radius: var(--btn-radius, 20px);
+  border-radius: var(--btn-radius, 12px);
   cursor: pointer;
 }
 
@@ -407,7 +407,7 @@ a.beginBtn {
   z-index: 4;
   transform: translate(-50%, -50%);
   padding: 0.55rem 0.9rem;
-  border-radius: var(--btn-radius, 20px);
+  border-radius: var(--btn-radius, 12px);
   background: var(--brand-from, #c45c26);
   color: #fff;
   font-size: 0.85rem;
@@ -523,7 +523,7 @@ a.beginBtn {
 .cta {
   display: inline-block;
   padding: 12px 24px;
-  border-radius: var(--btn-radius, 20px);
+  border-radius: var(--btn-radius, 12px);
   background: var(--ink);
   color: #fff;
   text-decoration: none;
@@ -534,7 +534,7 @@ a.beginBtn {
 .ctaSecondary {
   display: inline-block;
   padding: 12px 24px;
-  border-radius: var(--btn-radius, 20px);
+  border-radius: var(--btn-radius, 12px);
   border: 1px solid rgba(0, 0, 0, 0.2);
   background: transparent;
   color: var(--ink);
@@ -556,10 +556,10 @@ a.beginBtn {
 
 /* ---- JRichForms UI kit overrides (Figma: AR Display / Overlay Display) ---- */
 
-/* Scene CTAs: solid teal, white text. */
+/* Scene CTAs: solid teal, dark ink (easier to read than white on teal). */
 .sceneCta {
   background: var(--violet);
-  color: #fff;
+  color: #101014;
   font-weight: 600;
   letter-spacing: 0.01em;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
@@ -625,7 +625,7 @@ a.beginBtn {
 
 .cta {
   background: var(--violet);
-  color: #fff;
+  color: #101014;
 }
 
 .ctaSecondary {

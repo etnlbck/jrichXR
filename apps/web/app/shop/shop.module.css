@@ -189,7 +189,7 @@
 .buyBtn {
   appearance: none;
   border: 0;
-  border-radius: var(--btn-radius, 20px);
+  border-radius: var(--btn-radius, 12px);
   cursor: pointer;
   width: 100%;
   padding: 14px 24px;
@@ -197,7 +197,7 @@
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: var(--violet);
+  background: linear-gradient(120deg, var(--ember), var(--violet));
 }
 
 .buyBtn:disabled {
