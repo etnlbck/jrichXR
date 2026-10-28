@@ -64,6 +64,97 @@ function useFadeMount(active: boolean, durationMs: number) {
   return phase;
 }
 
+/** YouTube watch / short / embed URL to a privacy-friendly embed URL, else null. */
+function youtubeEmbedUrl(href?: string): string | null {
+  if (!href) return null;
+  try {
+    const u = new URL(href);
+    let id: string | null = null;
+    if (u.hostname === 'youtu.be') id = u.pathname.slice(1);
+    else if (/(^|\.)youtube\.com$/.test(u.hostname)) {
+      id = u.searchParams.get('v');
+      const m = u.pathname.match(/^\/(embed|shorts)\/([\w-]+)/);
+      if (!id && m) id = m[2];
+    }
+    if (!id || !/^[\w-]{6,20}$/.test(id)) return null;
+    return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+  } catch {
+    return null;
+  }
+}
+
+/** Name / email / message form. Submitting opens the visitor's mail app, prefilled. */
+function PinContactForm({
+  to,
+  intro,
+  subject,
+  onDone,
+}: {
+  to: string;
+  intro: string;
+  subject: string;
+  onDone: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const address = to.replace(/^mailto:/i, '').split('?')[0];
+  const ready = /^[^@\s]+@[^@\s]+$/.test(address);
+  return (
+    <form
+      className={styles.popoverForm}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!ready) return;
+        const body = `${message}\n\nFrom: ${name} <${email}>`;
+        window.location.href = `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        onDone();
+      }}
+    >
+      {intro ? <p className={styles.pinBody}>{intro}</p> : null}
+      <label>
+        Name
+        <input
+          required
+          value={name}
+          maxLength={120}
+          autoComplete="name"
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      <label>
+        Email
+        <input
+          required
+          type="email"
+          value={email}
+          maxLength={200}
+          autoComplete="email"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </label>
+      <label>
+        Message
+        <textarea
+          required
+          rows={4}
+          value={message}
+          maxLength={3000}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+      </label>
+      <button type="submit" className={styles.popoverSubmit} disabled={!ready}>
+        Send message
+      </button>
+      {!ready ? (
+        <p className={styles.popoverNote}>
+          No receiving address is set for this form yet.
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 export default function ArExperience({
   appConfig,
   onRequestStart,
@@ -100,6 +191,11 @@ export default function ArExperience({
   const stingAudioRef = useRef<HTMLAudioElement>(null);
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
+  const [popoverPinId, setPopoverPinId] = useState<string | null>(null);
+  const popoverPin = config.pins.find((p) => p.id === popoverPinId);
+  const closePopover = useCallback(() => setPopoverPinId(null), []);
+  const { panelRef: popoverPanelRef, closeRef: popoverCloseRef } =
+    useDialogFocus(Boolean(popoverPin), closePopover, aboutBtnRef);
 
   const openProvenance = useCallback(() => {
     setShowProvenance(true);
@@ -635,6 +731,24 @@ export default function ArExperience({
           .map((pin) => {
             const screen = ctaScreen[pin.id];
             if (!screen?.visible) return null;
+            const label = pin.ctaLabel || pin.title || 'Learn more';
+            const pos = { left: `${screen.x}%`, top: `${screen.y}%` };
+            const embed = pin.action === 'video' ? youtubeEmbedUrl(pin.href) : null;
+            const popup =
+              (pin.action === 'video' && embed) || pin.action === 'form';
+            if (popup) {
+              return (
+                <button
+                  key={pin.id}
+                  type="button"
+                  className={styles.sceneCta}
+                  style={pos}
+                  onClick={() => setPopoverPinId(pin.id)}
+                >
+                  {label}
+                </button>
+              );
+            }
             return (
               <a
                 key={pin.id}
@@ -642,12 +756,57 @@ export default function ArExperience({
                 href={pin.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ left: `${screen.x}%`, top: `${screen.y}%` }}
+                style={pos}
               >
-                {pin.ctaLabel || pin.title || 'Learn more'}
+                {label}
               </a>
             );
           })}
+
+      {popoverPin && (
+        <div className={styles.popoverBackdrop} onClick={closePopover}>
+          <div
+            className={styles.popover}
+            ref={popoverPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pin-popover-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              ref={popoverCloseRef}
+              className={styles.panelClose}
+              onClick={closePopover}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <h2 id="pin-popover-title">{popoverPin.title}</h2>
+            {popoverPin.action === 'video' ? (
+              <div className={styles.popoverVideo}>
+                <iframe
+                  src={youtubeEmbedUrl(popoverPin.href) ?? undefined}
+                  title={popoverPin.title}
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <PinContactForm
+                to={popoverPin.href ?? ''}
+                intro={popoverPin.body}
+                subject={`${config.piece.title} enquiry`}
+                onDone={closePopover}
+              />
+            )}
+            {popoverPin.action === 'video' && popoverPin.body ? (
+              <p className={styles.pinBody}>{popoverPin.body}</p>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {openPin && (
         <div
