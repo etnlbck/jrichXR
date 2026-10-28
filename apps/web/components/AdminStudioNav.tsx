@@ -21,7 +21,7 @@ export default function AdminStudioNav({
     <header className={styles.topBar}>
       <nav className={styles.topBarInner} aria-label="Studio">
         <Link href="/admin" className={styles.wordmark}>
-          Studio
+          TagXR Studio
         </Link>
         <Link
           href="/admin"
