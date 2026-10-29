@@ -192,13 +192,11 @@ export default function ArExperience({
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
   const [labelsHidden, setLabelsHidden] = useState(false);
-  const [peekCtaId, setPeekCtaId] = useState<string | null>(null);
   const [popoverPinId, setPopoverPinId] = useState<string | null>(null);
   const popoverPin = config.pins.find((p) => p.id === popoverPinId);
   const closePopover = useCallback(() => setPopoverPinId(null), []);
   useEffect(() => {
     sceneRef.current?.setLabelsHidden(labelsHidden);
-    if (!labelsHidden) setPeekCtaId(null);
   }, [labelsHidden, revealComplete]);
   const { panelRef: popoverPanelRef, closeRef: popoverCloseRef } =
     useDialogFocus(Boolean(popoverPin), closePopover, aboutBtnRef);
@@ -755,21 +753,26 @@ export default function ArExperience({
             if (!screen?.visible) return null;
             const label = pin.ctaLabel || pin.title || 'Learn more';
             const pos = { left: `${screen.x}%`, top: `${screen.y}%` };
-            if (labelsHidden && peekCtaId !== pin.id) {
+            const embed = pin.action === 'video' ? youtubeEmbedUrl(pin.href) : null;
+            const popup =
+              (pin.action === 'video' && embed) || pin.action === 'form';
+            if (labelsHidden) {
               return (
                 <button
                   key={pin.id}
                   type="button"
                   className={styles.ghostDot}
                   style={pos}
-                  aria-label={`Show ${label}`}
-                  onClick={() => setPeekCtaId(pin.id)}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => {
+                    if (popup) setPopoverPinId(pin.id);
+                    else if (pin.href)
+                      window.open(pin.href, '_blank', 'noopener,noreferrer');
+                  }}
                 />
               );
             }
-            const embed = pin.action === 'video' ? youtubeEmbedUrl(pin.href) : null;
-            const popup =
-              (pin.action === 'video' && embed) || pin.action === 'form';
             if (popup) {
               return (
                 <button
