@@ -1408,6 +1408,56 @@ export function createScene(
     renderer.setClearColor(0x161412, 1);
     void loadModels();
 
+    // Drag to turn the sculpture on the desktop stage. A drag past the tap
+    // threshold is swallowed so it does not also toggle the morph or open a pin.
+    canvas.style.touchAction = 'none';
+    let dragId: number | null = null;
+    let dragX = 0;
+    let dragY = 0;
+    let dragMoved = 0;
+    let suppressClick = false;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 || dragId !== null) return;
+      dragId = e.pointerId;
+      dragX = e.clientX;
+      dragY = e.clientY;
+      dragMoved = 0;
+      canvas.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerId !== dragId || !anchor) return;
+      const dx = e.clientX - dragX;
+      const dy = e.clientY - dragY;
+      dragX = e.clientX;
+      dragY = e.clientY;
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+      if (dragMoved < 6) return;
+      anchor.rotation.y += dx * 0.01;
+      anchor.rotation.x = THREE.MathUtils.clamp(
+        anchor.rotation.x + dy * 0.006,
+        -0.6,
+        0.6
+      );
+    };
+    const onPointerEnd = (e: PointerEvent) => {
+      if (e.pointerId !== dragId) return;
+      dragId = null;
+      suppressClick = dragMoved >= 6;
+      if (canvas.hasPointerCapture(e.pointerId)) {
+        canvas.releasePointerCapture(e.pointerId);
+      }
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      e.stopPropagation();
+    };
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerEnd);
+    canvas.addEventListener('pointercancel', onPointerEnd);
+    canvas.addEventListener('click', onClickCapture, true);
+
     let frame = 0;
     const loop = () => {
       frame = requestAnimationFrame(loop);
@@ -1424,6 +1474,11 @@ export function createScene(
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerEnd);
+      canvas.removeEventListener('pointercancel', onPointerEnd);
+      canvas.removeEventListener('click', onClickCapture, true);
       renderer.dispose();
       clearStageBackdrop?.();
       clearStageBackdrop = null;
