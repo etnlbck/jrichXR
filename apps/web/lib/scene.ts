@@ -90,6 +90,8 @@ export function createScene(
   }[] = [];
   let audioUnlocked = false;
   const pinHits: THREE.Object3D[] = [];
+  /** Labels hidden: pin dots stay as ghosts, titles and leader lines are off. */
+  let labelsHidden = false;
   const pinGroups: { id: string; form: PinForm; group: THREE.Group }[] = [];
   let pins: ScenePin[] = config.pins;
   let pinRoot: THREE.Group | null = null;
@@ -627,7 +629,27 @@ export function createScene(
       pinHits.push(dot, hit);
       pinGroups.push({ id: pin.id, form: pin.form, group });
     }
+    applyLabelsHidden();
     updatePinVisibility();
+  }
+
+  function applyLabelsHidden() {
+    for (const label of labels) {
+      label.sprite.visible = !labelsHidden;
+      label.line.visible = !labelsHidden;
+    }
+    for (const obj of pinHits) {
+      const mat = (obj as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
+      if (!mat || !mat.visible) continue;
+      mat.transparent = true;
+      mat.opacity = labelsHidden ? 0.4 : 1;
+      mat.needsUpdate = true;
+    }
+  }
+
+  function setLabelsHidden(hidden: boolean) {
+    labelsHidden = hidden;
+    applyLabelsHidden();
   }
 
   function addPins(parent: THREE.Object3D, radius: number) {
@@ -1500,6 +1522,7 @@ export function createScene(
     projectLocal,
     setPins,
     setSelectedPin,
+    setLabelsHidden,
     setAudioUnlocked,
     holdPose: (on: boolean) => {
       poseHeld = on;

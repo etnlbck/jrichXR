@@ -191,9 +191,15 @@ export default function ArExperience({
   const stingAudioRef = useRef<HTMLAudioElement>(null);
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
+  const [labelsHidden, setLabelsHidden] = useState(false);
+  const [peekCtaId, setPeekCtaId] = useState<string | null>(null);
   const [popoverPinId, setPopoverPinId] = useState<string | null>(null);
   const popoverPin = config.pins.find((p) => p.id === popoverPinId);
   const closePopover = useCallback(() => setPopoverPinId(null), []);
+  useEffect(() => {
+    sceneRef.current?.setLabelsHidden(labelsHidden);
+    if (!labelsHidden) setPeekCtaId(null);
+  }, [labelsHidden, revealComplete]);
   const { panelRef: popoverPanelRef, closeRef: popoverCloseRef } =
     useDialogFocus(Boolean(popoverPin), closePopover, aboutBtnRef);
 
@@ -655,6 +661,20 @@ export default function ArExperience({
           ) : null}
           <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
             <ThemeToggle variant="solid" />
+            <button
+              type="button"
+              className={styles.shareBtn}
+              onClick={() => setLabelsHidden((h) => !h)}
+              disabled={chromeFade === 'out'}
+              aria-pressed={labelsHidden}
+              aria-label={labelsHidden ? 'Show pin labels' : 'Hide pin labels'}
+              title={labelsHidden ? 'Show pin labels' : 'Hide pin labels'}
+            >
+              <i
+                className={`bi ${labelsHidden ? 'bi-eye' : 'bi-eye-slash'}`}
+                aria-hidden="true"
+              />
+            </button>
             <div className={styles.shareWrap}>
               <button
                 type="button"
@@ -668,8 +688,9 @@ export default function ArExperience({
                 }}
                 disabled={chromeFade === 'out'}
                 aria-expanded={shareMenuOpen}
+                aria-label="Share"
               >
-                {shareStatus ?? 'Share'}
+                {shareStatus ?? <i className="bi bi-share" aria-hidden="true" />}
               </button>
               {shareMenuOpen && config.shareTargets.length > 0 ? (
                 <div className={styles.shareMenu} role="menu">
@@ -709,6 +730,7 @@ export default function ArExperience({
             <button
               type="button"
               ref={aboutBtnRef}
+              aria-label="About this piece"
               className={styles.about}
               onClick={() => {
                 pinAudioRef.current?.pause();
@@ -717,7 +739,7 @@ export default function ArExperience({
               }}
               disabled={chromeFade === 'out'}
             >
-              {config.kind === 'experience' ? 'About' : 'About this piece'}
+              About
             </button>
           </div>
         </>
@@ -733,6 +755,18 @@ export default function ArExperience({
             if (!screen?.visible) return null;
             const label = pin.ctaLabel || pin.title || 'Learn more';
             const pos = { left: `${screen.x}%`, top: `${screen.y}%` };
+            if (labelsHidden && peekCtaId !== pin.id) {
+              return (
+                <button
+                  key={pin.id}
+                  type="button"
+                  className={styles.ghostDot}
+                  style={pos}
+                  aria-label={`Show ${label}`}
+                  onClick={() => setPeekCtaId(pin.id)}
+                />
+              );
+            }
             const embed = pin.action === 'video' ? youtubeEmbedUrl(pin.href) : null;
             const popup =
               (pin.action === 'video' && embed) || pin.action === 'form';

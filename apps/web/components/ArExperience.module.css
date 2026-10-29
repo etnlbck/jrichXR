@@ -798,3 +798,30 @@ button.sceneCta {
   font-family: inherit;
   cursor: pointer;
 }
+
+.ghostDot {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  background: var(--violet);
+  opacity: 0.45;
+  cursor: pointer;
+  /* Larger tap target without a larger dot. */
+  outline: 10px solid transparent;
+}
+
+.ghostDot:hover,
+.ghostDot:focus-visible {
+  opacity: 0.9;
+}
+
+.about,
+.shareBtn {
+  min-height: 36px;
+  min-width: 36px;
+}
