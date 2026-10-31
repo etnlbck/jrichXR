@@ -16,7 +16,7 @@ export function brandAssetPrefix(userId: string, assetId: 'logo' | 'share'): str
 }
 
 function blobConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 /** Read from origin: profiles are overwritten in place and edited read-modify-write. */

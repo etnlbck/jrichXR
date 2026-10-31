@@ -1,12 +1,14 @@
 :root {
   --ink: #101014;
   --stone: #eff1f9;
-  --ember: #1732a4;
-  --violet: #21d3d5;
+  --ember: #03396c;
+  --violet: #24d8da;
+  --orange: #ee6c4d; /* contrast accent; ink text is safest on it */
   --paper: #ffffff;
-  --vein: #1732a4;
-  --vein-light: #21d3d5;
+  --vein: #03396c;
+  --vein-light: #24d8da;
   --ash: #59595e;
+  --btn-radius: 12px;
 }
 
 * {
@@ -20,6 +22,7 @@ body {
   min-height: 100%;
   background: #000;
   font-family:
+    var(--font-inter),
     'Avenir Next',
     'Segoe UI',
     'Helvetica Neue',
@@ -27,6 +30,28 @@ body {
     Arial,
     sans-serif;
   color: var(--paper);
+}
+
+/* Form controls don't inherit the page font by default (buttons were Arial). */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-weight: 600;
+}
+
+/* Type pairing: Space Grotesk for titles, Inter (free SF Pro stand-in) for everything else. */
+h1,
+h2,
+h3 {
+  font-family:
+    var(--font-space-grotesk),
+    'Avenir Next',
+    'Segoe UI',
+    Helvetica,
+    Arial,
+    sans-serif;
 }
 
 a {

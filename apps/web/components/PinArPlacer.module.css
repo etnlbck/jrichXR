@@ -14,7 +14,7 @@
 .toolBtnPrimary {
   appearance: none;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 12px);
   padding: 10px 16px;
   min-height: 44px;
   font: inherit;
@@ -29,7 +29,7 @@
 
 .toolBtnPrimary {
   background: linear-gradient(120deg, var(--ember), var(--violet));
-  color: var(--brand-ink, #fff);
+  color: #fff;
 }
 
 .toolBtn:disabled,
@@ -40,7 +40,7 @@
 
 .segmented {
   display: inline-flex;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 12px);
   overflow: hidden;
   background: rgba(13, 13, 15, 0.72);
   backdrop-filter: blur(8px);
@@ -157,6 +157,16 @@
   resize: vertical;
 }
 
+.field select {
+  color-scheme: light;
+}
+
+.field select option,
+.field select optgroup {
+  background-color: #fff;
+  color: #14141a;
+}
+
 .nudge {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -168,7 +178,7 @@
 .sheetBtnDanger {
   appearance: none;
   min-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--btn-radius, 12px);
   border: 1px solid rgba(0, 0, 0, 0.18);
   background: #fff;
   color: var(--ink);

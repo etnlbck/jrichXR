@@ -19,7 +19,7 @@ import { DEFAULT_EXPERIENCE_ID, getSeedExperience } from '@/lib/config';
 import { isValidExperienceId, visitorShopPath } from '@/lib/experience-id';
 
 export function isBlobConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 export function draftPath(id = DEFAULT_EXPERIENCE_ID): string {
@@ -114,7 +114,12 @@ export async function getDraftWithRevision(
     const res = await get(draftPath(id), { access: 'public', useCache: false });
     if (res === null || res.statusCode !== 200) return null;
     const json = await new Response(res.stream).json();
-    return { experience: parseGalleryExperience(json), revision: res.blob.etag };
+    // The CDN can serve a weak ETag (W/"..."); Blob's ifMatch only accepts
+    // the strong form, so every save would 409 without normalizing here.
+    return {
+      experience: parseGalleryExperience(json),
+      revision: res.blob.etag.replace(/^W\//, ''),
+    };
   } catch (err) {
     if (err instanceof BlobNotFoundError) return null;
     throw err;

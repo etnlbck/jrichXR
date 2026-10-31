@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AdminUserMenu from '@/components/AdminUserMenu';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from '@/app/admin/admin.module.css';
 
 export default function AdminStudioNav({
@@ -21,7 +22,7 @@ export default function AdminStudioNav({
     <header className={styles.topBar}>
       <nav className={styles.topBarInner} aria-label="Studio">
         <Link href="/admin" className={styles.wordmark}>
-          Studio
+          TagXR Studio
         </Link>
         <Link
           href="/admin"
@@ -47,6 +48,7 @@ export default function AdminStudioNav({
           </Link>
         )}
         <span className={styles.navEnd}>
+          <ThemeToggle />
           <AdminUserMenu bypass={bypass} />
         </span>
       </nav>
