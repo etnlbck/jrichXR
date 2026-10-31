@@ -268,7 +268,8 @@ export default function ArExperience({
   }, [revealComplete, state, config.pins]);
 
   useEffect(() => {
-    if (!showProvenance) {
+    // The QR is for handing the experience to another phone, so desktop only.
+    if (!showProvenance || coarsePointer !== false) {
       setAboutQr(null);
       return;
     }
@@ -283,7 +284,7 @@ export default function ArExperience({
     return () => {
       cancelled = true;
     };
-  }, [showProvenance]);
+  }, [showProvenance, coarsePointer]);
 
   useEffect(() => {
     sceneRef.current = createScene(config, {
@@ -962,6 +963,7 @@ export default function ArExperience({
                 ) : null}
               </div>
             )}
+            {coarsePointer === false && (
             <div className={styles.aboutQr}>
               <p className={styles.aboutQrLabel}>Open on another phone</p>
               {aboutQr ? (
@@ -976,6 +978,7 @@ export default function ArExperience({
                 <p className={styles.aboutQrLabel}>Preparing QR…</p>
               )}
             </div>
+            )}
             <p className={styles.credit}>
               AR engine by Niantic Spatial ·{' '}
               <Link href="/licenses">Licenses</Link>
