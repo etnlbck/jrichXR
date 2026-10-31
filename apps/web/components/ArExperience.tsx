@@ -688,6 +688,7 @@ export default function ArExperience({
                 disabled={chromeFade === 'out'}
                 aria-expanded={shareMenuOpen}
                 aria-label="Share"
+                title="Share"
               >
                 {shareStatus ?? <i className="bi bi-share" aria-hidden="true" />}
               </button>
@@ -730,6 +731,7 @@ export default function ArExperience({
               type="button"
               ref={aboutBtnRef}
               aria-label="About this piece"
+              title="About this piece"
               className={styles.about}
               onClick={() => {
                 pinAudioRef.current?.pause();
@@ -738,7 +740,7 @@ export default function ArExperience({
               }}
               disabled={chromeFade === 'out'}
             >
-              About
+              <i className="bi bi-info-circle" aria-hidden="true" />
             </button>
           </div>
         </>
