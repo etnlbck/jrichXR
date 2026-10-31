@@ -825,3 +825,22 @@ button.sceneCta {
   min-height: 36px;
   min-width: 36px;
 }
+
+/* Top bar: every button is the same height as the theme toggle. */
+.topActions .about,
+.topActions .shareBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 0;
+  padding: 0 10px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.topActions .shareWrap {
+  display: flex;
+}
