@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   title: 'AR experience',
   description: 'Scan the marker to see it in augmented reality.',
   // Declared here (not app/favicon.ico) so artist pages can replace it.
-  icons: { icon: '/favicon.ico' },
+  icons: {
+    icon: [
+      { url: '/brand/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/brand/apple-touch-icon.png',
+  },
   other: {
     // Binary engine attribution (also surfaced in the AR UI).
     'xr-engine':

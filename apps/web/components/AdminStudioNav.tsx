@@ -22,7 +22,20 @@ export default function AdminStudioNav({
     <header className={styles.topBar}>
       <nav className={styles.topBarInner} aria-label="Studio">
         <Link href="/admin" className={styles.wordmark}>
-          TagXR Studio
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={`${styles.logo} ${styles.logoLight}`}
+            src="/brand/tagxr-logo-color.svg"
+            alt="TagXR"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={`${styles.logo} ${styles.logoDark}`}
+            src="/brand/tagxr-logo-white.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <span className={styles.studioTag}>Studio</span>
         </Link>
         <Link
           href="/admin"
