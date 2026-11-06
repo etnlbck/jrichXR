@@ -8,6 +8,7 @@ import type {
   MuralNodeTrigger,
   MuralNodeType,
   PinForm,
+  PinAction,
   PinStyle,
   SpatialPin,
 } from '@jrichforms/experience';
@@ -1597,6 +1598,24 @@ export default function AdminEditor({
                       <option value="cta">CTA overlay button</option>
                     </select>
                   </div>
+                  {selectedPin.style === 'cta' ? (
+                    <div className={styles.field}>
+                      <label htmlFor="pin-action">When tapped</label>
+                      <select
+                        id="pin-action"
+                        value={selectedPin.action ?? 'link'}
+                        onChange={(e) =>
+                          updatePin(selectedPin.id, {
+                            action: e.target.value as PinAction,
+                          })
+                        }
+                      >
+                        <option value="link">Open link in a new tab</option>
+                        <option value="video">Play video in a popover</option>
+                        <option value="form">Contact form popover</option>
+                      </select>
+                    </div>
+                  ) : null}
                   <div className={styles.field}>
                     <label>Body</label>
                     <textarea
@@ -1607,7 +1626,13 @@ export default function AdminEditor({
                     />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="pin-href">Link URL (optional)</label>
+                    <label htmlFor="pin-href">
+                      {selectedPin.action === 'video'
+                        ? 'Video URL (YouTube)'
+                        : selectedPin.action === 'form'
+                          ? 'Send form to (mailto:you@example.com)'
+                          : 'Link URL (optional)'}
+                    </label>
                     <input
                       id="pin-href"
                       type="url"

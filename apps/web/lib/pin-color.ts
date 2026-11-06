@@ -3,7 +3,7 @@ import * as THREE from 'three';
 export const PIN_COLOR_PRESETS: { label: string; hex: string }[] = [
   { label: 'Amber', hex: '#ffc46a' },
   { label: 'White', hex: '#f2ebe3' },
-  { label: 'Teal', hex: '#21d3d5' },
+  { label: 'Teal', hex: '#24d8da' },
   { label: 'Coral', hex: '#ff7a59' },
   { label: 'Violet', hex: '#9b7bff' },
   { label: 'Graphite', hex: '#2b2b2b' },

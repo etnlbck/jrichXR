@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AdminUserMenu from '@/components/AdminUserMenu';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from '@/app/admin/admin.module.css';
 
 export default function AdminStudioNav({
@@ -21,7 +22,20 @@ export default function AdminStudioNav({
     <header className={styles.topBar}>
       <nav className={styles.topBarInner} aria-label="Studio">
         <Link href="/admin" className={styles.wordmark}>
-          Studio
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={`${styles.logo} ${styles.logoLight}`}
+            src="/brand/tagxr-logo-color.svg"
+            alt="TagXR"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={`${styles.logo} ${styles.logoDark}`}
+            src="/brand/tagxr-logo-white.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <span className={styles.studioTag}>Studio</span>
         </Link>
         <Link
           href="/admin"
@@ -47,6 +61,7 @@ export default function AdminStudioNav({
           </Link>
         )}
         <span className={styles.navEnd}>
+          <ThemeToggle />
           <AdminUserMenu bypass={bypass} />
         </span>
       </nav>

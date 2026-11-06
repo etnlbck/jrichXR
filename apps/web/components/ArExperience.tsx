@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type MouseEvent,
 } from 'react';
+import ThemeToggle from '@/components/ThemeToggle';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
 import { setMetricsContext } from '@/lib/metrics';
@@ -63,6 +64,97 @@ function useFadeMount(active: boolean, durationMs: number) {
   return phase;
 }
 
+/** YouTube watch / short / embed URL to a privacy-friendly embed URL, else null. */
+function youtubeEmbedUrl(href?: string): string | null {
+  if (!href) return null;
+  try {
+    const u = new URL(href);
+    let id: string | null = null;
+    if (u.hostname === 'youtu.be') id = u.pathname.slice(1);
+    else if (/(^|\.)youtube\.com$/.test(u.hostname)) {
+      id = u.searchParams.get('v');
+      const m = u.pathname.match(/^\/(embed|shorts)\/([\w-]+)/);
+      if (!id && m) id = m[2];
+    }
+    if (!id || !/^[\w-]{6,20}$/.test(id)) return null;
+    return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+  } catch {
+    return null;
+  }
+}
+
+/** Name / email / message form. Submitting opens the visitor's mail app, prefilled. */
+function PinContactForm({
+  to,
+  intro,
+  subject,
+  onDone,
+}: {
+  to: string;
+  intro: string;
+  subject: string;
+  onDone: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const address = to.replace(/^mailto:/i, '').split('?')[0];
+  const ready = /^[^@\s]+@[^@\s]+$/.test(address);
+  return (
+    <form
+      className={styles.popoverForm}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!ready) return;
+        const body = `${message}\n\nFrom: ${name} <${email}>`;
+        window.location.href = `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        onDone();
+      }}
+    >
+      {intro ? <p className={styles.pinBody}>{intro}</p> : null}
+      <label>
+        Name
+        <input
+          required
+          value={name}
+          maxLength={120}
+          autoComplete="name"
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      <label>
+        Email
+        <input
+          required
+          type="email"
+          value={email}
+          maxLength={200}
+          autoComplete="email"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </label>
+      <label>
+        Message
+        <textarea
+          required
+          rows={4}
+          value={message}
+          maxLength={3000}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+      </label>
+      <button type="submit" className={styles.popoverSubmit} disabled={!ready}>
+        Send message
+      </button>
+      {!ready ? (
+        <p className={styles.popoverNote}>
+          No receiving address is set for this form yet.
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 export default function ArExperience({
   appConfig,
   onRequestStart,
@@ -99,6 +191,15 @@ export default function ArExperience({
   const stingAudioRef = useRef<HTMLAudioElement>(null);
   const aboutBtnRef = useRef<HTMLButtonElement>(null);
   const openPin = config.pins.find((p) => p.id === openPinId);
+  const [labelsHidden, setLabelsHidden] = useState(false);
+  const [popoverPinId, setPopoverPinId] = useState<string | null>(null);
+  const popoverPin = config.pins.find((p) => p.id === popoverPinId);
+  const closePopover = useCallback(() => setPopoverPinId(null), []);
+  useEffect(() => {
+    sceneRef.current?.setLabelsHidden(labelsHidden);
+  }, [labelsHidden, revealComplete]);
+  const { panelRef: popoverPanelRef, closeRef: popoverCloseRef } =
+    useDialogFocus(Boolean(popoverPin), closePopover, aboutBtnRef);
 
   const openProvenance = useCallback(() => {
     setShowProvenance(true);
@@ -167,7 +268,8 @@ export default function ArExperience({
   }, [revealComplete, state, config.pins]);
 
   useEffect(() => {
-    if (!showProvenance) {
+    // The QR is for handing the experience to another phone, so desktop only.
+    if (!showProvenance || coarsePointer !== false) {
       setAboutQr(null);
       return;
     }
@@ -182,7 +284,7 @@ export default function ArExperience({
     return () => {
       cancelled = true;
     };
-  }, [showProvenance]);
+  }, [showProvenance, coarsePointer]);
 
   useEffect(() => {
     sceneRef.current = createScene(config, {
@@ -491,6 +593,9 @@ export default function ArExperience({
 
       {gateFade !== 'gone' && (
         <div className={`${styles.overlay} ${fadeClass(gateFade)}`}>
+          <span className={styles.gateTheme}>
+            <ThemeToggle variant="solid" />
+          </span>
           <div className={styles.gateCard}>
             {logo}
             {brand.displayName && (
@@ -554,6 +659,21 @@ export default function ArExperience({
             </div>
           ) : null}
           <div className={`${styles.topActions} ${fadeClass(chromeFade)}`}>
+            <ThemeToggle variant="solid" />
+            <button
+              type="button"
+              className={styles.shareBtn}
+              onClick={() => setLabelsHidden((h) => !h)}
+              disabled={chromeFade === 'out'}
+              aria-pressed={labelsHidden}
+              aria-label={labelsHidden ? 'Show pin labels' : 'Hide pin labels'}
+              title={labelsHidden ? 'Show pin labels' : 'Hide pin labels'}
+            >
+              <i
+                className={`bi ${labelsHidden ? 'bi-eye' : 'bi-eye-slash'}`}
+                aria-hidden="true"
+              />
+            </button>
             <div className={styles.shareWrap}>
               <button
                 type="button"
@@ -567,8 +687,10 @@ export default function ArExperience({
                 }}
                 disabled={chromeFade === 'out'}
                 aria-expanded={shareMenuOpen}
+                aria-label="Share"
+                title="Share"
               >
-                {shareStatus ?? 'Share'}
+                {shareStatus ?? <i className="bi bi-share" aria-hidden="true" />}
               </button>
               {shareMenuOpen && config.shareTargets.length > 0 ? (
                 <div className={styles.shareMenu} role="menu">
@@ -608,6 +730,8 @@ export default function ArExperience({
             <button
               type="button"
               ref={aboutBtnRef}
+              aria-label="About this piece"
+              title="About this piece"
               className={styles.about}
               onClick={() => {
                 pinAudioRef.current?.pause();
@@ -616,7 +740,7 @@ export default function ArExperience({
               }}
               disabled={chromeFade === 'out'}
             >
-              {config.kind === 'experience' ? 'About' : 'About this piece'}
+              <i className="bi bi-info-circle" aria-hidden="true" />
             </button>
           </div>
         </>
@@ -630,6 +754,41 @@ export default function ArExperience({
           .map((pin) => {
             const screen = ctaScreen[pin.id];
             if (!screen?.visible) return null;
+            const label = pin.ctaLabel || pin.title || 'Learn more';
+            const pos = { left: `${screen.x}%`, top: `${screen.y}%` };
+            const embed = pin.action === 'video' ? youtubeEmbedUrl(pin.href) : null;
+            const popup =
+              (pin.action === 'video' && embed) || pin.action === 'form';
+            if (labelsHidden) {
+              return (
+                <button
+                  key={pin.id}
+                  type="button"
+                  className={styles.ghostDot}
+                  style={pos}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => {
+                    if (popup) setPopoverPinId(pin.id);
+                    else if (pin.href)
+                      window.open(pin.href, '_blank', 'noopener,noreferrer');
+                  }}
+                />
+              );
+            }
+            if (popup) {
+              return (
+                <button
+                  key={pin.id}
+                  type="button"
+                  className={styles.sceneCta}
+                  style={pos}
+                  onClick={() => setPopoverPinId(pin.id)}
+                >
+                  {label}
+                </button>
+              );
+            }
             return (
               <a
                 key={pin.id}
@@ -637,12 +796,57 @@ export default function ArExperience({
                 href={pin.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ left: `${screen.x}%`, top: `${screen.y}%` }}
+                style={pos}
               >
-                {pin.ctaLabel || pin.title || 'Learn more'}
+                {label}
               </a>
             );
           })}
+
+      {popoverPin && (
+        <div className={styles.popoverBackdrop} onClick={closePopover}>
+          <div
+            className={styles.popover}
+            ref={popoverPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pin-popover-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              ref={popoverCloseRef}
+              className={styles.panelClose}
+              onClick={closePopover}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <h2 id="pin-popover-title">{popoverPin.title}</h2>
+            {popoverPin.action === 'video' ? (
+              <div className={styles.popoverVideo}>
+                <iframe
+                  src={youtubeEmbedUrl(popoverPin.href) ?? undefined}
+                  title={popoverPin.title}
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <PinContactForm
+                to={popoverPin.href ?? ''}
+                intro={popoverPin.body}
+                subject={`${config.piece.title} enquiry`}
+                onDone={closePopover}
+              />
+            )}
+            {popoverPin.action === 'video' && popoverPin.body ? (
+              <p className={styles.pinBody}>{popoverPin.body}</p>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {openPin && (
         <div
@@ -761,6 +965,7 @@ export default function ArExperience({
                 ) : null}
               </div>
             )}
+            {coarsePointer === false && (
             <div className={styles.aboutQr}>
               <p className={styles.aboutQrLabel}>Open on another phone</p>
               {aboutQr ? (
@@ -775,6 +980,7 @@ export default function ArExperience({
                 <p className={styles.aboutQrLabel}>Preparing QR…</p>
               )}
             </div>
+            )}
             <p className={styles.credit}>
               AR engine by Niantic Spatial ·{' '}
               <Link href="/licenses">Licenses</Link>

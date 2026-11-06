@@ -65,34 +65,57 @@ function gradientTexture(inner: string, outer: string) {
   return new THREE.CanvasTexture(canvas);
 }
 
+function currentTheme(): 'light' | 'dark' {
+  return document.documentElement.getAttribute('data-theme') === 'light'
+    ? 'light'
+    : 'dark';
+}
+
 /**
- * Give the desktop stage enough contrast to see the piece: dark sculptures get
- * a light warm-grey backdrop, light ones a dark one, plus a back light that
- * separates the silhouette either way. Returns a cleanup function.
+ * The desktop stage backdrop follows the site theme: near black in dark mode,
+ * white in light mode. A back light separates the silhouette, and runs
+ * stronger when a dark sculpture sits on the dark backdrop. Returns a cleanup
+ * function.
  */
 export function applyStageBackdrop(
   scene: THREE.Scene,
   model: THREE.Object3D
 ): () => void {
-  const dark = estimateModelLuminance(model) < DARK_LUMINANCE;
+  const darkModel = estimateModelLuminance(model) < DARK_LUMINANCE;
   const previous = scene.background;
-  const texture = dark
-    ? gradientTexture('#c9c1b6', '#6f675e')
-    : gradientTexture('#2a2521', '#0d0b0a');
-  scene.background = texture;
+  let texture: THREE.CanvasTexture | null = null;
 
   const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   const reach = Math.max(size.x, size.y, size.z, 0.1);
-  const rim = new THREE.DirectionalLight(0xfff4e6, dark ? 1.4 : 0.8);
+  const rim = new THREE.DirectionalLight(0xfff4e6, 1);
   rim.position.set(center.x - reach, center.y + reach * 1.5, center.z - reach * 2);
   rim.target.position.copy(center);
   scene.add(rim, rim.target);
 
+  const apply = () => {
+    const theme = currentTheme();
+    texture?.dispose();
+    texture =
+      theme === 'dark'
+        ? gradientTexture('#1c1c21', '#050506')
+        : gradientTexture('#ffffff', '#e9ebf3');
+    scene.background = texture;
+    rim.intensity = theme === 'dark' ? (darkModel ? 2.2 : 0.8) : darkModel ? 0.6 : 0.4;
+  };
+  apply();
+
+  const observer = new MutationObserver(apply);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+
   return () => {
+    observer.disconnect();
     scene.background = previous;
-    texture.dispose();
+    texture?.dispose();
     scene.remove(rim, rim.target);
   };
 }

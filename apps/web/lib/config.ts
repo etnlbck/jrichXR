@@ -26,6 +26,7 @@ import {
   type GalleryExperience,
   type MuralNodeTrigger,
   type PinForm,
+  type PinAction,
   type PinStyle,
   type ResolvedBrand,
   type ShareTargetId,
@@ -44,6 +45,7 @@ export type AppPin = {
   ctaLabel?: string;
   imageUrl?: string;
   style: PinStyle;
+  action: PinAction;
 };
 
 export type AppMediaNode = {
@@ -284,6 +286,10 @@ export function buildAppConfig(experience: GalleryExperience): AppConfig {
       ctaLabel: typeof pin.ctaLabel === 'string' ? pin.ctaLabel : undefined,
       imageUrl: typeof pin.imageUrl === 'string' ? pin.imageUrl : undefined,
       style: pin.style === 'cta' ? ('cta' as const) : ('dot' as const),
+      action:
+        pin.action === 'video' || pin.action === 'form'
+          ? pin.action
+          : ('link' as const),
     })),
     pinColor: pinColor(experience),
     brand: resolveBrand(experience.brand),

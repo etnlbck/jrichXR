@@ -47,6 +47,12 @@ export interface GalleryProvenance {
 export type PinForm = 'finished' | 'raw' | 'both';
 /** Dot = spatial note; cta = HTML overlay button after Arrive. */
 export type PinStyle = 'dot' | 'cta';
+/**
+ * What a cta pin does when tapped. Missing means link: open `href` in a new tab.
+ * video: play the `href` video in a popover. form: open a contact form popover
+ * (`href` holds the receiving address as `mailto:name@example.com`).
+ */
+export type PinAction = 'link' | 'video' | 'form';
 
 export type ShareTargetId = 'whatsapp' | 'x' | 'email';
 
@@ -67,6 +73,8 @@ export interface SpatialPin {
   imageUrl?: string;
   /** Presentation. Missing means dot. */
   style?: PinStyle;
+  /** Tap behavior for cta pins. Missing means link. */
+  action?: PinAction;
 }
 
 export interface GalleryExtension {

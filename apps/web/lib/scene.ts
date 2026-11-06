@@ -90,6 +90,8 @@ export function createScene(
   }[] = [];
   let audioUnlocked = false;
   const pinHits: THREE.Object3D[] = [];
+  /** Labels hidden: pin dots stay as ghosts, titles and leader lines are off. */
+  let labelsHidden = false;
   const pinGroups: { id: string; form: PinForm; group: THREE.Group }[] = [];
   let pins: ScenePin[] = config.pins;
   let pinRoot: THREE.Group | null = null;
@@ -385,8 +387,8 @@ export function createScene(
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    revealColorFrom.set(config.brand.accentTo || '#21d3d5');
-    revealColorTo.set(config.brand.accentFrom || '#1732a4');
+    revealColorFrom.set(config.brand.accentTo || '#24d8da');
+    revealColorTo.set(config.brand.accentFrom || '#03396c');
     revealBaseSize = Math.max(sphere.radius * 0.045, 0.01);
     const mat = new THREE.PointsMaterial({
       color: revealColorFrom.clone(),
@@ -627,7 +629,27 @@ export function createScene(
       pinHits.push(dot, hit);
       pinGroups.push({ id: pin.id, form: pin.form, group });
     }
+    applyLabelsHidden();
     updatePinVisibility();
+  }
+
+  function applyLabelsHidden() {
+    for (const label of labels) {
+      label.sprite.visible = !labelsHidden;
+      label.line.visible = !labelsHidden;
+    }
+    for (const obj of pinHits) {
+      const mat = (obj as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
+      if (!mat || !mat.visible) continue;
+      mat.transparent = true;
+      mat.opacity = labelsHidden ? 0.4 : 1;
+      mat.needsUpdate = true;
+    }
+  }
+
+  function setLabelsHidden(hidden: boolean) {
+    labelsHidden = hidden;
+    applyLabelsHidden();
   }
 
   function addPins(parent: THREE.Object3D, radius: number) {
@@ -1408,6 +1430,56 @@ export function createScene(
     renderer.setClearColor(0x161412, 1);
     void loadModels();
 
+    // Drag to turn the sculpture on the desktop stage. A drag past the tap
+    // threshold is swallowed so it does not also toggle the morph or open a pin.
+    canvas.style.touchAction = 'none';
+    let dragId: number | null = null;
+    let dragX = 0;
+    let dragY = 0;
+    let dragMoved = 0;
+    let suppressClick = false;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 || dragId !== null) return;
+      dragId = e.pointerId;
+      dragX = e.clientX;
+      dragY = e.clientY;
+      dragMoved = 0;
+      canvas.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerId !== dragId || !anchor) return;
+      const dx = e.clientX - dragX;
+      const dy = e.clientY - dragY;
+      dragX = e.clientX;
+      dragY = e.clientY;
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+      if (dragMoved < 6) return;
+      anchor.rotation.y += dx * 0.01;
+      anchor.rotation.x = THREE.MathUtils.clamp(
+        anchor.rotation.x + dy * 0.006,
+        -0.6,
+        0.6
+      );
+    };
+    const onPointerEnd = (e: PointerEvent) => {
+      if (e.pointerId !== dragId) return;
+      dragId = null;
+      suppressClick = dragMoved >= 6;
+      if (canvas.hasPointerCapture(e.pointerId)) {
+        canvas.releasePointerCapture(e.pointerId);
+      }
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      e.stopPropagation();
+    };
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerEnd);
+    canvas.addEventListener('pointercancel', onPointerEnd);
+    canvas.addEventListener('click', onClickCapture, true);
+
     let frame = 0;
     const loop = () => {
       frame = requestAnimationFrame(loop);
@@ -1424,6 +1496,11 @@ export function createScene(
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', resize);
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerEnd);
+      canvas.removeEventListener('pointercancel', onPointerEnd);
+      canvas.removeEventListener('click', onClickCapture, true);
       renderer.dispose();
       clearStageBackdrop?.();
       clearStageBackdrop = null;
@@ -1445,6 +1522,7 @@ export function createScene(
     projectLocal,
     setPins,
     setSelectedPin,
+    setLabelsHidden,
     setAudioUnlocked,
     holdPose: (on: boolean) => {
       poseHeld = on;

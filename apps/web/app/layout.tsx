@@ -2,13 +2,20 @@ import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Analytics } from '@vercel/analytics/react';
 import { brandFontVariables } from '@/lib/brand-fonts';
+import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'AR experience',
   description: 'Scan the marker to see it in augmented reality.',
   // Declared here (not app/favicon.ico) so artist pages can replace it.
-  icons: { icon: '/favicon.ico' },
+  icons: {
+    icon: [
+      { url: '/brand/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/brand/apple-touch-icon.png',
+  },
   other: {
     // Binary engine attribution (also surfaced in the AR UI).
     'xr-engine':
@@ -30,8 +37,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={brandFontVariables}>
+    <html lang="en" className={brandFontVariables} data-theme="dark" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"

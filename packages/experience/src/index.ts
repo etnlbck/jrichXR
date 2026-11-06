@@ -12,6 +12,7 @@ export type {
   MuralPlacement,
   MuralVec3,
   PinForm,
+  PinAction,
   PinStyle,
   ShareTargetId,
   SpatialPin,
