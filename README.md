@@ -97,6 +97,8 @@ ARTIST_ACCESS=signed_in
 # optional: comma-separated Clerk user ids that always act as studio admin
 # CLERK_ADMIN_USER_IDS=user_…
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_…   # from Vercel → Storage → Blob
+# optional: Google Tag Manager container ID (omit to disable GTM)
+# NEXT_PUBLIC_GTM_ID=GTM-XXXXXXX
 ```
 
 1. Create a Blob store on the Vercel project and pull env locally (`vercel env pull`).
