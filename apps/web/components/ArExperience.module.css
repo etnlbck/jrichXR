@@ -27,8 +27,75 @@
   padding: 24px;
 }
 
+.fadeIn {
+  animation: overlayFadeIn var(--reveal-fade-ms, 320ms) ease both;
+}
+
+.fadeOut {
+  animation: overlayFadeOut var(--reveal-fade-ms, 320ms) ease both;
+  pointer-events: none;
+}
+
+.overlay.fadeIn,
+.overlay.fadeOut {
+  animation-duration: var(--gate-fade-ms, 280ms);
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlayFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fadeIn,
+  .fadeOut {
+    animation-duration: 0.01ms !important;
+  }
+
+  .reticle {
+    animation: none !important;
+  }
+
+  .reticleSuccess {
+    animation: none !important;
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
 .gateCard {
   max-width: 340px;
+}
+
+.brandLogo {
+  display: block;
+  max-width: 180px;
+  max-height: 64px;
+  width: auto;
+  height: auto;
+  margin: 0 auto 1.2em;
+  object-fit: contain;
+}
+
+.brandName {
+  margin: 0 0 0.4em;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
 }
 
 .gateCard h1 {
@@ -54,17 +121,55 @@
 .beginBtn {
   appearance: none;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 12px);
   cursor: pointer;
   padding: 14px 34px;
   font-size: 1rem;
   font-weight: 600;
+  font-family: inherit;
   color: #fff;
   background: linear-gradient(120deg, var(--ember), var(--violet));
 }
 
 .beginBtn:active {
   transform: scale(0.97);
+}
+
+a.beginBtn {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.desktopQr {
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 1.6em;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.desktopQr img {
+  display: block;
+}
+
+.textLink {
+  display: block;
+  margin: 1.2em auto 0;
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.desktopHint {
+  margin: 1rem 0 0;
+  font-size: 0.72rem;
+  opacity: 0.45;
 }
 
 .loading {
@@ -85,6 +190,12 @@
   margin: 0;
   font-size: 0.95rem;
   opacity: 0.85;
+}
+
+.loading .brandLogo {
+  margin: 0;
+  max-height: 48px;
+  opacity: 0.9;
 }
 
 .loadingPulse {
@@ -129,6 +240,12 @@
   animation: pulse 1.8s ease-in-out infinite;
 }
 
+.reticleSuccess {
+  animation: reticleSuccess var(--reticle-success-ms, 380ms) ease forwards;
+  border-style: solid;
+  border-color: var(--ember, #fff);
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -141,11 +258,29 @@
   }
 }
 
-.about {
+@keyframes reticleSuccess {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.72);
+    opacity: 0;
+  }
+}
+
+.topActions {
   position: fixed;
   top: max(12px, env(safe-area-inset-top));
   right: max(12px, env(safe-area-inset-right));
   z-index: 16;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.about,
+.shareBtn {
   appearance: none;
   border: 0;
   background: rgba(13, 13, 15, 0.45);
@@ -154,8 +289,14 @@
   font-size: 0.78rem;
   letter-spacing: 0.02em;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 12px);
   cursor: pointer;
+}
+
+.about.fadeIn,
+.shareBtn.fadeIn,
+.topActions.fadeIn {
+  animation: aboutFadeIn var(--reveal-fade-ms, 320ms) ease both;
 }
 
 .prompt {
@@ -176,34 +317,30 @@
   text-align: center;
 }
 
-.errorBanner {
-  position: fixed;
-  left: 16px;
-  right: 16px;
-  top: max(16px, env(safe-area-inset-top));
-  z-index: 40;
-  background: #2a1212;
-  color: #ffd4d4;
-  border: 1px solid #7a2e2e;
-  border-radius: 12px;
-  padding: 14px 16px;
+.prompt.fadeIn {
+  animation: promptFadeIn var(--reveal-fade-ms, 320ms) ease both;
 }
 
-.errorBanner strong {
-  display: block;
-  margin-bottom: 6px;
+@keyframes promptFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
-.errorBanner p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.errorHint {
-  margin-top: 8px !important;
-  opacity: 0.7;
-  font-size: 0.78rem !important;
+@keyframes aboutFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .panel {
@@ -265,11 +402,103 @@
   font-size: 0.95rem;
 }
 
+.sceneCta {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--btn-radius, 12px);
+  background: var(--brand-from, #c45c26);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  max-width: 12rem;
+  text-align: center;
+}
+
+.shareWrap {
+  position: relative;
+}
+
+.shareMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 11rem;
+  padding: 0.35rem;
+  border-radius: 10px;
+  background: rgba(18, 16, 14, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 5;
+}
+
+.shareMenuItem {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.shareMenuItem:hover,
+.shareMenuItem:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.aboutQr {
+  margin: 1.25rem 0 0;
+  text-align: center;
+}
+
+.aboutQrLabel {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  color: #6a6a6a;
+}
+
+.aboutQr img {
+  display: block;
+  margin: 0 auto;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.credit {
+  margin: 18px 0 0;
+  font-size: 0.72rem;
+  color: #8a8a8a;
+}
+
+.credit a {
+  color: inherit;
+}
+
 .pinBody {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.5;
   white-space: pre-line;
+}
+
+.pinImage {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin: 0 0 14px;
 }
 
 .panelClose {
@@ -294,7 +523,7 @@
 .cta {
   display: inline-block;
   padding: 12px 24px;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 12px);
   background: var(--ink);
   color: #fff;
   text-decoration: none;
@@ -305,7 +534,7 @@
 .ctaSecondary {
   display: inline-block;
   padding: 12px 24px;
-  border-radius: 999px;
+  border-radius: var(--btn-radius, 12px);
   border: 1px solid rgba(0, 0, 0, 0.2);
   background: transparent;
   color: var(--ink);
@@ -325,252 +554,192 @@
   pointer-events: none;
 }
 
-/* ---- Four-CTA layer: animates in over the anchored artwork ---- */
+/* ---- JRichForms UI kit overrides (Figma: AR Display / Overlay Display) ---- */
 
-.ctaLayer {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
-  pointer-events: none;
-}
-
-.pieceLabel {
-  align-self: center;
-  margin-top: auto;
-  margin-bottom: 12px;
-  color: #fff;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
-  background: rgba(0, 0, 0, 0.35);
-  padding: 6px 14px;
-  border-radius: 20px;
-  animation: ctaFadeIn 0.5s ease both;
-  pointer-events: none;
-}
-
-.ctaRow {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  width: 100%;
-  pointer-events: auto;
-}
-
-.ctaRow:first-of-type {
-  margin-top: 0;
-}
-
-.ctaPill {
-  flex: 1;
-  max-width: 170px;
-  text-align: center;
-  background: var(--vein);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  padding: 13px 16px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(23, 50, 164, 0.35);
-  animation: ctaFadeIn 0.5s ease both;
-}
-
-.ctaRow:nth-of-type(2) .ctaPill:nth-child(1) { animation-delay: 0.05s; }
-.ctaRow:nth-of-type(2) .ctaPill:nth-child(2) { animation-delay: 0.1s; }
-.ctaRow:nth-of-type(3) .ctaPill:nth-child(1) { animation-delay: 0.15s; }
-.ctaRow:nth-of-type(3) .ctaPill:nth-child(2) { animation-delay: 0.2s; }
-
-@keyframes ctaFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ---- Preview-mode: sculpture image + pinned CTAs + caption below ---- */
-
-.previewOuter {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 30px 20px;
-}
-
-.previewStage {
-  position: relative;
-  display: inline-block;
-  line-height: 0;
-}
-
-.previewImg {
-  display: block;
-  max-width: 74vw;
-  max-height: 55dvh;
-  width: auto;
-  height: auto;
-  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.6));
-  opacity: 0;
-  animation: imageFadeIn 0.6s ease forwards;
-}
-
-@keyframes imageFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.previewCaptionBelow {
-  margin-top: 28px;
-  text-align: center;
-  pointer-events: none;
-}
-
-.previewTitle {
-  color: #fff;
-  font-size: 1.4rem;
-  font-weight: 700;
-}
-
-.previewArtist {
-  color: #b8b8bc;
-  font-size: 0.85rem;
-  margin-top: 4px;
-}
-
-/* ---- CTAs pinned to the sculpture's actual rendered box (percentages
-   are relative to .previewStage, which shrink-wraps exactly to the image) ---- */
-
-.ctaPillScatter {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  background: var(--vein-light);
-  color: #000;
-  border: none;
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 0.78rem;
-  font-family: inherit;
-  line-height: 1.2;
+/* Scene CTAs: solid teal, dark ink (easier to read than white on teal). */
+.sceneCta {
+  background: var(--violet);
+  color: #101014;
   font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  pointer-events: auto;
-  animation: ctaFadeIn 0.5s ease both;
-  white-space: nowrap;
-  z-index: 2;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
-.ctaTopLeft {
-  top: 3%;
-  left: -4%;
-  animation-delay: 0.5s;
+.about,
+.shareBtn {
+  background: var(--ember);
+  color: #fff;
+  font-weight: 600;
+  padding: 9px 16px;
 }
 
-.ctaMidRight {
-  top: 38%;
-  right: -10%;
-  animation-delay: 0.6s;
+/* Sheet: Figma overlay look. Blue header band, white round close, dark body. */
+.panel {
+  background: #101014;
+  color: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 0 0 max(24px, env(safe-area-inset-bottom));
+  overflow: hidden;
 }
 
-.ctaBottomLeft {
-  top: 66%;
-  left: -8%;
-  animation-delay: 0.7s;
-}
-
-.ctaBottomRight {
-  top: 82%;
-  right: -6%;
-  animation-delay: 0.8s;
-}
-
-/* ---- Full-screen overlay (Behind the Carving / Artist Profile / Contact) ---- */
-
-.fullOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: #000;
-  display: flex;
-  flex-direction: column;
-}
-
-.overlayHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--vein);
-  padding: max(18px, env(safe-area-inset-top)) 20px 18px;
-  border-radius: 0 0 16px 16px;
-}
-
-.overlayHeaderTitle {
+.panel h2 {
+  margin: 0;
+  padding: 18px 64px 18px 20px;
+  background: var(--ember);
   color: #fff;
   font-size: 1.05rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-.overlayCloseBtn {
-  width: 26px;
-  height: 26px;
+.panelScroll > :not(h2) {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.panelScroll > h2 + * {
+  margin-top: 18px;
+}
+
+.panelClose {
+  top: 14px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
-  color: var(--vein);
-  border: none;
+  color: var(--ember);
   font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.overlayBody {
-  flex: 1;
-  padding: 24px 20px;
-  overflow-y: auto;
+.panel dt {
+  color: var(--violet);
+}
+
+.panel dd,
+.pinBody {
+  color: #e6e6ea;
+}
+
+.cta {
+  background: var(--violet);
+  color: #101014;
+}
+
+.ctaSecondary {
+  border-color: rgba(255, 255, 255, 0.35);
   color: #fff;
 }
 
-.overlayCaption {
-  font-size: 0.85rem;
-  color: #b8b8bc;
-  line-height: 1.6;
+/* Type pairing: sheet titles in Space Grotesk, CTA labels bold Inter. */
+.panel h2 {
+  font-family: var(--font-space-grotesk), 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-weight: 500;
 }
 
-.videoEmbed {
+.sceneCta,
+.cta,
+.ctaSecondary,
+.about,
+.shareBtn {
+  font-family: var(--font-inter), 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-weight: 600;
+}
+
+.gateTheme {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 31;
+}
+
+/* ---- Light theme (toggle sets data-theme="light" on <html>) ---- */
+:global(html[data-theme='light']) .overlay {
+  background: radial-gradient(120% 120% at 50% 20%, #ffffff 0%, #eff1f9 75%);
+  color: #101014;
+}
+
+:global(html[data-theme='light']) .panel {
+  background: #ffffff;
+  color: #101014;
+  box-shadow: 0 -12px 40px rgba(16, 16, 20, 0.18);
+}
+
+:global(html[data-theme='light']) .panel dd,
+:global(html[data-theme='light']) .pinBody {
+  color: #2a2a30;
+}
+
+:global(html[data-theme='light']) .panel dt {
+  color: #0b8a8d;
+}
+
+:global(html[data-theme='light']) .panelClose {
+  background: var(--ember);
+  color: #fff;
+}
+
+:global(html[data-theme='light']) .ctaSecondary {
+  border-color: rgba(16, 16, 20, 0.3);
+  color: #101014;
+}
+
+:global(html[data-theme='light']) .shareMenu {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: rgba(16, 16, 20, 0.12);
+  color: #101014;
+}
+
+:global(html[data-theme='light']) .shareMenuItem:hover,
+:global(html[data-theme='light']) .shareMenuItem:focus-visible {
+  background: rgba(16, 16, 20, 0.06);
+}
+
+:global(html[data-theme='light']) .prompt,
+:global(html[data-theme='light']) .count {
+  background: rgba(255, 255, 255, 0.85);
+  color: #101014;
+}
+
+.popoverBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(8, 8, 12, 0.6);
+}
+
+.popover {
   position: relative;
-  width: 100%;
-  padding-top: 56.25%;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #1a1a1a;
-  margin-bottom: 14px;
+  width: min(560px, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 26px 24px 24px;
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
-.videoEmbed iframe {
+.popover h2 {
+  margin: 0 40px 16px 0;
+  font-size: 1.3rem;
+}
+
+.popoverVideo {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+.popoverVideo iframe {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -578,149 +747,100 @@
   border: 0;
 }
 
-.avatarLarge {
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #2a2a2a;
-  margin: 0 auto 16px;
-  display: block;
-}
-
-.artistName {
-  font-size: 1.15rem;
-  font-weight: 500;
-  color: #fff;
-  margin: 0 0 8px;
-}
-
-.tagsRow {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 14px;
-}
-
-.tag {
-  font-size: 0.65rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--vein-light);
-  border: 1px solid rgba(33, 211, 213, 0.35);
-  padding: 4px 9px;
-  border-radius: 10px;
-}
-
-.overlayTabbar {
+.popoverForm {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid #222;
-  padding: 14px 0 max(14px, env(safe-area-inset-bottom));
+  gap: 12px;
 }
 
-.overlayTabBtn {
-  background: none;
-  border: none;
-  color: #8c8c90;
+.popoverForm label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.popoverForm input,
+.popoverForm textarea {
+  font: inherit;
   font-size: 1rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  text-decoration: none;
-  text-align: center;
+  font-weight: 400;
+  padding: 10px 12px;
+  border-radius: var(--btn-radius, 12px);
+  border: 1px solid rgba(128, 128, 140, 0.45);
+  background: transparent;
+  color: inherit;
+}
+
+.popoverSubmit {
+  padding: 11px 16px;
+  border: 0;
+  border-radius: var(--btn-radius, 12px);
+  background: var(--violet);
+  color: #101014;
+  font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.overlayTabBtn[data-active='true'] {
-  color: var(--vein-light);
+.popoverSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.progressTrack {
-  width: 100%;
-  height: 3px;
-  background: #222;
-  border-radius: 2px;
-  margin: 14px 0;
-}
-
-.progressFill {
-  width: 18%;
-  height: 100%;
-  background: var(--vein-light);
-  border-radius: 2px;
-}
-
-.connectLabel {
+.popoverNote {
+  margin: 0;
   font-size: 0.8rem;
-  color: #b8b8bc;
-  text-align: center;
-  margin: 0 0 14px;
+  color: #6a6a6a;
 }
 
-.socialRow {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-bottom: 24px;
+button.sceneCta {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 
-.socialCircle {
-  width: 36px;
-  height: 36px;
+.ghostDot {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 50%;
-  background: var(--vein);
-  color: #fff;
-  display: flex;
+  background: var(--violet);
+  opacity: 0.45;
+  cursor: pointer;
+  /* Larger tap target without a larger dot. */
+  outline: 10px solid transparent;
+}
+
+.ghostDot:hover,
+.ghostDot:focus-visible {
+  opacity: 0.9;
+}
+
+.about,
+.shareBtn {
+  min-height: 36px;
+  min-width: 36px;
+}
+
+/* Top bar: every button is the same height as the theme toggle. */
+.topActions .about,
+.topActions .shareBtn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;
-  font-size: 0.75rem;
-  font-weight: 600;
+  box-sizing: border-box;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 0;
+  padding: 0 10px;
+  font-size: 1rem;
+  line-height: 1;
 }
 
-.formLabel {
-  display: block;
-  font-size: 0.7rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #8c8c90;
-  margin: 12px 0 6px;
-}
-
-.formInput {
-  width: 100%;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  padding: 10px 12px;
-  color: #fff;
-  font-size: 0.85rem;
-}
-
-.formTextarea {
-  width: 100%;
-  min-height: 70px;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  padding: 10px 12px;
-  color: #fff;
-  font-size: 0.85rem;
-  resize: vertical;
-}
-
-.submitBtn {
-  width: 100%;
-  margin-top: 18px;
-  background: var(--vein-light);
-  color: #000;
-  border: none;
-  border-radius: 20px;
-  padding: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  cursor: pointer;
+.topActions .shareWrap {
+  display: flex;
 }

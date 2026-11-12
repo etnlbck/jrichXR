@@ -2,12 +2,24 @@
 
 import { upload } from '@vercel/blob/client';
 import type {
+  ArtistBrand,
   GalleryExperience,
   MuralNode,
+  MuralNodeTrigger,
+  MuralNodeType,
   PinForm,
+  PinAction,
+  PinStyle,
   SpatialPin,
 } from '@jrichforms/experience';
-import { assetWebPath, pinColor, pinForm } from '@jrichforms/experience';
+import {
+  assetWebPath,
+  mergeBrand,
+  pinColor,
+  pinForm,
+  supportsMorph,
+} from '@jrichforms/experience';
+import BrandFields from '@/components/BrandFields';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,11 +27,20 @@ import PhoneHandoff from '@/components/PhoneHandoff';
 import PinPlacer from '@/components/PinPlacer';
 import PinPreview from '@/components/PinPreview';
 import { assetPathname } from '@/lib/experience-store-client';
-import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
+import {
+  DEFAULT_EXPERIENCE_ID,
+  visitorArPath,
+  visitorMarkerPath,
+} from '@/lib/experience-id';
+import { formatPublishedAt } from '@/lib/format';
 import styles from '@/app/admin/admin.module.css';
-import { EDITOR_TABS as TABS, type EditorTab as Tab } from '@/lib/editor-tabs';
+import {
+  EDITOR_TABS as ALL_TABS,
+  type EditorTab as Tab,
+} from '@/lib/editor-tabs';
 import { colorLuminance, PIN_COLOR_PRESETS } from '@/lib/pin-color';
 import { newPinId, PIN_FORM_LABEL } from '@/lib/pins';
+import { getPublishReadiness } from '@/lib/publish-readiness';
 
 /** Matches the `.pinLayout` two-column breakpoint in admin.module.css. */
 const SINGLE_COLUMN_QUERY = '(max-width: 899px)';
@@ -30,6 +51,7 @@ type StoreStatus = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
 };
@@ -46,6 +68,55 @@ const ASSET_SLOTS: Array<{
   { id: 'marker-display', label: 'Marker / print PNG', accept: 'image/png,.png' },
 ];
 
+/** Core morph/marker nodes — editable transforms only, not removable. */
+const LOCKED_NODE_IDS = new Set(['finished', 'raw', 'overlay']);
+
+const WEB_AR_TRIGGERS: MuralNodeTrigger[] = [
+  'onDetect',
+  'tap',
+  'loop',
+  'proximity',
+];
+
+const ADDABLE_NODE_TYPES: Array<{
+  type: MuralNodeType;
+  prefix: string;
+  accept: string;
+  role: string;
+}> = [
+  {
+    type: 'image',
+    prefix: 'image',
+    accept: 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp',
+    role: 'media-image',
+  },
+  {
+    type: 'video',
+    prefix: 'video',
+    accept: 'video/mp4,.mp4',
+    role: 'media-video',
+  },
+  {
+    type: 'audio',
+    prefix: 'audio',
+    accept: 'audio/mpeg,.mp3',
+    role: 'media-audio',
+  },
+  {
+    type: 'model',
+    prefix: 'prop',
+    accept: '.glb,model/gltf-binary',
+    role: 'media-model',
+  },
+];
+
+function newTypedNodeId(nodes: MuralNode[], prefix: string): string {
+  let n = 1;
+  const ids = new Set(nodes.map((node) => node.id));
+  while (ids.has(`${prefix}-${n}`)) n += 1;
+  return `${prefix}-${n}`;
+}
+
 export default function AdminEditor({
   experienceId,
   initialTab = 'overview',
@@ -60,6 +131,7 @@ export default function AdminEditor({
   const [experience, setExperienceState] = useState<GalleryExperience | null>(
     null
   );
+  const [publishOverride, setPublishOverride] = useState(false);
   /** JSON of the last loaded or saved draft; drives the unsaved indicator. */
   const [savedJson, setSavedJson] = useState<string | null>(null);
   const [status, setStatus] = useState<StoreStatus | null>(null);
@@ -79,6 +151,57 @@ export default function AdminEditor({
   const revisionRef = useRef<string | null>(null);
   /** Another device saved the draft while this tab had unsaved edits. */
   const [conflict, setConflict] = useState(false);
+  const [owner, setOwner] = useState<{
+    ownerUserId: string | null;
+    brand: ArtistBrand;
+    viewerUserId: string;
+    isAdmin: boolean;
+  } | null>(null);
+  const [artists, setArtists] = useState<{ id: string; label: string }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/experiences/${experienceId}/owner`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setOwner(data);
+        if (!data.isAdmin) return;
+        return fetch('/api/admin/users')
+          .then((res) => (res.ok ? res.json() : { users: [] }))
+          .then((list: { users: { id: string; name: string | null; email: string | null }[] }) => {
+            if (cancelled) return;
+            setArtists(list.users.map((u) => ({ id: u.id, label: u.name || u.email || u.id })));
+          });
+      })
+      .catch(() => {
+        /* brand tab falls back to platform defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [experienceId]);
+
+  async function changeOwner(ownerUserId: string) {
+    if (!confirm('Change the owner? The new owner’s brand applies on the next publish.')) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/experiences/${experienceId}/owner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerUserId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Owner change failed');
+      setOwner((prev) => (prev ? { ...prev, ownerUserId: data.ownerUserId, brand: data.brand } : prev));
+      setMessage('Owner changed — publish to apply their brand');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Owner change failed');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const applyServerExperience = useCallback(
     (next: GalleryExperience, revision: string | null | undefined) => {
@@ -235,7 +358,21 @@ export default function AdminEditor({
   }
 
   async function publish() {
+    if (!experience) return;
     if (dirty && !(await save())) return;
+    const readiness = getPublishReadiness(experience);
+    if (readiness.level === 'block' && !publishOverride) {
+      setError(
+        'Fix blocking readiness issues or check “Publish interim anyway” below.'
+      );
+      return;
+    }
+    if (readiness.level === 'warn' || (readiness.level === 'block' && publishOverride)) {
+      const ok = confirm(
+        `Publishing with: ${readiness.items.map((i) => i.message).join('; ')}. Continue?`
+      );
+      if (!ok) return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -243,17 +380,30 @@ export default function AdminEditor({
       const res = await fetch(`/api/admin/publish${qs}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseRevision: revisionRef.current }),
+        body: JSON.stringify({
+          baseRevision: revisionRef.current,
+          readinessOverride: publishOverride,
+        }),
       });
       const data = await res.json();
       if (res.status === 409) {
+        if (data.error === 'readiness') {
+          setError(data.message || 'Draft is not ready to publish');
+          return;
+        }
         setConflict(true);
         return;
       }
       if (!res.ok) throw new Error(data.message || data.error || 'Publish failed');
       applyServerExperience(data.experience, data.revision);
       setStatus(data.status);
-      setMessage(`Published v${data.experience.version}`);
+      setPublishOverride(false);
+      const when = formatPublishedAt(data.status?.publishedAt);
+      setMessage(
+        when
+          ? `Published v${data.experience.version} on ${when}`
+          : `Published v${data.experience.version}`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Publish failed');
     } finally {
@@ -370,6 +520,54 @@ export default function AdminEditor({
     });
   }
 
+  async function addTypedNode(type: MuralNodeType) {
+    if (!experience) return;
+    const meta = ADDABLE_NODE_TYPES.find((t) => t.type === type);
+    if (!meta) return;
+    const id = newTypedNodeId(experience.nodes, meta.prefix);
+    const assetId = id;
+    const node: MuralNode = {
+      id,
+      type,
+      assetId,
+      position: { x: 0, y: 0.2, z: 0.05 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: type === 'model' ? 0.5 : 0.35,
+      trigger: 'onDetect',
+    };
+    const next: GalleryExperience = {
+      ...experience,
+      nodes: [...experience.nodes, node],
+      assets: {
+        ...experience.assets,
+        [assetId]: {
+          role: meta.role,
+          status: 'pending',
+        },
+      },
+    };
+    setExperience(next);
+    const ok = await save(next);
+    if (ok) setMessage(`Added ${type} node ${id} — upload its asset next`);
+  }
+
+  async function removeNode(id: string) {
+    if (!experience || LOCKED_NODE_IDS.has(id)) return;
+    if (!confirm(`Remove node ${id}?`)) return;
+    const node = experience.nodes.find((n) => n.id === id);
+    const nextAssets = { ...experience.assets };
+    if (node && !ASSET_SLOTS.some((s) => s.id === node.assetId)) {
+      delete nextAssets[node.assetId];
+    }
+    const next: GalleryExperience = {
+      ...experience,
+      nodes: experience.nodes.filter((n) => n.id !== id),
+      assets: nextAssets,
+    };
+    setExperience(next);
+    await save(next);
+  }
+
   function setPins(next: SpatialPin[]) {
     updateGallery({ pins: next });
   }
@@ -427,6 +625,21 @@ export default function AdminEditor({
     await onUpload(audioAssetId, file);
   }
 
+  async function uploadPinImage(pin: SpatialPin, file: File) {
+    if (!experience) return;
+    const assetId = `pin-img-${pin.id}`;
+    const next: GalleryExperience = {
+      ...experience,
+      assets: {
+        ...experience.assets,
+        [assetId]: { role: 'pin-image', status: 'pending' },
+      },
+    };
+    setExperience(next);
+    if (!(await save(next))) return;
+    await onUpload(assetId, file);
+  }
+
   if (!experience) {
     return (
       <div className={styles.shell}>
@@ -438,7 +651,9 @@ export default function AdminEditor({
   const title = experience.gallery.provenance.title;
   const pins = experience.gallery.pins ?? [];
   const selectedPin = pins.find((p) => p.id === selectedPinId);
-  const currentPinColor = pinColor(experience);
+  const ownerBrand = owner?.brand ?? {};
+  const pendingBrand = mergeBrand(ownerBrand, experience.gallery.brandOverrides);
+  const currentPinColor = pinColor({ ...experience, brand: pendingBrand });
   const pinColorLowContrast =
     modelLuminance !== null &&
     Math.abs(colorLuminance(currentPinColor) - modelLuminance) < 0.2;
@@ -453,6 +668,13 @@ export default function AdminEditor({
     : dirty
       ? 'Unsaved changes'
       : (message ?? 'All changes saved');
+  const readiness = getPublishReadiness(experience);
+  const TABS = ALL_TABS.filter(([id]) => {
+    if (experience.kind === 'experience' && id === 'provenance') return false;
+    return true;
+  });
+  const activeTab =
+    experience.kind === 'experience' && tab === 'provenance' ? 'overview' : tab;
 
   return (
     <div className={styles.shell}>
@@ -467,18 +689,44 @@ export default function AdminEditor({
           <p className={styles.sub}>
             {experience.id} · Draft{' '}
             {status?.hasDraft ? `v${status.draftVersion}` : `v${experience.version}`}{' '}
-            · Published {status?.hasPublished ? `v${status.publishedVersion}` : '—'}
+            · Published{' '}
+            {status?.hasPublished ? (
+              <>
+                v{status.publishedVersion}
+                {status.publishedAt && formatPublishedAt(status.publishedAt) ? (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <time dateTime={status.publishedAt}>
+                      {formatPublishedAt(status.publishedAt)}
+                    </time>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              '—'
+            )}
             {status && !status.blobConfigured ? ' · Blob missing' : ''}
           </p>
         </div>
-        <a
-          className={styles.btn}
-          href={visitorArPath(experienceId)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Preview in AR
-        </a>
+        <div className={styles.actions}>
+          <a
+            className={styles.btn}
+            href={visitorArPath(experienceId)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Preview in AR
+          </a>
+          <a
+            className={styles.btn}
+            href={visitorMarkerPath(experienceId)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Print marker
+          </a>
+        </div>
       </div>
 
       <div className={styles.tabs} role="tablist" aria-label="Experience sections">
@@ -487,7 +735,7 @@ export default function AdminEditor({
             key={id}
             type="button"
             role="tab"
-            aria-selected={tab === id}
+            aria-selected={activeTab === id}
             onClick={() => setTab(id)}
           >
             {label}
@@ -523,13 +771,38 @@ export default function AdminEditor({
         </div>
       )}
 
-      {tab === 'overview' && (
+      {activeTab === 'overview' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Overview</h2>
           <p className={styles.status}>
             Publish copies the draft to the visitor WebAR package (Blob). Aura
             Lenses still uses prepare-lenses / external API.
           </p>
+          {experience.placement ? (
+            <p className={styles.status} role="note">
+              placement: <code>{experience.placement}</code> — WebAR: not
+              supported yet (marker image target only).
+            </p>
+          ) : null}
+          {experience.personOcclusion ? (
+            <p className={styles.status} role="note">
+              personOcclusion — WebAR: not supported yet.
+            </p>
+          ) : null}
+          {experience.marker.trackingAssetId || experience.marker.mindAssetId ? (
+            <p className={styles.status} role="note">
+              marker trackingAssetId / mindAssetId — WebAR: not used (8th Wall
+              image target JSON drives tracking).
+            </p>
+          ) : null}
+          {experience.nodes.some(
+            (n) => n.platforms != null || n.androidAssetId != null
+          ) ? (
+            <p className={styles.status} role="note">
+              Node platforms / androidAssetId — WebAR: ignored (web paths
+              only).
+            </p>
+          ) : null}
           <div className={styles.actions}>
             {isSeedExperience && (
               <button
@@ -598,7 +871,7 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'provenance' && (
+      {activeTab === 'provenance' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Provenance & shop</h2>
           <div className={styles.field}>
@@ -725,9 +998,17 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'placement' && (
+      {activeTab === 'placement' && (
         <section className={styles.panel}>
-          <h2 className={styles.sectionTitle}>Placement & morph</h2>
+          <h2 className={styles.sectionTitle}>
+            {supportsMorph(experience) ? 'Placement & morph' : 'Placement'}
+          </h2>
+          {experience.placement ? (
+            <p className={styles.status} role="note">
+              Package placement <code>{experience.placement}</code> is stored
+              for Lenses — WebAR always uses the image marker.
+            </p>
+          ) : null}
           <div className={styles.field}>
             <label>physicalWidthM (meters)</label>
             <input
@@ -747,37 +1028,146 @@ export default function AdminEditor({
               }
             />
           </div>
+          {supportsMorph(experience) ? (
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label>Morph duration (ms)</label>
+                <input
+                  type="number"
+                  value={experience.gallery.morph.durationMs}
+                  onChange={(e) =>
+                    updateGallery({
+                      morph: {
+                        ...experience.gallery.morph,
+                        durationMs: Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </div>
+              <div className={styles.field}>
+                <label>Overlay fade (ms)</label>
+                <input
+                  type="number"
+                  value={experience.gallery.morph.overlayFadeMs}
+                  onChange={(e) =>
+                    updateGallery({
+                      morph: {
+                        ...experience.gallery.morph,
+                        overlayFadeMs: Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
           <div className={styles.row}>
             <div className={styles.field}>
-              <label>Morph duration (ms)</label>
+              <label htmlFor="reveal-densify">Arrive densify (ms)</label>
               <input
+                id="reveal-densify"
                 type="number"
-                value={experience.gallery.morph.durationMs}
+                min={400}
+                max={3000}
+                step={50}
+                value={experience.gallery.reveal?.densifyMs ?? 1000}
                 onChange={(e) =>
                   updateGallery({
-                    morph: {
-                      ...experience.gallery.morph,
-                      durationMs: Number(e.target.value),
+                    reveal: {
+                      ...experience.gallery.reveal,
+                      densifyMs: Number(e.target.value),
                     },
                   })
                 }
               />
             </div>
             <div className={styles.field}>
-              <label>Overlay fade (ms)</label>
+              <label htmlFor="reveal-scatter">Arrive scatter (0.15–1.2)</label>
               <input
+                id="reveal-scatter"
                 type="number"
-                value={experience.gallery.morph.overlayFadeMs}
+                min={0.15}
+                max={1.2}
+                step={0.05}
+                value={experience.gallery.reveal?.scatterFactor ?? 0.55}
                 onChange={(e) =>
                   updateGallery({
-                    morph: {
-                      ...experience.gallery.morph,
-                      overlayFadeMs: Number(e.target.value),
+                    reveal: {
+                      ...experience.gallery.reveal,
+                      scatterFactor: Number(e.target.value),
                     },
                   })
                 }
               />
             </div>
+          </div>
+          <p className={styles.status}>
+            Longer densify / higher scatter can feel richer but may jank on
+            mid-range phones.
+          </p>
+          <div className={styles.field}>
+            <label>
+              <input
+                type="checkbox"
+                checked={experience.gallery.reveal?.haptics === true}
+                onChange={(e) =>
+                  updateGallery({
+                    reveal: {
+                      ...experience.gallery.reveal,
+                      haptics: e.target.checked,
+                    },
+                  })
+                }
+              />{' '}
+              Arrive haptics (vibration when supported)
+            </label>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="reveal-sting">Arrive sting URL (optional)</label>
+            <input
+              id="reveal-sting"
+              type="url"
+              placeholder="https://…blob…/sting.mp3"
+              value={experience.gallery.reveal?.stingUrl ?? ''}
+              onChange={(e) =>
+                updateGallery({
+                  reveal: {
+                    ...experience.gallery.reveal,
+                    stingUrl: e.target.value || undefined,
+                  },
+                })
+              }
+            />
+          </div>
+          <div className={styles.assetRow}>
+            <strong>Arrive sting audio</strong>
+            <label className={styles.btn}>
+              Upload MP3
+              <input
+                type="file"
+                accept="audio/mpeg,.mp3"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !experience) return;
+                  void (async () => {
+                    const assetId = 'arrive-sting';
+                    const next = {
+                      ...experience,
+                      assets: {
+                        ...experience.assets,
+                        [assetId]: { role: 'arrive-sting', status: 'pending' },
+                      },
+                    };
+                    setExperience(next);
+                    if (!(await save(next))) return;
+                    await onUpload(assetId, file);
+                  })();
+                  e.target.value = '';
+                }}
+              />
+            </label>
           </div>
           <div className={styles.field}>
             <label>
@@ -790,7 +1180,18 @@ export default function AdminEditor({
               />{' '}
               Use placeholder cube
             </label>
+            {experience.gallery.usePlaceholderCube && (
+              <p className={styles.status}>
+                Draft not publish-ready — visitors will see a cube stand-in.
+              </p>
+            )}
           </div>
+          {experience.personOcclusion ? (
+            <p className={styles.status} role="note">
+              personOcclusion is set on this experience — WebAR: not supported
+              yet.
+            </p>
+          ) : null}
           <div className={styles.field}>
             <label>
               <input
@@ -828,7 +1229,7 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'assets' && (
+      {activeTab === 'assets' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Assets</h2>
           <p className={styles.status}>
@@ -843,7 +1244,15 @@ export default function AdminEditor({
               surface. Check them on the Pins tab after uploading.
             </p>
           )}
-          {ASSET_SLOTS.map((slot) => {
+          {ASSET_SLOTS.filter((slot) => {
+            if (
+              experience.kind === 'experience' &&
+              (slot.id === 'raw-glb' || slot.id === 'guide-marks')
+            ) {
+              return false;
+            }
+            return true;
+          }).map((slot) => {
             const meta = experience.assets[slot.id];
             return (
               <div key={slot.id} className={styles.assetRow}>
@@ -871,59 +1280,165 @@ export default function AdminEditor({
         </section>
       )}
 
-      {tab === 'nodes' && (
+      {activeTab === 'nodes' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Nodes</h2>
-          {experience.nodes.map((node) => (
-            <div key={node.id} className={styles.panel}>
-              <strong>
-                {node.id} · {node.type} · {node.trigger}
-              </strong>
-              <div className={styles.row}>
-                {(['x', 'y', 'z'] as const).map((axis) => (
-                  <div key={axis} className={styles.field}>
-                    <label>pos.{axis}</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={node.position[axis]}
+          <p className={styles.status}>
+            WebAR drives finished/raw GLB
+            {supportsMorph(experience) ? ' (morph)' : ''}, overlay, pins, and
+            extra image / video / audio / model nodes. Proximity uses coarse
+            camera distance (approximate).
+          </p>
+          <p className={styles.status}>
+            Kind: <code>{experience.kind}</code>
+            {supportsMorph(experience)
+              ? ' — sculpture morph enabled'
+              : ' — generic experience (no morph chrome)'}
+          </p>
+          {experience.personOcclusion ? (
+            <p className={styles.status} role="note">
+              personOcclusion — WebAR: not supported yet.
+            </p>
+          ) : null}
+          <div className={styles.actions}>
+            {ADDABLE_NODE_TYPES.map((t) => (
+              <button
+                key={t.type}
+                type="button"
+                className={styles.btn}
+                disabled={busy}
+                onClick={() => void addTypedNode(t.type)}
+              >
+                Add {t.type}
+              </button>
+            ))}
+          </div>
+          {experience.nodes.map((node) => {
+            const locked = LOCKED_NODE_IDS.has(node.id);
+            const addable = ADDABLE_NODE_TYPES.find((t) => t.type === node.type);
+            const modelMorph =
+              (node.type === 'model' || node.type === 'gltf') && locked;
+            const runtimeSupported = Boolean(addable) || modelMorph;
+            const assetUrl = assetWebPath(experience, node.assetId);
+            return (
+              <div key={node.id} className={styles.panel}>
+                <strong>
+                  {node.id} · {node.type}
+                  {node.trigger ? ` · ${node.trigger}` : ''}
+                </strong>
+                {!runtimeSupported ? (
+                  <p className={styles.status} role="note">
+                    {node.type} — WebAR: not supported yet (inspect only).
+                  </p>
+                ) : null}
+                {addable && !assetUrl ? (
+                  <p className={styles.status} role="note">
+                    Upload an asset for <code>{node.assetId}</code> before
+                    publishing.
+                  </p>
+                ) : null}
+                {!locked && addable ? (
+                  <div className={styles.field}>
+                    <label htmlFor={`node-trigger-${node.id}`}>Trigger</label>
+                    <select
+                      id={`node-trigger-${node.id}`}
+                      value={node.trigger ?? 'onDetect'}
                       onChange={(e) =>
                         updateNode(node.id, {
-                          position: {
-                            ...node.position,
-                            [axis]: Number(e.target.value),
-                          },
+                          trigger: e.target.value as MuralNodeTrigger,
                         })
                       }
-                    />
+                    >
+                      {WEB_AR_TRIGGERS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ))}
+                ) : null}
+                {addable ? (
+                  <div className={styles.field}>
+                    <label htmlFor={`node-upload-${node.id}`}>
+                      Asset ({node.assetId})
+                    </label>
+                    <input
+                      id={`node-upload-${node.id}`}
+                      type="file"
+                      accept={addable.accept}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void onUpload(node.assetId, file);
+                      }}
+                    />
+                    {assetUrl ? (
+                      <p className={styles.status}>
+                        Current:{' '}
+                        <a href={assetUrl} target="_blank" rel="noreferrer">
+                          view
+                        </a>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className={styles.row}>
+                  {(['x', 'y', 'z'] as const).map((axis) => (
+                    <div key={axis} className={styles.field}>
+                      <label>pos.{axis}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={node.position[axis]}
+                        onChange={(e) =>
+                          updateNode(node.id, {
+                            position: {
+                              ...node.position,
+                              [axis]: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.field}>
+                  <label>scale (number)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={
+                      typeof node.scale === 'number'
+                        ? node.scale
+                        : (node.scale?.x ?? 1)
+                    }
+                    onChange={(e) =>
+                      updateNode(node.id, { scale: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                {!locked ? (
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.btn}
+                      disabled={busy}
+                      onClick={() => void removeNode(node.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <div className={styles.field}>
-                <label>scale (number)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={
-                    typeof node.scale === 'number'
-                      ? node.scale
-                      : (node.scale?.x ?? 1)
-                  }
-                  onChange={(e) =>
-                    updateNode(node.id, { scale: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </section>
       )}
 
-      {tab === 'pins' && (
+      {activeTab === 'pins' && (
         <section className={styles.panel}>
           <h2 className={styles.sectionTitle}>Spatial pins</h2>
           <p className={styles.status}>
-            Pins stick to the sculpture in WebAR. Tap a pin to open its note.
+            Pins stick to the model in WebAR. Tap a pin to open its note.
             Save the draft from the bar below when you are done placing.
           </p>
           <div className={styles.actions}>
@@ -986,7 +1501,7 @@ export default function AdminEditor({
             </div>
             {pinColorLowContrast && (
               <p className={styles.status}>
-                This color may be hard to see on the sculpture. The outline
+                This color may be hard to see on the model. The outline
                 helps, but a lighter or darker color will stand out more.
               </p>
             )}
@@ -1069,6 +1584,39 @@ export default function AdminEditor({
                     </select>
                   </div>
                   <div className={styles.field}>
+                    <label htmlFor="pin-style">Style</label>
+                    <select
+                      id="pin-style"
+                      value={selectedPin.style === 'cta' ? 'cta' : 'dot'}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          style: e.target.value as PinStyle,
+                        })
+                      }
+                    >
+                      <option value="dot">Dot (note)</option>
+                      <option value="cta">CTA overlay button</option>
+                    </select>
+                  </div>
+                  {selectedPin.style === 'cta' ? (
+                    <div className={styles.field}>
+                      <label htmlFor="pin-action">When tapped</label>
+                      <select
+                        id="pin-action"
+                        value={selectedPin.action ?? 'link'}
+                        onChange={(e) =>
+                          updatePin(selectedPin.id, {
+                            action: e.target.value as PinAction,
+                          })
+                        }
+                      >
+                        <option value="link">Open link in a new tab</option>
+                        <option value="video">Play video in a popover</option>
+                        <option value="form">Contact form popover</option>
+                      </select>
+                    </div>
+                  ) : null}
+                  <div className={styles.field}>
                     <label>Body</label>
                     <textarea
                       value={selectedPin.body}
@@ -1076,6 +1624,80 @@ export default function AdminEditor({
                         updatePin(selectedPin.id, { body: e.target.value })
                       }
                     />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-href">
+                      {selectedPin.action === 'video'
+                        ? 'Video URL (YouTube)'
+                        : selectedPin.action === 'form'
+                          ? 'Send form to (mailto:you@example.com)'
+                          : 'Link URL (optional)'}
+                    </label>
+                    <input
+                      id="pin-href"
+                      type="url"
+                      placeholder="https://"
+                      value={selectedPin.href ?? ''}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          href: e.target.value || undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-cta">Link button label</label>
+                    <input
+                      id="pin-cta"
+                      value={selectedPin.ctaLabel ?? ''}
+                      placeholder="Learn more"
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          ctaLabel: e.target.value || undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="pin-image">Image URL (optional)</label>
+                    <input
+                      id="pin-image"
+                      type="url"
+                      placeholder="https://…blob.vercel-storage.com/…"
+                      value={selectedPin.imageUrl ?? ''}
+                      onChange={(e) =>
+                        updatePin(selectedPin.id, {
+                          imageUrl: e.target.value || undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.assetRow}>
+                    <strong>Pin image</strong>
+                    <label className={styles.btn}>
+                      Upload image
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                        hidden
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void uploadPinImage(selectedPin, file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {selectedPin.imageUrl ? (
+                      <button
+                        type="button"
+                        className={styles.btn}
+                        onClick={() =>
+                          updatePin(selectedPin.id, { imageUrl: undefined })
+                        }
+                      >
+                        Clear
+                      </button>
+                    ) : null}
                   </div>
                   <div className={styles.row}>
                     {(['x', 'y', 'z'] as const).map((axis) => (
@@ -1140,6 +1762,125 @@ export default function AdminEditor({
         </section>
       )}
 
+      {activeTab === 'brand' && (
+        <section className={styles.panel}>
+          <h2 className={styles.sectionTitle}>Brand overrides</h2>
+          <p className={styles.status}>
+            This experience uses the owner’s{' '}
+            <Link href="/admin/brand">brand profile</Link>. Anything set here
+            replaces the profile for this experience only. Changes reach visitors
+            when you publish.
+          </p>
+          {owner?.isAdmin && !isSeedExperience && artists.length > 0 && (
+            <div className={styles.field} style={{ maxWidth: '22rem' }}>
+              <label htmlFor="owner-artist">Owner</label>
+              <select
+                id="owner-artist"
+                value={owner.ownerUserId ?? ''}
+                disabled={busy}
+                onChange={(e) => e.target.value && void changeOwner(e.target.value)}
+              >
+                {owner.ownerUserId === null && <option value="">No owner</option>}
+                {artists.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {owner && (
+            <BrandFields
+              value={experience.gallery.brandOverrides ?? {}}
+              onChange={(next) =>
+                updateGallery({
+                  brandOverrides: Object.keys(next).length > 0 ? next : undefined,
+                })
+              }
+              inherited={ownerBrand}
+              uploadUserId={owner.ownerUserId ?? owner.viewerUserId}
+              disabled={busy}
+              previewTitle={experience.gallery.title}
+              densifyMs={experience.gallery.reveal?.densifyMs ?? 1000}
+              scatterFactor={experience.gallery.reveal?.scatterFactor ?? 0.55}
+            />
+          )}
+          <h3 className={styles.sectionTitle}>Share targets</h3>
+          <p className={styles.status}>
+            Extra intents under the visitor Share control. Uncheck all for
+            system share / copy only.
+          </p>
+          {(
+            [
+              ['whatsapp', 'WhatsApp'],
+              ['x', 'X'],
+              ['email', 'Email'],
+            ] as const
+          ).map(([id, label]) => {
+            const current = experience.gallery.shareTargets;
+            const enabled =
+              current === undefined
+                ? true
+                : current.includes(id);
+            return (
+              <label key={id} className={styles.field}>
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={(e) => {
+                    const base =
+                      current === undefined
+                        ? (['whatsapp', 'x', 'email'] as const)
+                        : current;
+                    const next = e.target.checked
+                      ? Array.from(new Set([...base, id]))
+                      : base.filter((t) => t !== id);
+                    updateGallery({
+                      shareTargets: next.length === 3 ? undefined : [...next],
+                    });
+                  }}
+                />{' '}
+                {label}
+              </label>
+            );
+          })}
+        </section>
+      )}
+
+      {readiness.level !== 'ok' ? (
+        <div
+          className={styles.notice}
+          role="status"
+          style={{ marginTop: '1.5rem' }}
+        >
+          <div>
+            <strong>
+              {readiness.level === 'block'
+                ? 'Not ready to publish'
+                : 'Publish warnings'}
+            </strong>
+            <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
+              {readiness.items.map((item) => (
+                <li key={item.code}>
+                  {item.level === 'block' ? '[block] ' : ''}
+                  {item.message}
+                </li>
+              ))}
+            </ul>
+            {readiness.level === 'block' ? (
+              <label style={{ display: 'block', marginTop: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  checked={publishOverride}
+                  onChange={(e) => setPublishOverride(e.target.checked)}
+                />{' '}
+                Publish interim anyway
+              </label>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className={styles.actionBar}>
         <span
           className={styles.actionBarStatus}
@@ -1160,7 +1901,9 @@ export default function AdminEditor({
         <button
           type="button"
           className={styles.btnPrimary}
-          disabled={busy}
+          disabled={
+            busy || (readiness.level === 'block' && !publishOverride)
+          }
           onClick={() => void publish()}
         >
           Publish

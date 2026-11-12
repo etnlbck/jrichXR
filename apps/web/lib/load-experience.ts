@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import type { GalleryExperience } from '@jrichforms/experience';
 import {
   buildAppConfig,
@@ -5,6 +6,7 @@ import {
   getSeedExperience,
   type AppConfig,
 } from '@/lib/config';
+import { parseExperienceId } from '@/lib/experience-id';
 import {
   getPublished,
   getMeta,
@@ -27,8 +29,24 @@ export type LoadedExperience = {
 /**
  * Visitor runtime: published Blob package.
  * Untitled No. 7 falls back to repo seed; other ids do not.
+ * Cached per request so metadata, viewport, and the page share one read.
  */
-export async function loadExperience(
+export const loadExperience = cache(loadExperienceUncached);
+
+/** For metadata: null instead of throwing when the experience doesn't exist. */
+export async function loadConfigOrNull(raw?: string | null): Promise<AppConfig | null> {
+  const id = raw === undefined ? undefined : parseExperienceId(raw);
+  if (id === null) return null;
+  try {
+    // Same arguments as the page's call, so cache() dedupes the read.
+    return (id === undefined ? await loadExperience() : await loadExperience(id)).config;
+  } catch (err) {
+    if (err instanceof ExperienceNotFoundError) return null;
+    throw err;
+  }
+}
+
+async function loadExperienceUncached(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<LoadedExperience> {
   if (isBlobConfigured()) {

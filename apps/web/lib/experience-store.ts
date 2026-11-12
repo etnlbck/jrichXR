@@ -8,14 +8,18 @@ import {
   put,
 } from '@vercel/blob';
 import {
+  brandHash,
+  mergeBrand,
   parseGalleryExperience,
+  type ArtistBrand,
   type GalleryExperience,
 } from '@jrichforms/experience';
+import { getArtistBrand } from '@/lib/brand-store';
 import { DEFAULT_EXPERIENCE_ID, getSeedExperience } from '@/lib/config';
 import { isValidExperienceId, visitorShopPath } from '@/lib/experience-id';
 
 export function isBlobConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 export function draftPath(id = DEFAULT_EXPERIENCE_ID): string {
@@ -66,14 +70,19 @@ export function assetPathname(
   return `experiences/${id}/assets/${assetId}/${safe}`;
 }
 
-async function readJsonBlob(pathname: string): Promise<GalleryExperience | null> {
+type TimedExperience = { experience: GalleryExperience; uploadedAt: string };
+
+async function readJsonBlob(pathname: string): Promise<TimedExperience | null> {
   if (!isBlobConfigured()) return null;
   try {
     const meta = await head(pathname);
     const res = await fetch(meta.url, { cache: 'no-store' });
     if (!res.ok) return null;
     const json = await res.json();
-    return parseGalleryExperience(json);
+    return {
+      experience: parseGalleryExperience(json),
+      uploadedAt: new Date(meta.uploadedAt).toISOString(),
+    };
   } catch {
     return null;
   }
@@ -105,7 +114,12 @@ export async function getDraftWithRevision(
     const res = await get(draftPath(id), { access: 'public', useCache: false });
     if (res === null || res.statusCode !== 200) return null;
     const json = await new Response(res.stream).json();
-    return { experience: parseGalleryExperience(json), revision: res.blob.etag };
+    // The CDN can serve a weak ETag (W/"..."); Blob's ifMatch only accepts
+    // the strong form, so every save would 409 without normalizing here.
+    return {
+      experience: parseGalleryExperience(json),
+      revision: res.blob.etag.replace(/^W\//, ''),
+    };
   } catch (err) {
     if (err instanceof BlobNotFoundError) return null;
     throw err;
@@ -154,6 +168,11 @@ export async function putDraftWithRevision(
 export async function getPublished(
   id = DEFAULT_EXPERIENCE_ID
 ): Promise<GalleryExperience | null> {
+  return (await readJsonBlob(publishedPath(id)))?.experience ?? null;
+}
+
+/** The published package plus when it was last published (the blob is overwritten on publish). */
+async function getPublishedWithTime(id: string): Promise<TimedExperience | null> {
   return readJsonBlob(publishedPath(id));
 }
 
@@ -172,22 +191,66 @@ export async function publishDraft(
   if (current === null) throw new Error('No draft to publish');
   if (ifRevision && current.revision !== ifRevision) throw new DraftConflictError();
   const parsed = parseGalleryExperience(current.experience);
+  delete parsed.brand;
   const nextVersion = bumpPatchVersion(parsed.version);
-  const published: GalleryExperience = { ...parsed, version: nextVersion };
+  const access = await getExperienceAccess(id);
+  const profile = access ? await getArtistBrand(access.ownerUserId) : {};
+  const brand = mergeBrand(profile, parsed.gallery.brandOverrides);
+  const draft: GalleryExperience = { ...parsed, version: nextVersion };
+  const published: GalleryExperience = {
+    ...draft,
+    ...(Object.keys(brand).length > 0 ? { brand } : {}),
+  };
   await put(publishedPath(id), JSON.stringify(published, null, 2), {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
     allowOverwrite: true,
   });
-  return putDraftWithRevision(published, id, current.revision);
+  return putDraftWithRevision(draft, id, current.revision);
 }
 
-export function cloneSeedForId(id: string, title: string): GalleryExperience {
+/** Brand that publishing `pkg` now would freeze: owner profile plus its overrides. */
+export function pendingBrand(
+  pkg: GalleryExperience | null,
+  ownerProfile: ArtistBrand
+): ArtistBrand {
+  return mergeBrand(ownerProfile, pkg?.gallery.brandOverrides);
+}
+
+/**
+ * Re-snapshot the owner's current profile into the published package only.
+ * Unpublished draft edits stay unpublished.
+ */
+export async function republishBrand(id: string): Promise<'updated' | 'unchanged'> {
+  const published = await getPublished(id);
+  if (published === null) throw new Error('not_published');
+  const access = await getExperienceAccess(id);
+  const profile = access ? await getArtistBrand(access.ownerUserId) : {};
+  const brand = pendingBrand(published, profile);
+  if (brandHash(brand) === brandHash(published.brand)) return 'unchanged';
+  const next: GalleryExperience = { ...published };
+  delete next.brand;
+  if (Object.keys(brand).length > 0) next.brand = brand;
+  await put(publishedPath(id), JSON.stringify(next, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  return 'updated';
+}
+
+export function cloneSeedForId(
+  id: string,
+  title: string,
+  kind: GalleryExperience['kind'] = 'mural'
+): GalleryExperience {
   const seed = getSeedExperience();
-  return parseGalleryExperience({
+  const base = {
     ...seed,
     id,
+    kind,
     version: '0.1.0',
     gallery: {
       ...seed.gallery,
@@ -199,13 +262,35 @@ export function cloneSeedForId(id: string, title: string): GalleryExperience {
         shopPath: visitorShopPath(id),
       },
     },
-  });
+  };
+  if (kind === 'experience') {
+    // Finished-focused: drop raw morph node; clear sculpture-only copy.
+    base.nodes = seed.nodes.filter((n) => n.id !== 'raw');
+    base.gallery = {
+      ...base.gallery,
+      provenance: {
+        title,
+        material: '',
+        dimensions: '',
+        year: '',
+        exhibition: '',
+      },
+      shop: {
+        experienceSlug: id,
+        shopPath: '',
+        acquireUrl: '',
+      },
+      usePlaceholderCube: false,
+    };
+  }
+  return parseGalleryExperience(base);
 }
 
 export async function createDraftFromSeed(
   id: string,
   title: string,
-  ownerUserId: string
+  ownerUserId: string,
+  options: { kind?: GalleryExperience['kind'] } = {}
 ): Promise<GalleryExperience> {
   if (!isBlobConfigured()) {
     throw new Error('BLOB_READ_WRITE_TOKEN is not set');
@@ -224,7 +309,8 @@ export async function createDraftFromSeed(
   if (draft !== null || published !== null) {
     throw new Error('experience_exists');
   }
-  const experience = cloneSeedForId(id, title.trim() || id);
+  const kind = options.kind === 'experience' ? 'experience' : 'mural';
+  const experience = cloneSeedForId(id, title.trim() || id, kind);
   await putDraft(experience, id);
   await putExperienceAccess(id, {
     ownerUserId,
@@ -324,6 +410,18 @@ async function putExperienceAccess(
   return access;
 }
 
+export async function setExperienceOwner(
+  id: string,
+  ownerUserId: string
+): Promise<ExperienceAccess> {
+  assertMutableExperience(id);
+  const current = await getExperienceAccess(id);
+  return putExperienceAccess(id, {
+    ownerUserId,
+    createdAt: current?.createdAt ?? new Date().toISOString(),
+  });
+}
+
 export async function canEditExperience(
   id: string,
   editor: ExperienceEditor
@@ -401,6 +499,7 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
 }> {
@@ -414,17 +513,19 @@ export async function status(id = DEFAULT_EXPERIENCE_ID): Promise<{
       hasPublished: false,
       draftVersion: null,
       publishedVersion: id === DEFAULT_EXPERIENCE_ID ? seed.version : null,
+      publishedAt: null,
       archived: false,
       archivedAt: null,
     };
   }
-  const [draft, published] = await Promise.all([getDraft(id), getPublished(id)]);
+  const [draft, published] = await Promise.all([getDraft(id), getPublishedWithTime(id)]);
   return {
     blobConfigured: true,
     hasDraft: draft !== null,
     hasPublished: published !== null,
     draftVersion: draft?.version ?? null,
-    publishedVersion: published?.version ?? null,
+    publishedVersion: published?.experience.version ?? null,
+    publishedAt: published?.uploadedAt ?? null,
     archived: meta.archived === true,
     archivedAt: meta.archivedAt,
   };
@@ -438,9 +539,12 @@ export type ExperienceIndexItem = {
   hasPublished: boolean;
   draftVersion: string | null;
   publishedVersion: string | null;
+  publishedAt: string | null;
   archived: boolean;
   archivedAt: string | null;
   ownerUserId: string | null;
+  /** Published, and republishing would change its brand. */
+  brandChanged: boolean;
 };
 
 async function listBlobExperienceIds(): Promise<string[]> {
@@ -467,13 +571,22 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
   const blobConfigured = isBlobConfigured();
   const seed = getSeedExperience();
   const ids = new Set<string>([DEFAULT_EXPERIENCE_ID, ...(await listBlobExperienceIds())]);
+  const profiles = new Map<string, Promise<ArtistBrand>>();
+  const profileFor = (userId: string) => {
+    let p = profiles.get(userId);
+    if (!p) {
+      p = getArtistBrand(userId).catch(() => ({}));
+      profiles.set(userId, p);
+    }
+    return p;
+  };
 
   const experiences = (
     await Promise.all(
       [...ids].sort().map(async (id) => {
         const [draft, published, meta, access] = await Promise.all([
           getDraft(id),
-          getPublished(id),
+          getPublishedWithTime(id),
           getMeta(id),
           getExperienceAccess(id),
         ]);
@@ -484,10 +597,16 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
           draft !== null
             ? draft
             : published !== null
-              ? published
+              ? published.experience
               : id === DEFAULT_EXPERIENCE_ID
                 ? seed
                 : null;
+        const brandChanged =
+          published !== null && access !== null
+            ? brandHash(
+                pendingBrand(published.experience, await profileFor(access.ownerUserId))
+              ) !== brandHash(published.experience.brand)
+            : false;
         return {
           id,
           title: pkg?.gallery.provenance.title ?? id,
@@ -496,11 +615,13 @@ export async function listExperiences(editor: ExperienceEditor): Promise<{
           hasPublished: published !== null,
           draftVersion: draft?.version ?? null,
           publishedVersion:
-            published?.version ??
+            published?.experience.version ??
             (id === DEFAULT_EXPERIENCE_ID && !blobConfigured ? seed.version : null),
+          publishedAt: published?.uploadedAt ?? null,
           archived: meta.archived === true,
           archivedAt: meta.archivedAt,
           ownerUserId: access?.ownerUserId ?? null,
+          brandChanged,
         };
       })
     )

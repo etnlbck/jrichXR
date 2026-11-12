@@ -1,4 +1,5 @@
 import type {
+  ExperienceKind,
   GalleryExperience,
   MuralNode,
   MuralNodeTrigger,
@@ -6,6 +7,64 @@ import type {
   PinForm,
   SpatialPin,
 } from './types';
+import { sanitizeBrand } from './brand';
+
+const EXPERIENCE_KINDS = new Set<ExperienceKind>(['mural', 'experience']);
+
+export function isExperienceKind(value: unknown): value is ExperienceKind {
+  return typeof value === 'string' && EXPERIENCE_KINDS.has(value as ExperienceKind);
+}
+
+/**
+ * Sculpture morph (finished↔raw) is mural-only. Generic `experience` packages
+ * still share the marker/node schema but skip morph chrome.
+ */
+export function supportsMorph(experience: GalleryExperience): boolean {
+  return experience.kind === 'mural';
+}
+
+/**
+ * Image planes authored as mural nodes (excludes the morph-linked `overlay`).
+ * WebAR honors `onDetect` and `tap`; other triggers fall back to onDetect.
+ */
+export function mediaImageNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter(
+    (n) => n.type === 'image' && n.id !== 'overlay'
+  );
+}
+
+/** Video planes (same placement rules as images). */
+export function mediaVideoNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter((n) => n.type === 'video');
+}
+
+/** Package audio nodes (not pin audio / narration). */
+export function mediaAudioNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter((n) => n.type === 'audio');
+}
+
+/**
+ * Extra model/gltf props — excludes the morph pair (`finished` / `raw`).
+ */
+export function extraModelNodes(experience: GalleryExperience): MuralNode[] {
+  return experience.nodes.filter(
+    (n) =>
+      (n.type === 'model' || n.type === 'gltf') &&
+      n.id !== 'finished' &&
+      n.id !== 'raw'
+  );
+}
+
+/** Normalize trigger for WebAR; unknown → onDetect. */
+export function runtimeTrigger(
+  node: Pick<MuralNode, 'trigger'>
+): MuralNodeTrigger {
+  const t = node.trigger ?? 'onDetect';
+  if (t === 'tap' || t === 'loop' || t === 'proximity' || t === 'onDetect') {
+    return t;
+  }
+  return 'onDetect';
+}
 
 export function galleryPins(experience: GalleryExperience): SpatialPin[] {
   return experience.gallery.pins ?? [];
@@ -83,17 +142,22 @@ export function parseGalleryExperience(raw: unknown): GalleryExperience {
     throw new Error('experience: expected object');
   }
   const e = raw as GalleryExperience;
-  if (e.kind !== 'mural' || !e.id || !e.gallery || !e.marker?.web) {
-    throw new Error('experience: invalid gallery mural package');
+  if (!isExperienceKind(e.kind) || !e.id || !e.gallery || !e.marker?.web) {
+    throw new Error('experience: invalid gallery package');
   }
-  const { pinColor: rawPinColor, ...gallery } = e.gallery;
+  const { pinColor: rawPinColor, brandOverrides: rawOverrides, ...gallery } = e.gallery;
+  const { brand: rawBrand, ...rest } = e;
+  const overrides = sanitizeBrand(rawOverrides);
+  const brand = sanitizeBrand(rawBrand);
   return {
-    ...e,
+    ...rest,
     gallery: {
       ...gallery,
       pins: Array.isArray(e.gallery.pins) ? e.gallery.pins : [],
       ...(isHexColor(rawPinColor) ? { pinColor: rawPinColor.toLowerCase() } : {}),
+      ...(Object.keys(overrides).length > 0 ? { brandOverrides: overrides } : {}),
     },
+    ...(Object.keys(brand).length > 0 ? { brand } : {}),
   };
 }
 
@@ -105,9 +169,12 @@ function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && HEX_COLOR.test(value);
 }
 
+/** Sculpture pin color, then the published brand accent, then amber. */
 export function pinColor(experience: GalleryExperience): string {
   const c = experience.gallery.pinColor;
-  return isHexColor(c) ? c.toLowerCase() : DEFAULT_PIN_COLOR;
+  if (isHexColor(c)) return c.toLowerCase();
+  const accent = experience.brand?.accentFrom;
+  return isHexColor(accent) ? accent.toLowerCase() : DEFAULT_PIN_COLOR;
 }
 
 export interface NodeXr8Placement {

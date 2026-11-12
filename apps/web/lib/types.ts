@@ -27,8 +27,6 @@ export type ImageTargetDetail = {
 declare global {
   interface Window {
     XR8?: XR8Api;
-    XRExtras?: XRExtrasApi;
-    LandingPage?: { pipelineModule: () => unknown };
     THREE?: typeof import('three');
   }
 }
@@ -61,15 +59,10 @@ export type XR8Api = {
       facing: import('three').Quaternion;
     }) => void;
   };
-  XrConfig?: { device: () => { ANY: unknown } };
-};
-
-export type XRExtrasApi = {
-  FullWindowCanvas: { pipelineModule: () => unknown };
-  Loading: {
-    pipelineModule: () => unknown;
-    showLoading?: (opts: { onxrloaded: () => void }) => void;
+  XrConfig?: { device: () => { ANY: unknown; MOBILE: unknown } };
+  XrDevice?: {
+    isDeviceBrowserCompatible: (opts: { allowedDevices?: unknown }) => boolean;
+    incompatibleReasons: (opts: { allowedDevices?: unknown }) => unknown[];
+    deviceEstimate: () => { os: string; model: string; browser?: unknown };
   };
-  RuntimeError: { pipelineModule: () => unknown };
-  AlmostThere?: { pipelineModule: () => unknown };
 };

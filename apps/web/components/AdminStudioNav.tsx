@@ -3,18 +3,39 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AdminUserMenu from '@/components/AdminUserMenu';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from '@/app/admin/admin.module.css';
 
-export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
+export default function AdminStudioNav({
+  isAdmin,
+  bypass = false,
+}: {
+  isAdmin: boolean;
+  bypass?: boolean;
+}) {
   const pathname = usePathname();
   const onUsers = pathname.startsWith('/admin/users');
-  const onExperiences = !onUsers;
+  const onBrand = pathname.startsWith('/admin/brand');
+  const onExperiences = !onUsers && !onBrand;
 
   return (
     <header className={styles.topBar}>
       <nav className={styles.topBarInner} aria-label="Studio">
         <Link href="/admin" className={styles.wordmark}>
-          Studio
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={`${styles.logo} ${styles.logoLight}`}
+            src="/brand/tagxr-logo-color.svg"
+            alt="TagXR"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={`${styles.logo} ${styles.logoDark}`}
+            src="/brand/tagxr-logo-white.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <span className={styles.studioTag}>Studio</span>
         </Link>
         <Link
           href="/admin"
@@ -22,6 +43,13 @@ export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
           aria-current={onExperiences ? 'page' : undefined}
         >
           Experiences
+        </Link>
+        <Link
+          href="/admin/brand"
+          className={styles.topLink}
+          aria-current={onBrand ? 'page' : undefined}
+        >
+          Brand
         </Link>
         {isAdmin && (
           <Link
@@ -33,7 +61,8 @@ export default function AdminStudioNav({ isAdmin }: { isAdmin: boolean }) {
           </Link>
         )}
         <span className={styles.navEnd}>
-          <AdminUserMenu />
+          <ThemeToggle />
+          <AdminUserMenu bypass={bypass} />
         </span>
       </nav>
     </header>

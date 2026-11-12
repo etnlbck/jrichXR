@@ -44,8 +44,6 @@ yarn-error.log*
 
 # XR engine runtime (copied by postinstall from node_modules)
 /apps/web/public/xr/engine/
-/apps/web/public/xr/xrextras/
-/apps/web/public/xr/landing-page/
 /apps/web/public/xr/COPY_MANIFEST.json
 
 # Binary sculpture assets synced into the web app (source of truth: content/)

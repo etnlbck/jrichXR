@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { id?: string; title?: string };
+  let body: { id?: string; title?: string; kind?: string };
   try {
     body = await request.json();
   } catch {
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
 
   const id = parseExperienceId(body.id);
   const title = (body.title ?? '').trim();
+  const kind = body.kind === 'experience' ? 'experience' : 'mural';
   if (!id) {
     return NextResponse.json({ error: 'invalid_experience_id' }, { status: 400 });
   }
@@ -41,7 +42,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const experience = await createDraftFromSeed(id, title, artist.userId);
+    const experience = await createDraftFromSeed(id, title, artist.userId, {
+      kind,
+    });
     return NextResponse.json({ experience }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

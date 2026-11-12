@@ -91,7 +91,7 @@ export default function AdminUsers() {
     <div className={styles.shell}>
       <h1 className={styles.brand}>Users</h1>
       <p className={styles.sub}>
-        Studio roles. Admins see every piece and can manage roles; artists can
+        Studio roles. Admins see every experience and can manage roles; artists can
         use the studio when access is allowlisted.
       </p>
 

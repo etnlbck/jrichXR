@@ -1,8 +1,8 @@
 /**
- * Copy 8th Wall engine binary + helpers into apps/web/public/xr for static serving.
+ * Copy the 8th Wall engine binary into apps/web/public/xr for static serving.
  * Runs on postinstall so Vercel deploys include the WASM/chunks.
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -32,27 +32,10 @@ const enginePkg = resolvePkg('@8thwall/engine-binary');
 const engineDist = join(enginePkg, 'dist');
 copyDir(engineDist, join(outDir, 'engine'));
 
-// XRExtras may ship as dist/ or a single bundle — copy whatever exists.
-const extrasPkg = resolvePkg('@8thwall/xrextras');
-for (const candidate of ['dist', 'build', '']) {
-  const src = candidate ? join(extrasPkg, candidate) : extrasPkg;
-  if (existsSync(join(src, 'xrextras.js')) || existsSync(join(src, 'index.js'))) {
-    copyDir(src, join(outDir, 'xrextras'));
-    break;
-  }
-}
-
-try {
-  const landingPkg = resolvePkg('@8thwall/landing-page');
-  for (const candidate of ['dist', 'build', '']) {
-    const src = candidate ? join(landingPkg, candidate) : landingPkg;
-    if (existsSync(src)) {
-      copyDir(src, join(outDir, 'landing-page'));
-      break;
-    }
-  }
-} catch {
-  console.warn('[copy-xr] @8thwall/landing-page not installed');
+// Loading, permission and error screens are our own; drop helper copies
+// left over from installs that still shipped XRExtras and the landing page.
+for (const stale of ['xrextras', 'landing-page']) {
+  rmSync(join(outDir, stale), { recursive: true, force: true });
 }
 
 // Manifest for debugging deploys

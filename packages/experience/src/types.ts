@@ -6,6 +6,8 @@
 export type MuralNodeType = 'image' | 'video' | 'model' | 'audio' | 'gltf';
 export type MuralNodeTrigger = 'onDetect' | 'tap' | 'loop' | 'proximity';
 export type MuralPlacement = 'wall' | 'merch';
+/** Package shape shared by sculpture murals and generic marker experiences. */
+export type ExperienceKind = 'mural' | 'experience';
 
 export interface MuralVec3 {
   x: number;
@@ -43,6 +45,16 @@ export interface GalleryProvenance {
 }
 
 export type PinForm = 'finished' | 'raw' | 'both';
+/** Dot = spatial note; cta = HTML overlay button after Arrive. */
+export type PinStyle = 'dot' | 'cta';
+/**
+ * What a cta pin does when tapped. Missing means link: open `href` in a new tab.
+ * video: play the `href` video in a popover. form: open a contact form popover
+ * (`href` holds the receiving address as `mailto:name@example.com`).
+ */
+export type PinAction = 'link' | 'video' | 'form';
+
+export type ShareTargetId = 'whatsapp' | 'x' | 'email';
 
 /** Point on the sculpture in GLB-root local space (before marker placement). */
 export interface SpatialPin {
@@ -53,6 +65,16 @@ export interface SpatialPin {
   audioAssetId?: string;
   /** Which morph form shows the pin. Missing means both. */
   form?: PinForm;
+  /** Optional outbound link (CTA). */
+  href?: string;
+  /** Label for the CTA button when href is set. */
+  ctaLabel?: string;
+  /** Optional image shown in the pin sheet (https Blob URL). */
+  imageUrl?: string;
+  /** Presentation. Missing means dot. */
+  style?: PinStyle;
+  /** Tap behavior for cta pins. Missing means link. */
+  action?: PinAction;
 }
 
 export interface GalleryExtension {
@@ -67,6 +89,20 @@ export interface GalleryExtension {
     unlockOnBegin: boolean;
     playOnFirstEnterRaw: boolean;
   };
+  /** Arrive densify overrides; missing fields use product defaults. */
+  reveal?: {
+    densifyMs?: number;
+    scatterFactor?: number;
+    /** One-shot Arrive sting (https Blob or site URL). */
+    stingUrl?: string;
+    /** Short vibration on densify complete when supported. Default off. */
+    haptics?: boolean;
+  };
+  /**
+   * Extra share intents under Share. Missing means whatsapp + x + email.
+   * Empty array = system share / copy only.
+   */
+  shareTargets?: ShareTargetId[];
   provenance: GalleryProvenance;
   shop: {
     experienceSlug: string;
@@ -78,14 +114,44 @@ export interface GalleryExtension {
   dracoDecoderPath: string;
   maxGlbBytes: number;
   pins?: SpatialPin[];
-  /** `#rrggbb` for pin dots and leader lines. Missing means the default amber. */
+  /** `#rrggbb` for pin dots and leader lines. Missing means the brand accent, then amber. */
   pinColor?: string;
+  /** Per-sculpture values that replace the owner's brand profile. */
+  brandOverrides?: ArtistBrand;
+}
+
+export type BrandFontId =
+  | 'system'
+  | 'inter'
+  | 'space-grotesk'
+  | 'archivo'
+  | 'dm-serif-display'
+  | 'playfair-display'
+  | 'cormorant-garamond';
+
+/** Artist brand profile. Every field is optional; missing fields use platform defaults. */
+export interface ArtistBrand {
+  displayName?: string;
+  logoUrl?: string;
+  /** `#rrggbb` gradient start. */
+  accentFrom?: string;
+  /** `#rrggbb` gradient end. */
+  accentTo?: string;
+  font?: BrandFontId;
+  beginText?: string;
+  beginLabel?: string;
+  loadingText?: string;
+  /** Scan reticle hint while aiming at the marker. */
+  scanText?: string;
+  /** Brief copy when the marker is found (Arrive). */
+  scanFoundText?: string;
+  shareImageUrl?: string;
 }
 
 export interface GalleryExperience {
   id: string;
   version: string;
-  kind: 'mural';
+  kind: ExperienceKind;
   placement?: MuralPlacement;
   personOcclusion?: boolean;
   marker: {
@@ -102,12 +168,12 @@ export interface GalleryExperience {
   nodes: MuralNode[];
   assets: Record<string, ExperienceAssetRef>;
   gallery: GalleryExtension;
+  /** Owner profile merged with overrides, frozen when the sculpture is published. */
+  brand?: ArtistBrand;
   engine: {
     web: {
       preloadChunks: 'slam';
       xrScript: string;
-      xrextrasScript: string;
-      landingPageScript: string;
     };
   };
 }

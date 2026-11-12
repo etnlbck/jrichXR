@@ -4,8 +4,38 @@
   padding: 32px 24px 48px;
   background: #fff;
   color: #111;
-  font-family: Georgia, 'Times New Roman', serif;
   text-align: center;
+  border-top: 6px solid var(--ember);
+}
+
+.brandHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.brandHeader:empty {
+  display: none;
+}
+
+/* Logos are designed for the dark AR screens, so sit them on a dark chip. */
+.logo {
+  max-width: 180px;
+  max-height: 56px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #101014;
+  object-fit: contain;
+}
+
+.artist {
+  margin: 0 !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ember);
 }
 
 .page h1 {
@@ -52,10 +82,12 @@
 @media print {
   .page {
     padding: 0;
+    border-top: 0;
   }
 
   .page h1,
-  .page p {
+  .page p,
+  .brandHeader {
     display: none;
   }
 

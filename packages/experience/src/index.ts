@@ -1,5 +1,8 @@
 export type {
+  ArtistBrand,
+  BrandFontId,
   ExperienceAssetRef,
+  ExperienceKind,
   GalleryExperience,
   GalleryExtension,
   GalleryProvenance,
@@ -9,10 +12,14 @@ export type {
   MuralPlacement,
   MuralVec3,
   PinForm,
+  PinAction,
+  PinStyle,
+  ShareTargetId,
   SpatialPin,
 } from './types';
 
 export type { NodeXr8Placement } from './helpers';
+export type { ResolvedBrand } from './brand';
 
 export {
   DEFAULT_PIN_COLOR,
@@ -23,9 +30,30 @@ export {
   findNode,
   galleryPins,
   getNodeXr8Placement,
+  extraModelNodes,
+  isExperienceKind,
+  mediaAudioNodes,
+  mediaImageNodes,
+  mediaVideoNodes,
   nodesForTrigger,
   parseGalleryExperience,
   pinColor,
   pinForm,
   pinShowsOn,
+  runtimeTrigger,
+  supportsMorph,
 } from './helpers';
+
+export {
+  BRAND_DEFAULTS,
+  BRAND_FONT_IDS,
+  BRAND_TEXT_LIMITS,
+  brandHash,
+  buttonContrast,
+  buttonInk,
+  contrastRatio,
+  isBrandImageUrl,
+  mergeBrand,
+  resolveBrand,
+  sanitizeBrand,
+} from './brand';

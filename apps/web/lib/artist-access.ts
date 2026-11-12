@@ -1,5 +1,6 @@
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { DEV_BYPASS_SESSION, isClerkBypass } from '@/lib/clerk-bypass';
 
 export type ArtistRole = 'artist' | 'admin';
 
@@ -76,6 +77,7 @@ export async function resolveArtistSession(
 }
 
 export async function requireArtist(): Promise<ArtistSession> {
+  if (isClerkBypass()) return DEV_BYPASS_SESSION;
   const { userId, sessionClaims } = await auth();
   if (!userId) {
     throw new ArtistAccessError(401, 'unauthorized');

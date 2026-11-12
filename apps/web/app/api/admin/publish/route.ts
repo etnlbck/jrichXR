@@ -8,10 +8,12 @@ import { baseRevisionFrom, jsonFromDraftConflict } from '@/lib/draft-response';
 import { parseExperienceId } from '@/lib/experience-id';
 import {
   assertCanEdit,
+  getDraft,
   isBlobConfigured,
   publishDraft,
   status,
 } from '@/lib/experience-store';
+import { getPublishReadiness } from '@/lib/publish-readiness';
 
 export async function POST(request: Request) {
   const artist = await loadArtist();
@@ -42,6 +44,26 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     /* empty body ok */
+  }
+
+  const override =
+    body !== null &&
+    typeof body === 'object' &&
+    (body as { readinessOverride?: boolean }).readinessOverride === true;
+
+  const draft = await getDraft(id);
+  if (draft) {
+    const readiness = getPublishReadiness(draft);
+    if (readiness.level === 'block' && !override) {
+      return NextResponse.json(
+        {
+          error: 'readiness',
+          message: 'Draft is not ready to publish',
+          readiness,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   try {
