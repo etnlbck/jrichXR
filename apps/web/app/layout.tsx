@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { GoogleTagManager } from '@next/third-parties/google';
 import { brandFontVariables } from '@/lib/brand-fonts';
 import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle';
@@ -62,6 +63,7 @@ export default function RootLayout({
           {children}
         </ClerkProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
