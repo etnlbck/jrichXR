@@ -27,13 +27,13 @@ export default function AdminStudioNav({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className={`${styles.logo} ${styles.logoLight}`}
-            src="/brand/tagxr-logo-color.svg"
+            src="/brand/tagxr-logo-color-notm.svg"
             alt="TagXR"
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className={`${styles.logo} ${styles.logoDark}`}
-            src="/brand/tagxr-logo-white.svg"
+            src="/brand/tagxr-logo-white-notm.svg"
             alt=""
             aria-hidden="true"
           />
@@ -51,16 +51,7 @@ export default function AdminStudioNav({
           label="Your artist profile: logo, accents, and how experiences look before overrides."
         >
           <Link
-            href="/admin/testers"
-            className={styles.topLink}
-            aria-current={onTesters ? 'page' : undefined}
-          >
-            Testers
-          </Link>
-        )}
-        {isAdmin && (
-          <Link
-            href="/admin/users"
+            href="/admin/brand"
             className={styles.topLink}
             aria-current={onBrand ? 'page' : undefined}
           >
