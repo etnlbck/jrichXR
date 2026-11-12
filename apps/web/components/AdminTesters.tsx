@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminTooltip from '@/components/AdminTooltip';
 import styles from '@/app/admin/admin.module.css';
 
 type TesterRow = {
@@ -57,7 +58,13 @@ export default function AdminTesters() {
 
   return (
     <div className={styles.shell}>
-      <h1 className={styles.brand}>Testers</h1>
+      <h1 className={styles.brand}>
+        Testers{' '}
+        <AdminTooltip
+          about="Testers"
+          label="Emails from /test. Campaign shows utm tags; Note is optional feedback from the thank-you page."
+        />
+      </h1>
       <p className={styles.sub}>
         {testers
           ? `${testers.length} signup${testers.length === 1 ? '' : 's'} · ${uniqueCount} unique email${uniqueCount === 1 ? '' : 's'}`

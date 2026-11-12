@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import AdminTooltip, { FieldLabel } from '@/components/AdminTooltip';
 import styles from '@/app/admin/admin.module.css';
 import { DEFAULT_EXPERIENCE_ID, visitorArPath } from '@/lib/experience-id';
 import { formatPublishedAt } from '@/lib/format';
@@ -225,7 +226,12 @@ export default function AdminList() {
                   )}
                 </span>
                 {item.brandChanged && (
-                  <span className={styles.badge}>Brand changed — republish to apply</span>
+                  <AdminTooltip
+                    about="Brand changed"
+                    label="The owner’s brand profile changed since the last publish. Republish to update what visitors see."
+                  >
+                    <span className={styles.badge}>Brand changed — republish to apply</span>
+                  </AdminTooltip>
                 )}
               </Link>
               <div className={styles.listRowActions}>
@@ -240,14 +246,19 @@ export default function AdminList() {
                   </a>
                 )}
                 {item.id !== DEFAULT_EXPERIENCE_ID && (
-                  <button
-                    type="button"
-                    className={styles.btn}
-                    disabled={busy || blobConfigured === false}
-                    onClick={() => void onArchive(item.id)}
+                  <AdminTooltip
+                    about="Archive"
+                    label="Hides the piece from visitors (404) but keeps Blob files. You can restore later."
                   >
-                    Archive
-                  </button>
+                    <button
+                      type="button"
+                      className={styles.btn}
+                      disabled={busy || blobConfigured === false}
+                      onClick={() => void onArchive(item.id)}
+                    >
+                      Archive
+                    </button>
+                  </AdminTooltip>
                 )}
               </div>
             </div>
@@ -278,7 +289,12 @@ export default function AdminList() {
             />
           </div>
           <div className={styles.field}>
-            <label htmlFor="exp-id">Slug</label>
+            <FieldLabel
+              htmlFor="exp-id"
+              tip="URL id for /e/{slug}. Lowercase letters, numbers, and hyphens only."
+            >
+              Slug
+            </FieldLabel>
             <input
               id="exp-id"
               value={id}
@@ -289,7 +305,12 @@ export default function AdminList() {
             />
           </div>
           <div className={styles.field}>
-            <label htmlFor="exp-kind">Kind</label>
+            <FieldLabel
+              htmlFor="exp-kind"
+              tip="mural includes finished↔raw morph chrome. experience is a marker scene without morph. Choose carefully — it shapes the package."
+            >
+              Kind
+            </FieldLabel>
             <select
               id="exp-kind"
               value={kind}
@@ -338,14 +359,19 @@ export default function AdminList() {
                 >
                   Restore
                 </button>
-                <button
-                  type="button"
-                  className={styles.btnDanger}
-                  disabled={busy}
-                  onClick={() => void onDelete(item.id)}
+                <AdminTooltip
+                  about="Delete permanently"
+                  label="Removes the package and assets from Blob. This cannot be undone."
                 >
-                  Delete permanently
-                </button>
+                  <button
+                    type="button"
+                    className={styles.btnDanger}
+                    disabled={busy}
+                    onClick={() => void onDelete(item.id)}
+                  >
+                    Delete permanently
+                  </button>
+                </AdminTooltip>
               </div>
             </div>
           ))}

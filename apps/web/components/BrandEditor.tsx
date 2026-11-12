@@ -4,6 +4,7 @@ import type { ArtistBrand } from '@jrichforms/experience';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import AdminTooltip, { FieldLabel } from '@/components/AdminTooltip';
 import BrandFields from '@/components/BrandFields';
 import styles from '@/app/admin/admin.module.css';
 
@@ -190,7 +191,12 @@ export default function BrandEditor({ userId, isAdmin, currentUserId }: Props) {
 
       {isAdmin && artists.length > 0 && (
         <div className={styles.field} style={{ maxWidth: '22rem' }}>
-          <label htmlFor="brand-artist">Editing brand for</label>
+          <FieldLabel
+            htmlFor="brand-artist"
+            tip="Whose artist brand profile you are editing. Experiences inherit this unless they override it."
+          >
+            Editing brand for
+          </FieldLabel>
           <select
             id="brand-artist"
             value={userId}
@@ -249,15 +255,23 @@ export default function BrandEditor({ userId, isAdmin, currentUserId }: Props) {
           ))
         )}
         <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.btn}
-            disabled={busy || dirty || stale.length === 0}
-            onClick={() => void republishAll()}
-            title={dirty ? 'Save the brand first' : undefined}
+          <AdminTooltip
+            about="Republish all"
+            label={
+              dirty
+                ? 'Save the brand first, then republish experiences that still have the old brand snapshot.'
+                : 'Re-publishes experiences whose live brand is behind this saved profile. Draft-only edits stay unpublished.'
+            }
           >
-            Republish all ({stale.length})
-          </button>
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={busy || dirty || stale.length === 0}
+              onClick={() => void republishAll()}
+            >
+              Republish all ({stale.length})
+            </button>
+          </AdminTooltip>
         </div>
         {progress && <p className={styles.status}>{progress}</p>}
         {failures.length > 0 && (

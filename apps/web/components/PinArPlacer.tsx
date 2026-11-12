@@ -2,6 +2,7 @@
 
 import { pinForm, type PinForm, type SpatialPin } from '@jrichforms/experience';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import AdminTooltip from '@/components/AdminTooltip';
 import { brandStyle } from '@/lib/brand-style';
 import type { AppConfig } from '@/lib/config';
 import { formatPublishedAt } from '@/lib/format';
@@ -453,9 +454,14 @@ export default function PinArPlacer({
       )}
 
       <div className={styles.toolbar}>
-        <button type="button" className={styles.toolBtn} onClick={() => void leaveTo(studioHref)}>
-          Done
-        </button>
+        <AdminTooltip
+          about="Done"
+          label="Returns to the studio. Unsaved pin edits stay on this phone until you Save."
+        >
+          <button type="button" className={styles.toolBtn} onClick={() => void leaveTo(studioHref)}>
+            Done
+          </button>
+        </AdminTooltip>
         <div className={styles.segmented} role="group" aria-label="Form shown">
           {(['finished', 'raw'] as const).map((form) => (
             <button
@@ -469,14 +475,19 @@ export default function PinArPlacer({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className={styles.toolBtnPrimary}
-          disabled={!pending || saving}
-          onClick={() => void save()}
+        <AdminTooltip
+          about="Save"
+          label="Writes pin positions to the draft on Blob. Visitors see them only after Publish."
         >
-          {saving ? 'Saving…' : pending ? `Save (${changeCount(changes)})` : 'Saved'}
-        </button>
+          <button
+            type="button"
+            className={styles.toolBtnPrimary}
+            disabled={!pending || saving}
+            onClick={() => void save()}
+          >
+            {saving ? 'Saving…' : pending ? `Save (${changeCount(changes)})` : 'Saved'}
+          </button>
+        </AdminTooltip>
       </div>
 
       {anchored && modelsReady && (
@@ -591,14 +602,19 @@ export default function PinArPlacer({
             ) : (
               savedOnce &&
               !pending && (
-                <button
-                  type="button"
-                  className={styles.toolBtn}
-                  disabled={saving}
-                  onClick={() => void publish()}
+                <AdminTooltip
+                  about="Publish"
+                  label="Pushes the saved draft (including these pins) to the live visitor package."
                 >
-                  Publish
-                </button>
+                  <button
+                    type="button"
+                    className={styles.toolBtn}
+                    disabled={saving}
+                    onClick={() => void publish()}
+                  >
+                    Publish
+                  </button>
+                </AdminTooltip>
               )
             )}
             {!notice && <p className={styles.hint}>{hint}</p>}
