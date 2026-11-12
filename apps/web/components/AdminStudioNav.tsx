@@ -51,16 +51,7 @@ export default function AdminStudioNav({
           label="Your artist profile: logo, accents, and how experiences look before overrides."
         >
           <Link
-            href="/admin/testers"
-            className={styles.topLink}
-            aria-current={onTesters ? 'page' : undefined}
-          >
-            Testers
-          </Link>
-        )}
-        {isAdmin && (
-          <Link
-            href="/admin/users"
+            href="/admin/brand"
             className={styles.topLink}
             aria-current={onBrand ? 'page' : undefined}
           >
