@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Admin — JRichForms XR',
+  title: 'Admin — TagXR',
   robots: { index: false, follow: false },
 };
 

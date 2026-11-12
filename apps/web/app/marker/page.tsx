@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
         prefix: 'Print marker',
         description: `Printable image target for ${config.piece.title}.`,
       })
-    : {};
+    : { title: 'Print marker' };
 }
 
 export default async function MarkerPrintPage() {

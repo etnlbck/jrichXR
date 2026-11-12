@@ -1,4 +1,4 @@
-# JRichForms XR — Proof of Concept
+# TagXR — Proof of Concept
 
 Web AR for a black-obsidian sculpture: scan a marker beside the piece → the finished 3D model appears anchored → tap to morph to the raw, guide-marked stone while the artist narrates. No app install. Runs in mobile Safari/Chrome.
 
@@ -40,8 +40,10 @@ npm run dev            # → @jrichforms/web
 
 Env: root [`.env.local`](.env.local) is symlinked to `apps/web/.env.local` for Next.
 
-- AR: `http://localhost:3000`
-- Desktop stand-in (model, pins, morph, sheets — no camera): `http://localhost:3000/?stage=1`
+- Homepage: `http://localhost:3000`
+- Tester signup: `http://localhost:3000/test`
+- AR experience: `http://localhost:3000/try`
+- Desktop stand-in (model, pins, morph, sheets — no camera): `http://localhost:3000/try?stage=1`
 - Shop: `http://localhost:3000/shop`
 - Printable marker: `http://localhost:3000/marker`
 
@@ -52,7 +54,7 @@ brew install cloudflared
 npm run dev:phone
 ```
 
-The command prints `https://….trycloudflare.com`. Open that on the phone, tap Begin, and point at the marker from `/marker`. The address changes every time you start the command, and the dev server is reachable on the internet until you stop it. Iterate the viewer at `http://localhost:3000/?stage=1` first. If the phone misses a hot reload, refresh the page.
+The command prints `https://….trycloudflare.com`. Open `/try` on the phone, tap Begin, and point at the marker from `/marker`. The address changes every time you start the command, and the dev server is reachable on the internet until you stop it. Iterate the viewer at `http://localhost:3000/try?stage=1` first. If the phone misses a hot reload, refresh the page.
 
 ```bash
 npm run make-target      # regenerate test marker JSON
@@ -72,7 +74,7 @@ MIME / cache headers for WASM and GLB are set in [`apps/web/next.config.ts`](app
 
 ## Aura Lenses (native / MindAR)
 
-Visitor-facing path stays this WebAR QR. For staff demo (external Aura repos):
+Visitor-facing WebAR path is `/try` (QR should open that URL). For staff demo (external Aura repos):
 
 1. Fill USDZ twins + tracking twin / `.mind` (see [`content/untitled-no-7/lenses/`](content/untitled-no-7/lenses/)).
 2. `npm run prepare-lenses` / `npm run publish-lenses` against the Lenses API.
@@ -82,7 +84,7 @@ Release sync: [`content/untitled-no-7/RELEASE.md`](content/untitled-no-7/RELEASE
 
 ## Admin CMS
 
-Clerk-gated artist studio at `/admin` — list, create, and draft/publish experience packages to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). `/` is Untitled No. 7 (published Blob, else repo `content/` seed). Other published packages are `/e/{id}` and `/e/{id}/shop`. Public AR and shop stay unauthenticated.
+Clerk-gated artist studio at `/admin` — list, create, and draft/publish experience packages to **Vercel Blob** (metadata, nodes, GLB/overlay/audio/marker uploads). `/` is the marketing homepage; Untitled No. 7 AR is `/try` (published Blob, else repo `content/` seed). Other published packages are `/e/{id}` and `/e/{id}/shop`. Tester signups from `/test` land in private Blob and at `/admin/testers`. Public AR and shop stay unauthenticated.
 
 ```bash
 # apps/web/.env.local (or Vercel project env)
@@ -99,6 +101,13 @@ ARTIST_ACCESS=signed_in
 # local only: skip Clerk and open /admin as admin (ignored unless NODE_ENV=development)
 # CLERK_BYPASS=1
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_…   # from Vercel → Storage → Blob
+# Public origin for Open Graph + confirmation email links (no trailing slash)
+NEXT_PUBLIC_SITE_URL=https://your-domain.example
+# Tester confirmation email (Resend). Omit to store signups without sending mail.
+# RESEND_API_KEY=re_…
+# RESEND_FROM=TagXR <hello@jrichforms.com>
+# optional Reply-To for tester feedback
+# TESTER_REPLY_TO=studio@jrichforms.com
 # optional: Google Tag Manager container ID (omit to disable GTM)
 # NEXT_PUBLIC_GTM_ID=GTM-XXXXXXX
 ```

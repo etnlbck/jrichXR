@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await loadConfigOrNull();
-  return config ? experienceMetadata(config) : {};
+  return config
+    ? experienceMetadata(config, { prefix: 'Try' })
+    : { title: 'Try' };
 }
 
 export async function generateViewport(): Promise<Viewport> {
@@ -15,7 +17,7 @@ export async function generateViewport(): Promise<Viewport> {
   return config ? experienceViewport(config) : {};
 }
 
-export default async function HomePage({
+export default async function TryPage({
   searchParams,
 }: {
   searchParams: Promise<{ stage?: string | string[] }>;

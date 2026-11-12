@@ -2,7 +2,7 @@
   "name": "jrichforms-xr-poc",
   "version": "0.1.0",
   "private": true,
-  "description": "JRichForms XR monorepo — WebAR gallery + shared experience package",
+  "description": "TagXR monorepo — WebAR gallery + shared experience package",
   "workspaces": [
     "apps/*",
     "packages/*"

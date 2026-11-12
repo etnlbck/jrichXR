@@ -29,6 +29,7 @@ export default async function ShopPage() {
         title: config.piece.title,
         acquireUrl: config.piece.acquireUrl,
       }}
+      arHref="/try"
     />
   );
 }

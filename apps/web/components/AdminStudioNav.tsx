@@ -16,7 +16,8 @@ export default function AdminStudioNav({
   const pathname = usePathname();
   const onUsers = pathname.startsWith('/admin/users');
   const onBrand = pathname.startsWith('/admin/brand');
-  const onExperiences = !onUsers && !onBrand;
+  const onTesters = pathname.startsWith('/admin/testers');
+  const onExperiences = !onUsers && !onBrand && !onTesters;
 
   return (
     <header className={styles.topBar}>
@@ -51,6 +52,15 @@ export default function AdminStudioNav({
         >
           Brand
         </Link>
+        {isAdmin && (
+          <Link
+            href="/admin/testers"
+            className={styles.topLink}
+            aria-current={onTesters ? 'page' : undefined}
+          >
+            Testers
+          </Link>
+        )}
         {isAdmin && (
           <Link
             href="/admin/users"

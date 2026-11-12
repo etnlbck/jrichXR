@@ -5,7 +5,7 @@ export default function AdminSignInPage() {
   return (
     <div className={styles.page}>
       <div className={styles.loginBox}>
-        <h1 className={styles.brand}>JRichForms</h1>
+        <h1 className={styles.brand}>TagXR</h1>
         <p className={styles.sub}>Artist studio — sign in to create experiences</p>
         <SignIn />
       </div>

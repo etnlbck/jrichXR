@@ -3,14 +3,19 @@ import { ClerkProvider } from '@clerk/nextjs';
 
 import { Analytics } from '@vercel/analytics/next';
 import { GoogleTagManager } from '@next/third-parties/google';
-import { config } from '@/lib/config';
-        import { brandFontVariables } from '@/lib/brand-fonts';
+import { brandFontVariables } from '@/lib/brand-fonts';
 import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle';
+import { getSiteUrl } from '@/lib/site-url';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AR experience',
-  description: 'Scan the marker to see it in augmented reality.',
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: 'TagXR',
+    template: '%s — TagXR',
+  },
+  description:
+    'Scan a marker, see the finished piece, tap to morph to the raw stone. No app install.',
   // Declared here (not app/favicon.ico) so artist pages can replace it.
   icons: {
     icon: [
@@ -29,9 +34,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
 };
 
 export default function RootLayout({
