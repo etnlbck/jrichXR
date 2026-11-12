@@ -10,7 +10,12 @@ export default function MarketingLayout({
     <div className={styles.shell}>
       <header className={styles.header}>
         <Link href="/" className={styles.wordmark}>
-          TagXR
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={styles.wordmarkLogo}
+            src="/brand/tagxr-logo-white-notm.svg"
+            alt="TagXR"
+          />
         </Link>
         <Link href="/test" className={styles.navCta}>
           Join the test

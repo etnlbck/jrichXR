@@ -98,7 +98,7 @@ export default function TesterSignupForm({
       </button>
       <p className={styles.hint}>
         We will email the marker and experience links. Camera access is only
-        requested when you open the experience — nothing is recorded.
+        requested when you open the experience, nothing is recorded.
       </p>
     </form>
   );

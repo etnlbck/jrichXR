@@ -73,7 +73,7 @@ export default function ThanksClient({ testerId, emailed, tryUrl }: Props) {
       {!emailed ? (
         <p className={styles.warn} role="status">
           Your email was saved, but the confirmation message did not send. Use
-          the steps below — or reply later once mail is working.
+          the steps below, or reply later once mail is working.
         </p>
       ) : null}
 
@@ -124,7 +124,7 @@ export default function ThanksClient({ testerId, emailed, tryUrl }: Props) {
         <div className={styles.card}>
           <p>
             <strong>What happened?</strong> After you try the piece, leave a
-            short note — camera, marker tracking, morph, or anything else.
+            short note: camera, marker tracking, morph, or anything else.
           </p>
           <form className={styles.form} onSubmit={onNoteSubmit}>
             <label className={styles.label}>
@@ -139,7 +139,7 @@ export default function ThanksClient({ testerId, emailed, tryUrl }: Props) {
               />
             </label>
             {noteError ? <p className={styles.error}>{noteError}</p> : null}
-            {noteOk ? <p className={styles.ok}>Thanks — note saved.</p> : null}
+            {noteOk ? <p className={styles.ok}>Thanks. Note saved.</p> : null}
             <button
               type="submit"
               className={styles.primary}
