@@ -19,6 +19,7 @@ import {
   pinForm,
   supportsMorph,
 } from '@jrichforms/experience';
+import AdminTooltip, { FieldLabel } from '@/components/AdminTooltip';
 import BrandFields from '@/components/BrandFields';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -60,13 +61,49 @@ const ASSET_SLOTS: Array<{
   id: string;
   label: string;
   accept: string;
+  tip: string;
 }> = [
-  { id: 'finished-glb', label: 'Finished GLB', accept: '.glb,model/gltf-binary' },
-  { id: 'raw-glb', label: 'Raw GLB', accept: '.glb,model/gltf-binary' },
-  { id: 'guide-marks', label: 'Guide marks PNG', accept: 'image/png,.png' },
-  { id: 'narration', label: 'Narration MP3', accept: 'audio/mpeg,.mp3' },
-  { id: 'marker-display', label: 'Marker / print PNG', accept: 'image/png,.png' },
+  {
+    id: 'finished-glb',
+    label: 'Finished GLB',
+    accept: '.glb,model/gltf-binary',
+    tip: 'The polished form visitors see first when the marker locks.',
+  },
+  {
+    id: 'raw-glb',
+    label: 'Raw GLB',
+    accept: '.glb,model/gltf-binary',
+    tip: 'The guide-marked stone shown after morph. Skip for experience-kind pieces.',
+  },
+  {
+    id: 'guide-marks',
+    label: 'Guide marks PNG',
+    accept: 'image/png,.png',
+    tip: 'Overlay image that fades in on the raw form during morph.',
+  },
+  {
+    id: 'narration',
+    label: 'Narration MP3',
+    accept: 'audio/mpeg,.mp3',
+    tip: 'Audio played when the visitor first enters the raw form (if enabled).',
+  },
+  {
+    id: 'marker-display',
+    label: 'Marker / print PNG',
+    accept: 'image/png,.png',
+    tip: 'Printable image target visitors aim at — also used to build tracking JSON.',
+  },
 ];
+
+const TAB_TIPS: Record<Tab, string> = {
+  overview: 'Package id, version, and how publish reaches visitors.',
+  provenance: 'Title, materials, and shop links shown in the About sheet.',
+  placement: 'Marker size, morph timing, and arrive animation knobs.',
+  assets: 'Upload GLBs, audio, overlay, and the printable marker image.',
+  nodes: 'Extra media nodes and transforms in model-local space.',
+  pins: 'Hotspots on the sculpture — notes, links, and AR placement.',
+  brand: 'Per-experience brand overrides and share targets.',
+};
 
 /** Core morph/marker nodes — editable transforms only, not removable. */
 const LOCKED_NODE_IDS = new Set(['finished', 'raw', 'overlay']);
@@ -687,59 +724,99 @@ export default function AdminEditor({
         <div>
           <h1 className={styles.brand}>{title}</h1>
           <p className={styles.sub}>
-            {experience.id} · Draft{' '}
-            {status?.hasDraft ? `v${status.draftVersion}` : `v${experience.version}`}{' '}
-            · Published{' '}
-            {status?.hasPublished ? (
-              <>
-                v{status.publishedVersion}
-                {status.publishedAt && formatPublishedAt(status.publishedAt) ? (
+            {experience.id} ·{' '}
+            <AdminTooltip
+              about="Draft"
+              label="Working copy on Blob. Visitors still see the last publish until you Publish."
+            >
+              <span>
+                Draft{' '}
+                {status?.hasDraft
+                  ? `v${status.draftVersion}`
+                  : `v${experience.version}`}
+              </span>
+            </AdminTooltip>{' '}
+            ·{' '}
+            <AdminTooltip
+              about="Published"
+              label="Live visitor package at the public AR URL. Empty until the first successful Publish."
+            >
+              <span>
+                Published{' '}
+                {status?.hasPublished ? (
                   <>
-                    {' '}
-                    ·{' '}
-                    <time dateTime={status.publishedAt}>
-                      {formatPublishedAt(status.publishedAt)}
-                    </time>
+                    v{status.publishedVersion}
+                    {status.publishedAt && formatPublishedAt(status.publishedAt) ? (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <time dateTime={status.publishedAt}>
+                          {formatPublishedAt(status.publishedAt)}
+                        </time>
+                      </>
+                    ) : null}
                   </>
-                ) : null}
+                ) : (
+                  '—'
+                )}
+              </span>
+            </AdminTooltip>
+            {status && !status.blobConfigured ? (
+              <>
+                {' '}
+                ·{' '}
+                <AdminTooltip
+                  about="Blob missing"
+                  label="BLOB_READ_WRITE_TOKEN is not set. Draft and publish need a Vercel Blob store."
+                >
+                  <span>Blob missing</span>
+                </AdminTooltip>
               </>
-            ) : (
-              '—'
-            )}
-            {status && !status.blobConfigured ? ' · Blob missing' : ''}
+            ) : null}
           </p>
         </div>
         <div className={styles.actions}>
-          <a
-            className={styles.btn}
-            href={visitorArPath(experienceId)}
-            target="_blank"
-            rel="noopener noreferrer"
+          <AdminTooltip
+            about="Preview in AR"
+            label="Opens the public AR URL. You see the last published package, not unsaved draft edits."
           >
-            Preview in AR
-          </a>
-          <a
-            className={styles.btn}
-            href={visitorMarkerPath(experienceId)}
-            target="_blank"
-            rel="noopener noreferrer"
+            <a
+              className={styles.btn}
+              href={visitorArPath(experienceId)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Preview in AR
+            </a>
+          </AdminTooltip>
+          <AdminTooltip
+            about="Print marker"
+            label="Printable image target for this piece. Place it beside the work, then aim the phone at it."
           >
-            Print marker
-          </a>
+            <a
+              className={styles.btn}
+              href={visitorMarkerPath(experienceId)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Print marker
+            </a>
+          </AdminTooltip>
         </div>
       </div>
 
       <div className={styles.tabs} role="tablist" aria-label="Experience sections">
         {TABS.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === id}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
+          <AdminTooltip key={id} about={label} label={TAB_TIPS[id]}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          </AdminTooltip>
         ))}
       </div>
 
@@ -760,14 +837,19 @@ export default function AdminEditor({
             This draft was changed on another device, for example pins placed
             on your phone. Saving now would overwrite those changes.
           </span>
-          <button
-            type="button"
-            className={styles.btn}
-            disabled={busy}
-            onClick={() => void reloadLatest()}
+          <AdminTooltip
+            about="Load latest"
+            label="Reloads the draft from Blob and discards your unsaved local edits."
           >
-            Load latest
-          </button>
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={busy}
+              onClick={() => void reloadLatest()}
+            >
+              Load latest
+            </button>
+          </AdminTooltip>
         </div>
       )}
 
@@ -1010,7 +1092,9 @@ export default function AdminEditor({
             </p>
           ) : null}
           <div className={styles.field}>
-            <label>physicalWidthM (meters)</label>
+            <FieldLabel tip="Real-world width of the printed marker edge-to-edge. Measure after printing and update if it differs.">
+              physicalWidthM (meters)
+            </FieldLabel>
             <input
               type="number"
               step="0.01"
@@ -1179,7 +1263,11 @@ export default function AdminEditor({
                 }
               />{' '}
               Use placeholder cube
-            </label>
+            </label>{' '}
+            <AdminTooltip
+              about="Use placeholder cube"
+              label="Shows a stand-in cube instead of GLBs. Blocks normal publish until turned off."
+            />
             {experience.gallery.usePlaceholderCube && (
               <p className={styles.status}>
                 Draft not publish-ready — visitors will see a cube stand-in.
@@ -1256,7 +1344,9 @@ export default function AdminEditor({
             const meta = experience.assets[slot.id];
             return (
               <div key={slot.id} className={styles.assetRow}>
-                <strong>{slot.label}</strong>
+                <AdminTooltip about={slot.label} label={slot.tip}>
+                  <strong>{slot.label}</strong>
+                </AdminTooltip>
                 <label className={styles.btn}>
                   Upload
                   <input
@@ -1272,8 +1362,22 @@ export default function AdminEditor({
                   />
                 </label>
                 <code>{meta?.webPath || meta?.contentPath || '—'}</code>
-                {meta?.interim ? <span>interim</span> : null}
-                {meta?.status === 'pending' ? <span>pending</span> : null}
+                {meta?.interim ? (
+                  <AdminTooltip
+                    about="interim"
+                    label="Stand-in file. Publish readiness treats this as incomplete until you replace it."
+                  >
+                    <span>interim</span>
+                  </AdminTooltip>
+                ) : null}
+                {meta?.status === 'pending' ? (
+                  <AdminTooltip
+                    about="pending"
+                    label="Asset is marked pending (for example a USDZ twin not ready yet)."
+                  >
+                    <span>pending</span>
+                  </AdminTooltip>
+                ) : null}
               </div>
             );
           })}
@@ -1339,7 +1443,12 @@ export default function AdminEditor({
                 ) : null}
                 {!locked && addable ? (
                   <div className={styles.field}>
-                    <label htmlFor={`node-trigger-${node.id}`}>Trigger</label>
+                    <FieldLabel
+                      htmlFor={`node-trigger-${node.id}`}
+                      tip="onDetect: when the marker locks. tap: visitor tap. loop: continuous. proximity: coarse camera distance."
+                    >
+                      Trigger
+                    </FieldLabel>
                     <select
                       id={`node-trigger-${node.id}`}
                       value={node.trigger ?? 'onDetect'}
@@ -1384,7 +1493,9 @@ export default function AdminEditor({
                 <div className={styles.row}>
                   {(['x', 'y', 'z'] as const).map((axis) => (
                     <div key={axis} className={styles.field}>
-                      <label>pos.{axis}</label>
+                      <FieldLabel tip="Offset in model-local meters relative to the GLB root (before marker placement).">
+                        pos.{axis}
+                      </FieldLabel>
                       <input
                         type="number"
                         step="0.01"
@@ -1402,7 +1513,9 @@ export default function AdminEditor({
                   ))}
                 </div>
                 <div className={styles.field}>
-                  <label>scale (number)</label>
+                  <FieldLabel tip="Uniform scale multiplier on the node’s asset.">
+                    scale (number)
+                  </FieldLabel>
                   <input
                     type="number"
                     step="0.01"
@@ -1442,22 +1555,32 @@ export default function AdminEditor({
             Save the draft from the bar below when you are done placing.
           </p>
           <div className={styles.actions}>
-            <div className={styles.segmented} role="group" aria-label="Form shown">
-              {(['finished', 'raw'] as const).map((form) => (
-                <button
-                  key={form}
-                  type="button"
-                  aria-pressed={pinView === form}
-                  disabled={form === 'raw' && !rawModelUrl}
-                  onClick={() => setPinView(form)}
-                >
-                  {form === 'finished' ? 'Finished' : 'Raw'}
-                </button>
-              ))}
-            </div>
-            <a className={styles.btn} href={`/admin/place/${experienceId}`}>
-              Place in AR
-            </a>
+            <AdminTooltip
+              about="Form shown"
+              label="Which morph form the placer preview shows. Raw needs a Raw GLB uploaded."
+            >
+              <div className={styles.segmented} role="group" aria-label="Form shown">
+                {(['finished', 'raw'] as const).map((form) => (
+                  <button
+                    key={form}
+                    type="button"
+                    aria-pressed={pinView === form}
+                    disabled={form === 'raw' && !rawModelUrl}
+                    onClick={() => setPinView(form)}
+                  >
+                    {form === 'finished' ? 'Finished' : 'Raw'}
+                  </button>
+                ))}
+              </div>
+            </AdminTooltip>
+            <AdminTooltip
+              about="Place in AR"
+              label="Opens the phone placer so you can put pins on the live tracked model."
+            >
+              <a className={styles.btn} href={`/admin/place/${experienceId}`}>
+                Place in AR
+              </a>
+            </AdminTooltip>
           </div>
           <div className={styles.field}>
             <label id="pin-color-label" htmlFor="pin-color-custom">
@@ -1490,14 +1613,19 @@ export default function AdminEditor({
                   updateGallery({ pinColor: e.target.value.toLowerCase() })
                 }
               />
-              <button
-                type="button"
-                className={styles.btn}
-                disabled={experience.gallery.pinColor === undefined}
-                onClick={() => updateGallery({ pinColor: undefined })}
+              <AdminTooltip
+                about="Default pin color"
+                label="Clears the custom color so pins use the automatic contrast color for the model."
               >
-                Default
-              </button>
+                <button
+                  type="button"
+                  className={styles.btn}
+                  disabled={experience.gallery.pinColor === undefined}
+                  onClick={() => updateGallery({ pinColor: undefined })}
+                >
+                  Default
+                </button>
+              </AdminTooltip>
             </div>
             {pinColorLowContrast && (
               <p className={styles.status}>
@@ -1568,7 +1696,12 @@ export default function AdminEditor({
                     />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="pin-form">Shows on</label>
+                    <FieldLabel
+                      htmlFor="pin-form"
+                      tip="Which morph form shows this pin: finished, raw, or both."
+                    >
+                      Shows on
+                    </FieldLabel>
                     <select
                       id="pin-form"
                       value={pinForm(selectedPin)}
@@ -1584,7 +1717,12 @@ export default function AdminEditor({
                     </select>
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="pin-style">Style</label>
+                    <FieldLabel
+                      htmlFor="pin-style"
+                      tip="Dot opens a note sheet. CTA is a labeled overlay button with a tap action."
+                    >
+                      Style
+                    </FieldLabel>
                     <select
                       id="pin-style"
                       value={selectedPin.style === 'cta' ? 'cta' : 'dot'}
@@ -1600,7 +1738,12 @@ export default function AdminEditor({
                   </div>
                   {selectedPin.style === 'cta' ? (
                     <div className={styles.field}>
-                      <label htmlFor="pin-action">When tapped</label>
+                      <FieldLabel
+                        htmlFor="pin-action"
+                        tip="What happens when the visitor taps this CTA pin."
+                      >
+                        When tapped
+                      </FieldLabel>
                       <select
                         id="pin-action"
                         value={selectedPin.action ?? 'link'}
@@ -1773,7 +1916,12 @@ export default function AdminEditor({
           </p>
           {owner?.isAdmin && !isSeedExperience && artists.length > 0 && (
             <div className={styles.field} style={{ maxWidth: '22rem' }}>
-              <label htmlFor="owner-artist">Owner</label>
+              <FieldLabel
+                htmlFor="owner-artist"
+                tip="Whose brand profile this experience inherits. Publish after changing so visitors get their brand."
+              >
+                Owner
+              </FieldLabel>
               <select
                 id="owner-artist"
                 value={owner.ownerUserId ?? ''}
@@ -1874,7 +2022,11 @@ export default function AdminEditor({
                   checked={publishOverride}
                   onChange={(e) => setPublishOverride(e.target.checked)}
                 />{' '}
-                Publish interim anyway
+                Publish interim anyway{' '}
+                <AdminTooltip
+                  about="Publish interim anyway"
+                  label="Allows publish even with blocking readiness issues (for example interim assets)."
+                />
               </label>
             ) : null}
           </div>
@@ -1890,24 +2042,34 @@ export default function AdminEditor({
         >
           {statusText}
         </span>
-        <button
-          type="button"
-          className={styles.btn}
-          disabled={busy || !dirty}
-          onClick={() => void save()}
+        <AdminTooltip
+          about="Save draft"
+          label="Writes the draft to Blob only. Visitors still see the last publish."
         >
-          Save draft
-        </button>
-        <button
-          type="button"
-          className={styles.btnPrimary}
-          disabled={
-            busy || (readiness.level === 'block' && !publishOverride)
-          }
-          onClick={() => void publish()}
+          <button
+            type="button"
+            className={styles.btn}
+            disabled={busy || !dirty}
+            onClick={() => void save()}
+          >
+            Save draft
+          </button>
+        </AdminTooltip>
+        <AdminTooltip
+          about="Publish"
+          label="Copies the draft to the live visitor package at the public AR URL."
         >
-          Publish
-        </button>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            disabled={
+              busy || (readiness.level === 'block' && !publishOverride)
+            }
+            onClick={() => void publish()}
+          >
+            Publish
+          </button>
+        </AdminTooltip>
       </div>
     </div>
   );

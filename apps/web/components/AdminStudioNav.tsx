@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import AdminTooltip from '@/components/AdminTooltip';
 import AdminUserMenu from '@/components/AdminUserMenu';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from '@/app/admin/admin.module.css';
@@ -45,14 +46,10 @@ export default function AdminStudioNav({
         >
           Experiences
         </Link>
-        <Link
-          href="/admin/brand"
-          className={styles.topLink}
-          aria-current={onBrand ? 'page' : undefined}
+        <AdminTooltip
+          about="Brand"
+          label="Your artist profile: logo, accents, and how experiences look before overrides."
         >
-          Brand
-        </Link>
-        {isAdmin && (
           <Link
             href="/admin/testers"
             className={styles.topLink}
@@ -65,10 +62,38 @@ export default function AdminStudioNav({
           <Link
             href="/admin/users"
             className={styles.topLink}
-            aria-current={onUsers ? 'page' : undefined}
+            aria-current={onBrand ? 'page' : undefined}
           >
-            Users
+            Brand
           </Link>
+        </AdminTooltip>
+        {isAdmin && (
+          <AdminTooltip
+            about="Testers"
+            label="Emails collected from the public /test signup page."
+          >
+            <Link
+              href="/admin/testers"
+              className={styles.topLink}
+              aria-current={onTesters ? 'page' : undefined}
+            >
+              Testers
+            </Link>
+          </AdminTooltip>
+        )}
+        {isAdmin && (
+          <AdminTooltip
+            about="Users"
+            label="Studio roles: who can create pieces and who administers the studio."
+          >
+            <Link
+              href="/admin/users"
+              className={styles.topLink}
+              aria-current={onUsers ? 'page' : undefined}
+            >
+              Users
+            </Link>
+          </AdminTooltip>
         )}
         <span className={styles.navEnd}>
           <ThemeToggle />

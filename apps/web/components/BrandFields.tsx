@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { BRAND_FONT_OPTIONS } from '@/lib/brand-font-options';
 import { brandStyle } from '@/lib/brand-style';
 import { brandAssetPathname } from '@/lib/experience-store-client';
+import AdminTooltip from '@/components/AdminTooltip';
 import DensifyPreview from '@/components/DensifyPreview';
 import ar from './ArExperience.module.css';
 import admin from '@/app/admin/admin.module.css';
@@ -176,14 +177,23 @@ export default function BrandFields({
           />
         </label>
         {current && (
-          <button
-            type="button"
-            className={admin.btn}
-            disabled={disabled}
-            onClick={() => set(field, undefined)}
+          <AdminTooltip
+            about={overrideMode ? 'Inherit' : 'Remove'}
+            label={
+              overrideMode
+                ? 'Clears this override so the experience uses the artist profile image again.'
+                : 'Removes the uploaded image from the brand profile.'
+            }
           >
-            {overrideMode ? 'Inherit' : 'Remove'}
-          </button>
+            <button
+              type="button"
+              className={admin.btn}
+              disabled={disabled}
+              onClick={() => set(field, undefined)}
+            >
+              {overrideMode ? 'Inherit' : 'Remove'}
+            </button>
+          </AdminTooltip>
         )}
         {shown ? (
           // eslint-disable-next-line @next/next/no-img-element -- Blob upload preview
@@ -215,14 +225,23 @@ export default function BrandFields({
             onChange={(e) => set(key, e.target.value.toLowerCase())}
           />
           <code>{effective[key]}</code>
-          <button
-            type="button"
-            className={admin.btn}
-            disabled={disabled || value[key] === undefined}
-            onClick={() => set(key, undefined)}
+          <AdminTooltip
+            about={overrideMode ? 'Inherit' : 'Default'}
+            label={
+              overrideMode
+                ? 'Clears this override so the experience uses the profile accent color.'
+                : 'Resets this accent to the platform default.'
+            }
           >
-            {overrideMode ? 'Inherit' : 'Default'}
-          </button>
+            <button
+              type="button"
+              className={admin.btn}
+              disabled={disabled || value[key] === undefined}
+              onClick={() => set(key, undefined)}
+            >
+              {overrideMode ? 'Inherit' : 'Default'}
+            </button>
+          </AdminTooltip>
         </div>
       </div>
     );

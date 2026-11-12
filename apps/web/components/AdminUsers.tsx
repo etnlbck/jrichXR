@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminTooltip from '@/components/AdminTooltip';
 import styles from '@/app/admin/admin.module.css';
 
 type Role = 'admin' | 'artist' | null;
@@ -131,21 +132,26 @@ export default function AdminUsers() {
                 </div>
               </div>
               <div className={styles.listRowActions}>
-                <select
-                  className={styles.roleSelect}
-                  aria-label={`Role for ${user.email ?? user.id}`}
-                  value={value}
-                  disabled={savingId !== null || isSelf}
-                  onChange={(e) =>
-                    setDrafts((prev) => ({ ...prev, [user.id]: e.target.value }))
-                  }
+                <AdminTooltip
+                  about="Role"
+                  label="Admin: all pieces and studio settings. Artist: own pieces when allowlisted. No role: pending until approved."
                 >
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    className={styles.roleSelect}
+                    aria-label={`Role for ${user.email ?? user.id}`}
+                    value={value}
+                    disabled={savingId !== null || isSelf}
+                    onChange={(e) =>
+                      setDrafts((prev) => ({ ...prev, [user.id]: e.target.value }))
+                    }
+                  >
+                    {ROLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </AdminTooltip>
                 <button
                   type="button"
                   className={styles.btnPrimary}

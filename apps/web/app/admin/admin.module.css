@@ -524,3 +524,76 @@
   text-transform: uppercase;
   color: rgb(var(--a-fg-rgb) / 0.55);
 }
+
+.tipRoot {
+  --tip-fg: var(--a-fg, #eff1f9);
+  --tip-fg-rgb: var(--a-fg-rgb, 239 241 249);
+  --tip-accent-rgb: var(--a-accent-rgb, 36 216 218);
+  --tip-pop: var(--a-pop-solid, #101014);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  vertical-align: middle;
+}
+
+.tipLabelRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tipTrigger {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--tip-fg-rgb) / 0.28);
+  background: rgb(var(--tip-fg-rgb) / 0.06);
+  color: rgb(var(--tip-fg-rgb) / 0.7);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.tipTrigger:hover,
+.tipTrigger:focus-visible {
+  color: var(--tip-fg);
+  border-color: rgb(var(--tip-accent-rgb) / 0.7);
+  outline: none;
+}
+
+.tipBubble {
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(100% + 0.4rem);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(16rem, 70vw);
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgb(var(--tip-fg-rgb) / 0.18);
+  background: var(--tip-pop);
+  color: var(--tip-fg);
+  font-family: var(--font-inter), 'Avenir Next', 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+  pointer-events: none;
+}
+
+.tipBubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--tip-pop);
+}
