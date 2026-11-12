@@ -166,7 +166,7 @@ export default function ShopClient({
   piece,
   brand,
   experienceId,
-  arHref = '/',
+  arHref = '/try',
 }: {
   piece: ShopPiece;
   brand: ResolvedBrand;

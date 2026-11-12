@@ -22,7 +22,8 @@ export default function MarkerSheet({ config }: { config: AppConfig }) {
       <h1>{config.piece.title} — image target</h1>
       <p>
         Print on <strong>matte</strong> paper. Avoid glossy laminate. Place
-        beside the piece, then open the AR experience and aim here.
+        beside the piece, then open{' '}
+        <a href="/try">/try</a> on your phone and aim here.
       </p>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

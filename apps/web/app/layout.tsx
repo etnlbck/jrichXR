@@ -1,13 +1,21 @@
 import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { Analytics } from '@vercel/analytics/react';
+
+import { Analytics } from '@vercel/analytics/next';
+import { GoogleTagManager } from '@next/third-parties/google';
 import { brandFontVariables } from '@/lib/brand-fonts';
 import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle';
+import { getSiteUrl } from '@/lib/site-url';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AR experience',
-  description: 'Scan the marker to see it in augmented reality.',
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: 'TagXR',
+    template: '%s — TagXR',
+  },
+  description:
+    'Scan a marker, see the finished piece, tap to morph to the raw stone. No app install.',
   // Declared here (not app/favicon.ico) so artist pages can replace it.
   icons: {
     icon: [
@@ -26,9 +34,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -36,6 +41,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
+
   return (
     <html lang="en" className={brandFontVariables} data-theme="dark" suppressHydrationWarning>
       <head>
@@ -45,6 +52,7 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
         />
       </head>
+      {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
       <body>
         <ClerkProvider
           afterSignOutUrl="/admin/sign-in"

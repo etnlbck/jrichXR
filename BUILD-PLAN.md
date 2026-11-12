@@ -1,4 +1,4 @@
-# JRichForms XR — Proof of Concept Build Plan
+# TagXR — Proof of Concept Build Plan
 
 **Concept:** Scan a QR/marker beside an obsidian sculpture → phone camera opens a browser AR view → the finished piece appears anchored to the physical work → tap to morph to the raw, guide-marked stone → the artist narrates the transformation.
 
@@ -16,7 +16,7 @@ Shared experience package: [`content/untitled-no-7/`](content/untitled-no-7/) (`
 
 | Consumer | Role |
 |---|---|
-| **jrichforms WebAR** (`apps/web`, 8th Wall) | Primary visitor QR — no app install |
+| **TagXR WebAR** (`apps/web`, 8th Wall) | Primary visitor QR — no app install |
 | **Aura Lenses native** (external) | Staff/demo (TestFlight); hard-cut morph + Flutter provenance/Shop sheet |
 | **Aura MindAR `/w/:token`** | Secondary WebAR share |
 

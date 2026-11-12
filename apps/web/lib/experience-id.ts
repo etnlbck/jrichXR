@@ -15,6 +15,9 @@ const RESERVED = new Set([
   'pending',
   'sign-in',
   'sign-up',
+  'try',
+  'test',
+  'thanks',
 ]);
 
 export function isValidExperienceId(id: string): boolean {
@@ -28,7 +31,7 @@ export function parseExperienceId(raw: string | null | undefined): string | null
 }
 
 export function visitorArPath(id: string): string {
-  return id === DEFAULT_EXPERIENCE_ID ? '/' : `/e/${id}`;
+  return id === DEFAULT_EXPERIENCE_ID ? '/try' : `/e/${id}`;
 }
 
 export function visitorMarkerPath(id: string): string {
