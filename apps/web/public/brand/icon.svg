@@ -5,6 +5,9 @@
     <style>
       .st0 {
         fill: #fff;
+        stroke: #fff;
+        stroke-width: 0.32;
+        stroke-linejoin: round;
       }
 
       .st1 {
@@ -12,8 +15,8 @@
       }
     </style>
     <linearGradient id="linear-gradient" x1="2.65" y1="4.22" x2="11.77" y2="13.34" gradientTransform="translate(0 16) scale(1 -1)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#022a52"/>
-      <stop offset="1" stop-color="#1596a8"/>
+      <stop offset="0" stop-color="#021d3a"/>
+      <stop offset="1" stop-color="#0b4f8a"/>
     </linearGradient>
   </defs>
   <path class="st1" d="M13.66,7.22c0,3.56-2.89,6.45-6.45,6.45S.77,10.78.77,7.22,3.65.77,7.21.77s6.45,2.89,6.45,6.45Z"/>

@@ -509,6 +509,11 @@
   width: auto;
   display: block;
 }
+.studioLogo {
+  height: 2.9rem;
+  width: auto;
+  display: block;
+}
 .logoDark {
   display: none;
 }
@@ -613,6 +618,9 @@
   }
   .logo {
     height: 2.3rem;
+  }
+  .studioLogo {
+    height: 2.5rem;
   }
   .navEnd {
     gap: 0.45rem;

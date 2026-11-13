@@ -26,18 +26,17 @@ export default function AdminStudioNav({
         <Link href="/admin" className={styles.wordmark}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className={`${styles.logo} ${styles.logoLight}`}
-            src="/brand/tagxr-logo-color-notm.svg"
-            alt="TagXR"
+            className={`${styles.studioLogo} ${styles.logoLight}`}
+            src="/brand/tagxr-studio-color.svg"
+            alt="TagXR Studio"
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className={`${styles.logo} ${styles.logoDark}`}
-            src="/brand/tagxr-logo-white-notm.svg"
+            className={`${styles.studioLogo} ${styles.logoDark}`}
+            src="/brand/tagxr-studio-white.svg"
             alt=""
             aria-hidden="true"
           />
-          <span className={styles.studioTag}>Studio</span>
         </Link>
         <Link
           href="/admin"
