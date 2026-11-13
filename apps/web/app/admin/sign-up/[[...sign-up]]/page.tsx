@@ -4,6 +4,7 @@ import styles from '../../admin.module.css';
 export default function AdminSignUpPage() {
   return (
     <div className={styles.page}>
+      <div className={styles.loginRule} aria-hidden="true" />
       <div className={styles.loginBox}>
         <h1 className={styles.loginLogoWrap}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -278,8 +278,12 @@
   font-size: 0.9rem;
 }.loginBox {
   max-width: 26rem;
-  margin: 12vh auto 0;
-  padding: 0 1.25rem;
+  margin: 0 auto;
+  padding: 6vh 1.25rem 0;
+}
+.loginRule {
+  height: 3.5rem;
+  border-bottom: 1px solid rgb(var(--a-fg-rgb) / 0.08);
 }.navEnd {
   margin-left: auto;
   display: inline-flex;
@@ -510,7 +514,7 @@
   display: block;
 }
 .studioLogo {
-  height: 2.9rem;
+  height: 4rem;
   width: auto;
   display: block;
 }
@@ -620,7 +624,7 @@
     height: 2.3rem;
   }
   .studioLogo {
-    height: 2.5rem;
+    height: 3.2rem;
   }
   .navEnd {
     gap: 0.45rem;

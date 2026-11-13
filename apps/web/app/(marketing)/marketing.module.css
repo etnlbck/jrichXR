@@ -157,13 +157,13 @@
 }
 
 .quiet {
-  color: rgba(255, 255, 255, 0.7);
+  color: #d3de3f;
   font-size: 0.92rem;
   text-decoration: none;
 }
 
 .quiet:hover {
-  color: var(--paper);
+  color: #d3de3f;
   text-decoration: underline;
 }
 
