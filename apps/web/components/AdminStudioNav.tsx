@@ -45,13 +45,18 @@ export default function AdminStudioNav({
         >
           Experiences
         </Link>
-        <Link
-          href="/admin/brand"
-          className={styles.topLink}
-          aria-current={onBrand ? 'page' : undefined}
+        <AdminTooltip
+          about="Brand"
+          label="Your artist profile: logo, accents, and how experiences look before overrides."
         >
-          Brand
-        </Link>
+          <Link
+            href="/admin/brand"
+            className={styles.topLink}
+            aria-current={onBrand ? 'page' : undefined}
+          >
+            Brand
+          </Link>
+        </AdminTooltip>
         {isAdmin && (
           <AdminTooltip
             about="Testers"
