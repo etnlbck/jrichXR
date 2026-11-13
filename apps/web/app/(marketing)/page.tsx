@@ -7,7 +7,7 @@ import styles from './marketing.module.css';
 export const metadata: Metadata = {
   title: { absolute: 'TagXR' },
   description:
-    'Web AR for Untitled No. 7 — scan a marker, see the finished obsidian piece, tap to morph to the raw stone. No app install.',
+    'Web AR for Untitled No. 7, scan a marker, see the finished obsidian piece, tap to morph to the raw stone. No app install.',
 };
 
 function utmQuery(
@@ -44,7 +44,7 @@ export default async function HomePage({
       <p className={styles.lead}>
         Scan a marker beside the sculpture. The finished black-obsidian piece
         appears on your phone. Tap to morph to the raw, guide-marked stone while
-        the artist narrates. No app install — Safari or Chrome is enough.
+        the artist narrates. No app install. Safari or Chrome is enough.
       </p>
       <ol className={styles.steps}>
         <li>
